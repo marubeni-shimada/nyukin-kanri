@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>入金消込ツール</title>
+<style>
+  :root{
+    --paper:#f5f6f8; --panel:#fff; --ink:#1a2230; --ink2:#43506a; --muted:#7b869a; --muted2:#aab2c2;
+    --line:#e6e9ef; --line2:#f0f2f6; --ac:#2563eb; --ac2:#1d4fd0; --ac-soft:#e8f0fe;
+    --ok:#1c7a3e; --ok-bg:#e7f5ec; --warn:#8a6d10; --warn-bg:#fdf3d7; --red:#c0392b; --red-bg:#fbe9e7;
+    --shadow:0 1px 2px rgba(20,30,50,.05),0 10px 28px rgba(20,30,50,.07);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --paper:#0f141b; --panel:#161d27; --ink:#e7ecf3; --ink2:#c2ccdb; --muted:#93a0b4; --muted2:#5e6a7d;
+      --line:#242c39; --line2:#1c2330; --ac:#5b8bff; --ac2:#7ea3ff; --ac-soft:#16233c;
+      --ok:#5fd39a; --ok-bg:#10271b; --warn:#e6cf5a; --warn-bg:#332b0f; --red:#e88b7d; --red-bg:#331713; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Yu Gothic UI","Meiryo","Segoe UI",system-ui,sans-serif;line-height:1.6;font-size:14px;}
+  header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;}
+  .head{max-width:1180px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .logo{width:38px;height:38px;border-radius:10px;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px;}
+  .title h1{margin:0;font-size:17px;} .title p{margin:0;font-size:12px;color:var(--muted);}
+  .head .sp{margin-left:auto;}
+  .gas{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);}
+  .gas input{width:230px;max-width:40vw;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;background:var(--paper);color:var(--ink);font-family:inherit;}
+  .pill{font-size:11px;font-weight:800;border-radius:999px;padding:3px 9px;}
+  .pill.on{background:var(--ok-bg);color:var(--ok);} .pill.off{background:var(--line2);color:var(--muted);}
+
+  main{max-width:1180px;margin:0 auto;padding:20px 22px 60px;}
+  .toptabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);}
+  .toptabs button{border:0;background:none;padding:10px 20px;font-size:14.5px;font-weight:800;color:var(--muted);cursor:pointer;font-family:inherit;border-bottom:3px solid transparent;margin-bottom:-1px;}
+  .toptabs button.on{color:var(--ac);border-bottom-color:var(--ac);}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;margin-bottom:16px;}
+  .step h2{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:9px;}
+  .step h2 .n{width:22px;height:22px;border-radius:7px;background:var(--ac-soft);color:var(--ac2);display:grid;place-items:center;font-size:12px;font-weight:800;}
+  .step .desc{font-size:12.5px;color:var(--muted);margin:0 0 12px 31px;}
+  .drop{border:1.5px dashed var(--line);border-radius:11px;padding:16px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:.12s;background:var(--paper);}
+  .drop:hover,.drop.over{border-color:var(--ac);background:var(--ac-soft);color:var(--ac2);}
+  .drop b{color:var(--ac2);}
+  .files{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
+  .fchip{font-size:12px;background:var(--line2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;display:flex;align-items:center;gap:6px;}
+  .fchip .t{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:var(--ac-soft);color:var(--ac2);}
+  .fchip .t.y{background:#eaf6ec;color:#1c7a3e;} .fchip .t.b{background:#fdf3d7;color:#8a6d10;}
+  .fchip .x{cursor:pointer;color:var(--muted2);font-weight:800;}
+  .sum{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px;}
+  .sum .k{color:var(--muted);} .sum b{font-variant-numeric:tabular-nums;}
+
+  .btn{border:0;background:var(--ac);color:#fff;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .btn:hover{filter:brightness(1.06);} .btn:disabled{opacity:.5;cursor:default;}
+  .btn.sub{background:var(--panel);color:var(--ac);border:1px solid var(--line);}
+  .btn.g{background:#1c7a3e;} .btn.mini{padding:5px 10px;font-size:12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line2);vertical-align:middle;}
+  th{color:var(--muted);font-weight:700;font-size:11.5px;position:sticky;top:0;background:var(--panel);}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .twrap{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;}
+  .tag{font-size:10.5px;font-weight:800;border-radius:5px;padding:1px 7px;}
+  .tag.d{background:var(--warn-bg);color:var(--warn);} .tag.y{background:var(--ok-bg);color:var(--ok);}
+  .tag.matched{background:var(--ok-bg);color:var(--ok);} .tag.review{background:var(--warn-bg);color:var(--warn);}
+  .tag.cross{background:#efe7fb;color:#5b3fa0;}
+  @media (prefers-color-scheme: dark){ .tag.cross{background:#2a2340;color:#b9a6ff;} }
+  .cand{display:inline-block;font-size:12px;font-weight:700;cursor:pointer;padding:2px 0;text-decoration:none;}
+  .cand.exact{color:var(--ok);} .cand.near{color:var(--warn);} .cand:hover{text-decoration:underline;}
+  .pick{display:flex;gap:5px;margin-top:4px;} .pick .selp{min-width:150px;}
+  tr.dim{opacity:.5;}
+  .btn.plink{background:var(--ok);} .btn.plink:hover{filter:brightness(1.07);}
+  .selp{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px;font-family:inherit;background:var(--paper);color:var(--ink);min-width:180px;}
+  .empty{padding:22px;text-align:center;color:var(--muted);font-size:13px;}
+  .tabs{display:flex;gap:4px;margin-bottom:8px;}
+  .tabs button{border:0;background:none;padding:7px 13px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;border-bottom:2.5px solid transparent;}
+  .tabs button.on{color:var(--ac);border-bottom-color:var(--ac);}
+  details.master{margin-top:4px;} details.master summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--ac2);}
+  .note{font-size:11.5px;color:var(--muted);margin-top:8px;}
+  .muted{color:var(--muted);}
+</style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div class="logo">¥</div>
+    <div class="title"><h1>入金消込ツール</h1><p>銀行入金を予定表に自動で紐づけ（土木＝どっと原価／営業・環境＝弥生）</p></div>
+    <div class="sp"></div>
+    <div class="gas">
+      <input id="gasUrl" type="hidden">
+      <span class="muted" style="font-size:12px">名義マスタ共有</span>
+      <span id="gasState" class="pill off">未接続</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="toptabs" id="toptabs">
+    <button data-tt="reconcile" class="on">消込（入金確認）</button>
+    <button data-tt="master">名義マスタ（紐づけ）</button>
+  </div>
+
+  <div id="tabReconcile">
+  <!-- STEP1 銀行明細 -->
+  <div class="step">
+    <h2><span class="n">1</span>銀行の入金明細CSVを読み込む</h2>
+    <p class="desc">静銀・島掛など複数OK。Shift_JISのまま読めます。フォーマットは自動判別。入金（振込・手形・電子債権）を種別付きで抽出します（出金・手数料は除外）。</p>
+    <div class="drop" id="dropBank">ここにCSVをドラッグ、またはクリックして選択（複数可）</div>
+    <input type="file" id="fileBank" accept=".csv" multiple hidden>
+    <div class="files" id="bankFiles"></div>
+    <div class="sum" id="bankSum"></div>
+  </div>
+
+  <!-- STEP2 予定表 -->
+  <div class="step">
+    <h2><span class="n">2</span>予定表を読み込む</h2>
+    <p class="desc">土木＝どっと原価「請求一覧表(工事別)」／営業・環境＝弥生「請求先別回収状況一覧表」。種類は自動判別します。</p>
+    <div class="drop" id="dropPlan">ここにExcel(.xlsx)をドラッグ、またはクリックして選択（複数可）</div>
+    <input type="file" id="filePlan" accept=".xlsx" multiple hidden>
+    <div class="files" id="planFiles"></div>
+    <div class="sum" id="planSum"></div>
+  </div>
+
+  <!-- STEP3 照合結果 -->
+  <div class="step">
+    <h2><span class="n">3</span>照合結果（一覧）</h2>
+    <p class="desc">名義×金額で自動照合。名義を紐づけるほど自動が増えます。個別に直したい行はその場で検索して確定もできます。</p>
+    <div class="row" style="margin-bottom:10px"><button class="btn" id="runMatch" disabled>照合する</button><span class="muted" id="matchInfo"></span></div>
+    <div class="tabs" id="resTabs">
+      <button data-t="all" class="on">すべて</button>
+      <button data-t="review">要確認 <span id="cReview"></span></button>
+      <button data-t="matched">マッチ済み <span id="cMatched"></span></button>
+      <button data-t="ignored">対象外 <span id="cIgnored"></span></button>
+    </div>
+    <div id="resBody"></div>
+    <datalist id="planList"></datalist>
+  </div>
+
+  <!-- STEP4 出力 -->
+  <div class="step">
+    <h2><span class="n">4</span>出力</h2>
+    <p class="desc">記入済み予定表（土木＝元レイアウトのまま入金日・振込額を記入）／消込リスト／会計取込用CSV（暫定フォーマット）。</p>
+    <div class="row">
+      <button class="btn g" id="outDoboku" disabled>記入済み予定表（土木）をダウンロード</button>
+      <button class="btn sub" id="outList" disabled>消込リストCSV</button>
+      <button class="btn sub" id="outImport" disabled>会計取込用CSV（暫定）</button>
+    </div>
+    <div class="note">※ 取込CSVは暫定フォーマット（請求先・工事番号・入金日・入金額・銀行名・摘要）。どっと原価の正式レイアウトが分かれば合わせます。</div>
+  </div>
+  </div><!-- /tabReconcile -->
+
+  <div id="tabMaster" style="display:none">
+  <!-- 名義の紐づけ -->
+  <div class="step">
+    <h2>名義の紐づけ（銀行の振込名義 → 請求先）</h2>
+    <p class="desc">銀行の振込名義を請求先に1回結びつけると、次回から自動で消し込めます。金額から請求先を自動提案します（一括採用も可）。同じ名義に支店違いなど複数の請求先を付けてもOK。※「消込」タブで銀行CSV・予定表を読み込むと一覧が出ます。</p>
+    <div class="row" style="margin-bottom:10px"><label style="font-size:12.5px;display:flex;align-items:center;gap:5px"><input type="checkbox" id="onlyUnlinked" checked>未紐づけだけ表示</label><button class="btn" id="bulkLink" disabled>提案を一括採用</button><span class="muted" id="linkInfo"></span></div>
+    <div id="linkBody"><div class="empty">「消込」タブで銀行CSVと予定表を読み込むと、ここに名義一覧が出ます</div></div>
+    <datalist id="payeeList"></datalist>
+  </div>
+
+  <!-- 名義マスタ（生データ） -->
+  <div class="step">
+    <details class="master" open>
+      <summary>振込名義マスタ（名義→請求先）を見る／編集する</summary>
+      <div class="note" style="margin-top:10px">要確認で「請求先」を選ぶたびに、ここへ自動で追加されます。GAS URLを入れておくと翌月・別PCでも残ります。</div>
+      <div class="row" style="margin:10px 0"><button class="btn sub mini" id="masterReload">GASから再読込</button><button class="btn sub mini" id="masterSave">GASへ保存</button><span class="muted" id="masterInfo"></span></div>
+      <div class="twrap"><table id="masterTbl"><thead><tr><th>銀行の振込名義</th><th>請求先</th><th></th></tr></thead><tbody></tbody></table></div>
+    </details>
+  </div>
+  </div><!-- /tabMaster -->
+</main>
+
+<script>/* fflate 0.8.2 (MIT) 埋め込み */
+!function(f){typeof module!='undefined'&&typeof exports=='object'?module.exports=f():typeof define!='undefined'&&define.amd?define(f):(typeof self!='undefined'?self:this).fflate=f()}(function(){var _e={};"use strict";var t=(typeof module!='undefined'&&typeof exports=='object'?function(_f){"use strict";var e,t=";var __w=require('worker_threads');__w.parentPort.on('message',function(m){onmessage({data:m})}),postMessage=function(m,t){__w.parentPort.postMessage(m,t)},close=process.exit;self=global";try{e=require("worker_threads").Worker}catch(e){}exports.default=e?function(r,n,o,a,s){var u=!1,i=new e(r+t,{eval:!0}).on("error",(function(e){return s(e,null)})).on("message",(function(e){return s(null,e)})).on("exit",(function(e){e&&!u&&s(Error("exited with code "+e),null)}));return i.postMessage(o,a),i.terminate=function(){return u=!0,e.prototype.terminate.call(i)},i}:function(e,t,r,n,o){setImmediate((function(){return o(Error("async operations unsupported - update to Node 12+ (or Node 10-11 with the --experimental-worker CLI flag)"),null)}));var a=function(){};return{terminate:a,postMessage:a}};return _f}:function(_f){"use strict";var e={};_f.default=function(r,t,s,a,n){var o=new Worker(e[t]||(e[t]=URL.createObjectURL(new Blob([r+';addEventListener("error",function(e){e=e.error;postMessage({$e$:[e.message,e.code,e.stack]})})'],{type:"text/javascript"}))));return o.onmessage=function(e){var r=e.data,t=r.$e$;if(t){var s=Error(t[0]);s.code=t[1],s.stack=t[2],n(s,null)}else n(null,r)},o.postMessage(s,a),o};return _f})({}),n=Uint8Array,r=Uint16Array,e=Int32Array,i=new n([0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0,0]),o=new n([0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,0,0]),s=new n([16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15]),a=function(t,n){for(var i=new r(31),o=0;o<31;++o)i[o]=n+=1<<t[o-1];var s=new e(i[30]);for(o=1;o<30;++o)for(var a=i[o];a<i[o+1];++a)s[a]=a-i[o]<<5|o;return{b:i,r:s}},u=a(i,2),h=u.b,f=u.r;h[28]=258,f[258]=28;for(var l=a(o,0),c=l.b,p=l.r,v=new r(32768),d=0;d<32768;++d){var g=(43690&d)>>1|(21845&d)<<1;v[d]=((65280&(g=(61680&(g=(52428&g)>>2|(13107&g)<<2))>>4|(3855&g)<<4))>>8|(255&g)<<8)>>1}var y=function(t,n,e){for(var i=t.length,o=0,s=new r(n);o<i;++o)t[o]&&++s[t[o]-1];var a,u=new r(n);for(o=1;o<n;++o)u[o]=u[o-1]+s[o-1]<<1;if(e){a=new r(1<<n);var h=15-n;for(o=0;o<i;++o)if(t[o])for(var f=o<<4|t[o],l=n-t[o],c=u[t[o]-1]++<<l,p=c|(1<<l)-1;c<=p;++c)a[v[c]>>h]=f}else for(a=new r(i),o=0;o<i;++o)t[o]&&(a[o]=v[u[t[o]-1]++]>>15-t[o]);return a},m=new n(288);for(d=0;d<144;++d)m[d]=8;for(d=144;d<256;++d)m[d]=9;for(d=256;d<280;++d)m[d]=7;for(d=280;d<288;++d)m[d]=8;var b=new n(32);for(d=0;d<32;++d)b[d]=5;var w=y(m,9,0),x=y(m,9,1),z=y(b,5,0),k=y(b,5,1),M=function(t){for(var n=t[0],r=1;r<t.length;++r)t[r]>n&&(n=t[r]);return n},S=function(t,n,r){var e=n/8|0;return(t[e]|t[e+1]<<8)>>(7&n)&r},A=function(t,n){var r=n/8|0;return(t[r]|t[r+1]<<8|t[r+2]<<16)>>(7&n)},T=function(t){return(t+7)/8|0},D=function(t,r,e){return(null==r||r<0)&&(r=0),(null==e||e>t.length)&&(e=t.length),new n(t.subarray(r,e))};_e.FlateErrorCode={UnexpectedEOF:0,InvalidBlockType:1,InvalidLengthLiteral:2,InvalidDistance:3,StreamFinished:4,NoStreamHandler:5,InvalidHeader:6,NoCallback:7,InvalidUTF8:8,ExtraFieldTooLong:9,InvalidDate:10,FilenameTooLong:11,StreamFinishing:12,InvalidZipData:13,UnknownCompressionMethod:14};var C=["unexpected EOF","invalid block type","invalid length/literal","invalid distance","stream finished","no stream handler",,"no callback","invalid UTF-8 data","extra field too long","date not in range 1980-2099","filename too long","stream finishing","invalid zip data"],I=function(t,n,r){var e=Error(n||C[t]);if(e.code=t,Error.captureStackTrace&&Error.captureStackTrace(e,I),!r)throw e;return e},U=function(t,r,e,a){var u=t.length,f=a?a.length:0;if(!u||r.f&&!r.l)return e||new n(0);var l=!e,p=l||2!=r.i,v=r.i;l&&(e=new n(3*u));var d=function(t){var r=e.length;if(t>r){var i=new n(Math.max(2*r,t));i.set(e),e=i}},g=r.f||0,m=r.p||0,b=r.b||0,w=r.l,z=r.d,C=r.m,U=r.n,F=8*u;do{if(!w){g=S(t,m,1);var E=S(t,m+1,3);if(m+=3,!E){var Z=t[(J=T(m)+4)-4]|t[J-3]<<8,q=J+Z;if(q>u){v&&I(0);break}p&&d(b+Z),e.set(t.subarray(J,q),b),r.b=b+=Z,r.p=m=8*q,r.f=g;continue}if(1==E)w=x,z=k,C=9,U=5;else if(2==E){var O=S(t,m,31)+257,G=S(t,m+10,15)+4,L=O+S(t,m+5,31)+1;m+=14;for(var H=new n(L),j=new n(19),N=0;N<G;++N)j[s[N]]=S(t,m+3*N,7);m+=3*G;var P=M(j),B=(1<<P)-1,Y=y(j,P,1);for(N=0;N<L;){var J,K=Y[S(t,m,B)];if(m+=15&K,(J=K>>4)<16)H[N++]=J;else{var Q=0,R=0;for(16==J?(R=3+S(t,m,3),m+=2,Q=H[N-1]):17==J?(R=3+S(t,m,7),m+=3):18==J&&(R=11+S(t,m,127),m+=7);R--;)H[N++]=Q}}var V=H.subarray(0,O),W=H.subarray(O);C=M(V),U=M(W),w=y(V,C,1),z=y(W,U,1)}else I(1);if(m>F){v&&I(0);break}}p&&d(b+131072);for(var X=(1<<C)-1,$=(1<<U)-1,_=m;;_=m){var tt=(Q=w[A(t,m)&X])>>4;if((m+=15&Q)>F){v&&I(0);break}if(Q||I(2),tt<256)e[b++]=tt;else{if(256==tt){_=m,w=null;break}var nt=tt-254;tt>264&&(nt=S(t,m,(1<<(it=i[N=tt-257]))-1)+h[N],m+=it);var rt=z[A(t,m)&$],et=rt>>4;if(rt||I(3),m+=15&rt,W=c[et],et>3){var it=o[et];W+=A(t,m)&(1<<it)-1,m+=it}if(m>F){v&&I(0);break}p&&d(b+131072);var ot=b+nt;if(b<W){var st=f-W,at=Math.min(W,ot);for(st+b<0&&I(3);b<at;++b)e[b]=a[st+b]}for(;b<ot;++b)e[b]=e[b-W]}}r.l=w,r.p=_,r.b=b,r.f=g,w&&(g=1,r.m=C,r.d=z,r.n=U)}while(!g);return b!=e.length&&l?D(e,0,b):e.subarray(0,b)},F=function(t,n,r){var e=n/8|0;t[e]|=r<<=7&n,t[e+1]|=r>>8},E=function(t,n,r){var e=n/8|0;t[e]|=r<<=7&n,t[e+1]|=r>>8,t[e+2]|=r>>16},Z=function(t,e){for(var i=[],o=0;o<t.length;++o)t[o]&&i.push({s:o,f:t[o]});var s=i.length,a=i.slice();if(!s)return{t:N,l:0};if(1==s){var u=new n(i[0].s+1);return u[i[0].s]=1,{t:u,l:1}}i.sort((function(t,n){return t.f-n.f})),i.push({s:-1,f:25001});var h=i[0],f=i[1],l=0,c=1,p=2;for(i[0]={s:-1,f:h.f+f.f,l:h,r:f};c!=s-1;)h=i[i[l].f<i[p].f?l++:p++],f=i[l!=c&&i[l].f<i[p].f?l++:p++],i[c++]={s:-1,f:h.f+f.f,l:h,r:f};var v=a[0].s;for(o=1;o<s;++o)a[o].s>v&&(v=a[o].s);var d=new r(v+1),g=q(i[c-1],d,0);if(g>e){o=0;var y=0,m=g-e,b=1<<m;for(a.sort((function(t,n){return d[n.s]-d[t.s]||t.f-n.f}));o<s;++o){var w=a[o].s;if(!(d[w]>e))break;y+=b-(1<<g-d[w]),d[w]=e}for(y>>=m;y>0;){var x=a[o].s;d[x]<e?y-=1<<e-d[x]++-1:++o}for(;o>=0&&y;--o){var z=a[o].s;d[z]==e&&(--d[z],++y)}g=e}return{t:new n(d),l:g}},q=function(t,n,r){return-1==t.s?Math.max(q(t.l,n,r+1),q(t.r,n,r+1)):n[t.s]=r},O=function(t){for(var n=t.length;n&&!t[--n];);for(var e=new r(++n),i=0,o=t[0],s=1,a=function(t){e[i++]=t},u=1;u<=n;++u)if(t[u]==o&&u!=n)++s;else{if(!o&&s>2){for(;s>138;s-=138)a(32754);s>2&&(a(s>10?s-11<<5|28690:s-3<<5|12305),s=0)}else if(s>3){for(a(o),--s;s>6;s-=6)a(8304);s>2&&(a(s-3<<5|8208),s=0)}for(;s--;)a(o);s=1,o=t[u]}return{c:e.subarray(0,i),n:n}},G=function(t,n){for(var r=0,e=0;e<n.length;++e)r+=t[e]*n[e];return r},L=function(t,n,r){var e=r.length,i=T(n+2);t[i]=255&e,t[i+1]=e>>8,t[i+2]=255^t[i],t[i+3]=255^t[i+1];for(var o=0;o<e;++o)t[i+o+4]=r[o];return 8*(i+4+e)},H=function(t,n,e,a,u,h,f,l,c,p,v){F(n,v++,e),++u[256];for(var d=Z(u,15),g=d.t,x=d.l,k=Z(h,15),M=k.t,S=k.l,A=O(g),T=A.c,D=A.n,C=O(M),I=C.c,U=C.n,q=new r(19),H=0;H<T.length;++H)++q[31&T[H]];for(H=0;H<I.length;++H)++q[31&I[H]];for(var j=Z(q,7),N=j.t,P=j.l,B=19;B>4&&!N[s[B-1]];--B);var Y,J,K,Q,R=p+5<<3,V=G(u,m)+G(h,b)+f,W=G(u,g)+G(h,M)+f+14+3*B+G(q,N)+2*q[16]+3*q[17]+7*q[18];if(c>=0&&R<=V&&R<=W)return L(n,v,t.subarray(c,c+p));if(F(n,v,1+(W<V)),v+=2,W<V){Y=y(g,x,0),J=g,K=y(M,S,0),Q=M;var X=y(N,P,0);for(F(n,v,D-257),F(n,v+5,U-1),F(n,v+10,B-4),v+=14,H=0;H<B;++H)F(n,v+3*H,N[s[H]]);v+=3*B;for(var $=[T,I],_=0;_<2;++_){var tt=$[_];for(H=0;H<tt.length;++H)F(n,v,X[rt=31&tt[H]]),v+=N[rt],rt>15&&(F(n,v,tt[H]>>5&127),v+=tt[H]>>12)}}else Y=w,J=m,K=z,Q=b;for(H=0;H<l;++H){var nt=a[H];if(nt>255){var rt;E(n,v,Y[257+(rt=nt>>18&31)]),v+=J[rt+257],rt>7&&(F(n,v,nt>>23&31),v+=i[rt]);var et=31&nt;E(n,v,K[et]),v+=Q[et],et>3&&(E(n,v,nt>>5&8191),v+=o[et])}else E(n,v,Y[nt]),v+=J[nt]}return E(n,v,Y[256]),v+J[256]},j=new e([65540,131080,131088,131104,262176,1048704,1048832,2114560,2117632]),N=new n(0),P=function(t,s,a,u,h,l){var c=l.z||t.length,v=new n(u+c+5*(1+Math.ceil(c/7e3))+h),d=v.subarray(u,v.length-h),g=l.l,y=7&(l.r||0);if(s){y&&(d[0]=l.r>>3);for(var m=j[s-1],b=m>>13,w=8191&m,x=(1<<a)-1,z=l.p||new r(32768),k=l.h||new r(x+1),M=Math.ceil(a/3),S=2*M,A=function(n){return(t[n]^t[n+1]<<M^t[n+2]<<S)&x},C=new e(25e3),I=new r(288),U=new r(32),F=0,E=0,Z=l.i||0,q=0,O=l.w||0,G=0;Z+2<c;++Z){var N=A(Z),P=32767&Z,B=k[N];if(z[P]=B,k[N]=P,O<=Z){var Y=c-Z;if((F>7e3||q>24576)&&(Y>423||!g)){y=H(t,d,0,C,I,U,E,q,G,Z-G,y),q=F=E=0,G=Z;for(var J=0;J<286;++J)I[J]=0;for(J=0;J<30;++J)U[J]=0}var K=2,Q=0,R=w,V=P-B&32767;if(Y>2&&N==A(Z-V))for(var W=Math.min(b,Y)-1,X=Math.min(32767,Z),$=Math.min(258,Y);V<=X&&--R&&P!=B;){if(t[Z+K]==t[Z+K-V]){for(var _=0;_<$&&t[Z+_]==t[Z+_-V];++_);if(_>K){if(K=_,Q=V,_>W)break;var tt=Math.min(V,_-2),nt=0;for(J=0;J<tt;++J){var rt=Z-V+J&32767,et=rt-z[rt]&32767;et>nt&&(nt=et,B=rt)}}}V+=(P=B)-(B=z[P])&32767}if(Q){C[q++]=268435456|f[K]<<18|p[Q];var it=31&f[K],ot=31&p[Q];E+=i[it]+o[ot],++I[257+it],++U[ot],O=Z+K,++F}else C[q++]=t[Z],++I[t[Z]]}}for(Z=Math.max(Z,O);Z<c;++Z)C[q++]=t[Z],++I[t[Z]];y=H(t,d,g,C,I,U,E,q,G,Z-G,y),g||(l.r=7&y|d[y/8|0]<<3,y-=7,l.h=k,l.p=z,l.i=Z,l.w=O)}else{for(Z=l.w||0;Z<c+g;Z+=65535){var st=Z+65535;st>=c&&(d[y/8|0]=g,st=c),y=L(d,y+1,t.subarray(Z,st))}l.i=c}return D(v,0,u+T(y)+h)},B=function(){for(var t=new Int32Array(256),n=0;n<256;++n){for(var r=n,e=9;--e;)r=(1&r&&-306674912)^r>>>1;t[n]=r}return t}(),Y=function(){var t=-1;return{p:function(n){for(var r=t,e=0;e<n.length;++e)r=B[255&r^n[e]]^r>>>8;t=r},d:function(){return~t}}},J=function(){var t=1,n=0;return{p:function(r){for(var e=t,i=n,o=0|r.length,s=0;s!=o;){for(var a=Math.min(s+2655,o);s<a;++s)i+=e+=r[s];e=(65535&e)+15*(e>>16),i=(65535&i)+15*(i>>16)}t=e,n=i},d:function(){return(255&(t%=65521))<<24|(65280&t)<<8|(255&(n%=65521))<<8|n>>8}}},K=function(t,r,e,i,o){if(!o&&(o={l:1},r.dictionary)){var s=r.dictionary.subarray(-32768),a=new n(s.length+t.length);a.set(s),a.set(t,s.length),t=a,o.w=s.length}return P(t,null==r.level?6:r.level,null==r.mem?o.l?Math.ceil(1.5*Math.max(8,Math.min(13,Math.log(t.length)))):20:12+r.mem,e,i,o)},Q=function(t,n){var r={};for(var e in t)r[e]=t[e];for(var e in n)r[e]=n[e];return r},R=function(t,n,r){for(var e=t(),i=""+t,o=i.slice(i.indexOf("[")+1,i.lastIndexOf("]")).replace(/\s+/g,"").split(","),s=0;s<e.length;++s){var a=e[s],u=o[s];if("function"==typeof a){n+=";"+u+"=";var h=""+a;if(a.prototype)if(-1!=h.indexOf("[native code]")){var f=h.indexOf(" ",8)+1;n+=h.slice(f,h.indexOf("(",f))}else for(var l in n+=h,a.prototype)n+=";"+u+".prototype."+l+"="+a.prototype[l];else n+=h}else r[u]=a}return n},V=[],W=function(t){var n=[];for(var r in t)t[r].buffer&&n.push((t[r]=new t[r].constructor(t[r])).buffer);return n},X=function(n,r,e,i){if(!V[e]){for(var o="",s={},a=n.length-1,u=0;u<a;++u)o=R(n[u],o,s);V[e]={c:R(n[a],o,s),e:s}}var h=Q({},V[e].e);return(0,t.default)(V[e].c+";onmessage=function(e){for(var k in e.data)self[k]=e.data[k];onmessage="+r+"}",e,h,W(h),i)},$=function(){return[n,r,e,i,o,s,h,c,x,k,v,C,y,M,S,A,T,D,I,U,Tt,it,ot]},_=function(){return[n,r,e,i,o,s,f,p,w,m,z,b,v,j,N,y,F,E,Z,q,O,G,L,H,T,D,P,K,kt,it]},tt=function(){return[pt,gt,ct,Y,B]},nt=function(){return[vt,dt]},rt=function(){return[yt,ct,J]},et=function(){return[mt]},it=function(t){return postMessage(t,[t.buffer])},ot=function(t){return t&&{out:t.size&&new n(t.size),dictionary:t.dictionary}},st=function(t,n,r,e,i,o){var s=X(r,e,i,(function(t,n){s.terminate(),o(t,n)}));return s.postMessage([t,n],n.consume?[t.buffer]:[]),function(){s.terminate()}},at=function(t){return t.ondata=function(t,n){return postMessage([t,n],[t.buffer])},function(n){n.data.length?(t.push(n.data[0],n.data[1]),postMessage([n.data[0].length])):t.flush()}},ut=function(t,n,r,e,i,o,s){var a,u=X(t,e,i,(function(t,r){t?(u.terminate(),n.ondata.call(n,t)):Array.isArray(r)?1==r.length?(n.queuedSize-=r[0],n.ondrain&&n.ondrain(r[0])):(r[1]&&u.terminate(),n.ondata.call(n,t,r[0],r[1])):s(r)}));u.postMessage(r),n.queuedSize=0,n.push=function(t,r){n.ondata||I(5),a&&n.ondata(I(4,0,1),null,!!r),n.queuedSize+=t.length,u.postMessage([t,a=r],[t.buffer])},n.terminate=function(){u.terminate()},o&&(n.flush=function(){u.postMessage([])})},ht=function(t,n){return t[n]|t[n+1]<<8},ft=function(t,n){return(t[n]|t[n+1]<<8|t[n+2]<<16|t[n+3]<<24)>>>0},lt=function(t,n){return ft(t,n)+4294967296*ft(t,n+4)},ct=function(t,n,r){for(;r;++n)t[n]=r,r>>>=8},pt=function(t,n){var r=n.filename;if(t[0]=31,t[1]=139,t[2]=8,t[8]=n.level<2?4:9==n.level?2:0,t[9]=3,0!=n.mtime&&ct(t,4,Math.floor(new Date(n.mtime||Date.now())/1e3)),r){t[3]=8;for(var e=0;e<=r.length;++e)t[e+10]=r.charCodeAt(e)}},vt=function(t){31==t[0]&&139==t[1]&&8==t[2]||I(6,"invalid gzip data");var n=t[3],r=10;4&n&&(r+=2+(t[10]|t[11]<<8));for(var e=(n>>3&1)+(n>>4&1);e>0;e-=!t[r++]);return r+(2&n)},dt=function(t){var n=t.length;return(t[n-4]|t[n-3]<<8|t[n-2]<<16|t[n-1]<<24)>>>0},gt=function(t){return 10+(t.filename?t.filename.length+1:0)},yt=function(t,n){var r=n.level,e=0==r?0:r<6?1:9==r?3:2;if(t[0]=120,t[1]=e<<6|(n.dictionary&&32),t[1]|=31-(t[0]<<8|t[1])%31,n.dictionary){var i=J();i.p(n.dictionary),ct(t,2,i.d())}},mt=function(t,n){return(8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31)&&I(6,"invalid zlib data"),(t[1]>>5&1)==+!n&&I(6,"invalid zlib data: "+(32&t[1]?"need":"unexpected")+" dictionary"),2+(t[1]>>3&4)};function bt(t,n){return"function"==typeof t&&(n=t,t={}),this.ondata=n,t}var wt=function(){function t(t,r){if("function"==typeof t&&(r=t,t={}),this.ondata=r,this.o=t||{},this.s={l:0,i:32768,w:32768,z:32768},this.b=new n(98304),this.o.dictionary){var e=this.o.dictionary.subarray(-32768);this.b.set(e,32768-e.length),this.s.i=32768-e.length}}return t.prototype.p=function(t,n){this.ondata(K(t,this.o,0,0,this.s),n)},t.prototype.push=function(t,r){this.ondata||I(5),this.s.l&&I(4);var e=t.length+this.s.z;if(e>this.b.length){if(e>2*this.b.length-32768){var i=new n(-32768&e);i.set(this.b.subarray(0,this.s.z)),this.b=i}var o=this.b.length-this.s.z;this.b.set(t.subarray(0,o),this.s.z),this.s.z=this.b.length,this.p(this.b,!1),this.b.set(this.b.subarray(-32768)),this.b.set(t.subarray(o),32768),this.s.z=t.length-o+32768,this.s.i=32766,this.s.w=32768}else this.b.set(t,this.s.z),this.s.z+=t.length;this.s.l=1&r,(this.s.z>this.s.w+8191||r)&&(this.p(this.b,r||!1),this.s.w=this.s.i,this.s.i-=2)},t.prototype.flush=function(){this.ondata||I(5),this.s.l&&I(4),this.p(this.b,!1),this.s.w=this.s.i,this.s.i-=2},t}();_e.Deflate=wt;var xt=function(){return function(t,n){ut([_,function(){return[at,wt]}],this,bt.call(this,t,n),(function(t){var n=new wt(t.data);onmessage=at(n)}),6,1)}}();function zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_],(function(t){return it(kt(t.data[0],t.data[1]))}),0,r)}function kt(t,n){return K(t,n||{},0,0)}_e.AsyncDeflate=xt,_e.deflate=zt,_e.deflateSync=kt;var Mt=function(){function t(t,r){"function"==typeof t&&(r=t,t={}),this.ondata=r;var e=t&&t.dictionary&&t.dictionary.subarray(-32768);this.s={i:0,b:e?e.length:0},this.o=new n(32768),this.p=new n(0),e&&this.o.set(e)}return t.prototype.e=function(t){if(this.ondata||I(5),this.d&&I(4),this.p.length){if(t.length){var r=new n(this.p.length+t.length);r.set(this.p),r.set(t,this.p.length),this.p=r}}else this.p=t},t.prototype.c=function(t){this.s.i=+(this.d=t||!1);var n=this.s.b,r=U(this.p,this.s,this.o);this.ondata(D(r,n,this.s.b),this.d),this.o=D(r,this.s.b-32768),this.s.b=this.o.length,this.p=D(this.p,this.s.p/8|0),this.s.p&=7},t.prototype.push=function(t,n){this.e(t),this.c(n)},t}();_e.Inflate=Mt;var St=function(){return function(t,n){ut([$,function(){return[at,Mt]}],this,bt.call(this,t,n),(function(t){var n=new Mt(t.data);onmessage=at(n)}),7,0)}}();function At(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$],(function(t){return it(Tt(t.data[0],ot(t.data[1])))}),1,r)}function Tt(t,n){return U(t,{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncInflate=St,_e.inflate=At,_e.inflateSync=Tt;var Dt=function(){function t(t,n){this.c=Y(),this.l=0,this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),this.l+=t.length,wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=K(t,this.o,this.v&&gt(this.o),n&&8,this.s);this.v&&(pt(r,this.o),this.v=0),n&&(ct(r,r.length-8,this.c.d()),ct(r,r.length-4,this.l)),this.ondata(r,n)},t.prototype.flush=function(){wt.prototype.flush.call(this)},t}();_e.Gzip=Dt,_e.Compress=Dt;var Ct=function(){return function(t,n){ut([_,tt,function(){return[at,wt,Dt]}],this,bt.call(this,t,n),(function(t){var n=new Dt(t.data);onmessage=at(n)}),8,1)}}();function It(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,tt,function(){return[Ut]}],(function(t){return it(Ut(t.data[0],t.data[1]))}),2,r)}function Ut(t,n){n||(n={});var r=Y(),e=t.length;r.p(t);var i=K(t,n,gt(n),8),o=i.length;return pt(i,n),ct(i,o-8,r.d()),ct(i,o-4,e),i}_e.AsyncGzip=Ct,_e.AsyncCompress=Ct,_e.gzip=It,_e.compress=It,_e.gzipSync=Ut,_e.compressSync=Ut;var Ft=function(){function t(t,n){this.v=1,this.r=0,Mt.call(this,t,n)}return t.prototype.push=function(t,r){if(Mt.prototype.e.call(this,t),this.r+=t.length,this.v){var e=this.p.subarray(this.v-1),i=e.length>3?vt(e):4;if(i>e.length){if(!r)return}else this.v>1&&this.onmember&&this.onmember(this.r-e.length);this.p=e.subarray(i),this.v=0}Mt.prototype.c.call(this,r),!this.s.f||this.s.l||r||(this.v=T(this.s.p)+9,this.s={i:0},this.o=new n(0),this.push(new n(0),r))},t}();_e.Gunzip=Ft;var Et=function(){return function(t,n){var r=this;ut([$,nt,function(){return[at,Mt,Ft]}],this,bt.call(this,t,n),(function(t){var n=new Ft(t.data);n.onmember=function(t){return postMessage(t)},onmessage=at(n)}),9,0,(function(t){return r.onmember&&r.onmember(t)}))}}();function Zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,nt,function(){return[qt]}],(function(t){return it(qt(t.data[0],t.data[1]))}),3,r)}function qt(t,r){var e=vt(t);return e+8>t.length&&I(6,"invalid gzip data"),U(t.subarray(e,-8),{i:2},r&&r.out||new n(dt(t)),r&&r.dictionary)}_e.AsyncGunzip=Et,_e.gunzip=Zt,_e.gunzipSync=qt;var Ot=function(){function t(t,n){this.c=J(),this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=K(t,this.o,this.v&&(this.o.dictionary?6:2),n&&4,this.s);this.v&&(yt(r,this.o),this.v=0),n&&ct(r,r.length-4,this.c.d()),this.ondata(r,n)},t.prototype.flush=function(){wt.prototype.flush.call(this)},t}();_e.Zlib=Ot;var Gt=function(){return function(t,n){ut([_,rt,function(){return[at,wt,Ot]}],this,bt.call(this,t,n),(function(t){var n=new Ot(t.data);onmessage=at(n)}),10,1)}}();function Lt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,rt,function(){return[Ht]}],(function(t){return it(Ht(t.data[0],t.data[1]))}),4,r)}function Ht(t,n){n||(n={});var r=J();r.p(t);var e=K(t,n,n.dictionary?6:2,4);return yt(e,n),ct(e,e.length-4,r.d()),e}_e.AsyncZlib=Gt,_e.zlib=Lt,_e.zlibSync=Ht;var jt=function(){function t(t,n){Mt.call(this,t,n),this.v=t&&t.dictionary?2:1}return t.prototype.push=function(t,n){if(Mt.prototype.e.call(this,t),this.v){if(this.p.length<6&&!n)return;this.p=this.p.subarray(mt(this.p,this.v-1)),this.v=0}n&&(this.p.length<4&&I(6,"invalid zlib data"),this.p=this.p.subarray(0,-4)),Mt.prototype.c.call(this,n)},t}();_e.Unzlib=jt;var Nt=function(){return function(t,n){ut([$,et,function(){return[at,Mt,jt]}],this,bt.call(this,t,n),(function(t){var n=new jt(t.data);onmessage=at(n)}),11,0)}}();function Pt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,et,function(){return[Bt]}],(function(t){return it(Bt(t.data[0],ot(t.data[1])))}),5,r)}function Bt(t,n){return U(t.subarray(mt(t,n&&n.dictionary),-4),{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncUnzlib=Nt,_e.unzlib=Pt,_e.unzlibSync=Bt;var Yt=function(){function t(t,n){this.o=bt.call(this,t,n)||{},this.G=Ft,this.I=Mt,this.Z=jt}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r){t.ondata(n,r)}},t.prototype.push=function(t,r){if(this.ondata||I(5),this.s)this.s.push(t,r);else{if(this.p&&this.p.length){var e=new n(this.p.length+t.length);e.set(this.p),e.set(t,this.p.length)}else this.p=t;this.p.length>2&&(this.s=31==this.p[0]&&139==this.p[1]&&8==this.p[2]?new this.G(this.o):8!=(15&this.p[0])||this.p[0]>>4>7||(this.p[0]<<8|this.p[1])%31?new this.I(this.o):new this.Z(this.o),this.i(),this.s.push(this.p,r),this.p=null)}},t}();_e.Decompress=Yt;var Jt=function(){function t(t,n){Yt.call(this,t,n),this.queuedSize=0,this.G=Et,this.I=St,this.Z=Nt}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r,e){t.ondata(n,r,e)},this.s.ondrain=function(n){t.queuedSize-=n,t.ondrain&&t.ondrain(n)}},t.prototype.push=function(t,n){this.queuedSize+=t.length,Yt.prototype.push.call(this,t,n)},t}();function Kt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),31==t[0]&&139==t[1]&&8==t[2]?Zt(t,n,r):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?At(t,n,r):Pt(t,n,r)}function Qt(t,n){return 31==t[0]&&139==t[1]&&8==t[2]?qt(t,n):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?Tt(t,n):Bt(t,n)}_e.AsyncDecompress=Jt,_e.decompress=Kt,_e.decompressSync=Qt;var Rt=function(t,r,e,i){for(var o in t){var s=t[o],a=r+o,u=i;Array.isArray(s)&&(u=Q(i,s[1]),s=s[0]),s instanceof n?e[a]=[s,u]:(e[a+="/"]=[new n(0),u],Rt(s,a,e,i))}},Vt="undefined"!=typeof TextEncoder&&new TextEncoder,Wt="undefined"!=typeof TextDecoder&&new TextDecoder,Xt=0;try{Wt.decode(N,{stream:!0}),Xt=1}catch(t){}var $t=function(t){for(var n="",r=0;;){var e=t[r++],i=(e>127)+(e>223)+(e>239);if(r+i>t.length)return{s:n,r:D(t,r-1)};i?3==i?(e=((15&e)<<18|(63&t[r++])<<12|(63&t[r++])<<6|63&t[r++])-65536,n+=String.fromCharCode(55296|e>>10,56320|1023&e)):n+=String.fromCharCode(1&i?(31&e)<<6|63&t[r++]:(15&e)<<12|(63&t[r++])<<6|63&t[r++]):n+=String.fromCharCode(e)}},_t=function(){function t(t){this.ondata=t,Xt?this.t=new TextDecoder:this.p=N}return t.prototype.push=function(t,r){if(this.ondata||I(5),r=!!r,this.t)return this.ondata(this.t.decode(t,{stream:!0}),r),void(r&&(this.t.decode().length&&I(8),this.t=null));this.p||I(4);var e=new n(this.p.length+t.length);e.set(this.p),e.set(t,this.p.length);var i=$t(e),o=i.s,s=i.r;r?(s.length&&I(8),this.p=null):this.p=s,this.ondata(o,r)},t}();_e.DecodeUTF8=_t;var tn=function(){function t(t){this.ondata=t}return t.prototype.push=function(t,n){this.ondata||I(5),this.d&&I(4),this.ondata(nn(t),this.d=n||!1)},t}();function nn(t,r){if(r){for(var e=new n(t.length),i=0;i<t.length;++i)e[i]=t.charCodeAt(i);return e}if(Vt)return Vt.encode(t);var o=t.length,s=new n(t.length+(t.length>>1)),a=0,u=function(t){s[a++]=t};for(i=0;i<o;++i){if(a+5>s.length){var h=new n(a+8+(o-i<<1));h.set(s),s=h}var f=t.charCodeAt(i);f<128||r?u(f):f<2048?(u(192|f>>6),u(128|63&f)):f>55295&&f<57344?(u(240|(f=65536+(1047552&f)|1023&t.charCodeAt(++i))>>18),u(128|f>>12&63),u(128|f>>6&63),u(128|63&f)):(u(224|f>>12),u(128|f>>6&63),u(128|63&f))}return D(s,0,a)}function rn(t,n){if(n){for(var r="",e=0;e<t.length;e+=16384)r+=String.fromCharCode.apply(null,t.subarray(e,e+16384));return r}if(Wt)return Wt.decode(t);var i=$t(t),o=i.s;return(r=i.r).length&&I(8),o}_e.EncodeUTF8=tn,_e.strToU8=nn,_e.strFromU8=rn;var en=function(t){return 1==t?3:t<6?2:9==t?1:0},on=function(t,n){return n+30+ht(t,n+26)+ht(t,n+28)},sn=function(t,n,r){var e=ht(t,n+28),i=rn(t.subarray(n+46,n+46+e),!(2048&ht(t,n+8))),o=n+46+e,s=ft(t,n+20),a=r&&4294967295==s?an(t,o):[s,ft(t,n+24),ft(t,n+42)],u=a[0],h=a[1],f=a[2];return[ht(t,n+10),u,h,i,o+ht(t,n+30)+ht(t,n+32),f]},an=function(t,n){for(;1!=ht(t,n);n+=4+ht(t,n+2));return[lt(t,n+12),lt(t,n+4),lt(t,n+20)]},un=function(t){var n=0;if(t)for(var r in t){var e=t[r].length;e>65535&&I(9),n+=e+4}return n},hn=function(t,n,r,e,i,o,s,a){var u=e.length,h=r.extra,f=a&&a.length,l=un(h);ct(t,n,null!=s?33639248:67324752),n+=4,null!=s&&(t[n++]=20,t[n++]=r.os),t[n]=20,n+=2,t[n++]=r.flag<<1|(o<0&&8),t[n++]=i&&8,t[n++]=255&r.compression,t[n++]=r.compression>>8;var c=new Date(null==r.mtime?Date.now():r.mtime),p=c.getFullYear()-1980;if((p<0||p>119)&&I(10),ct(t,n,p<<25|c.getMonth()+1<<21|c.getDate()<<16|c.getHours()<<11|c.getMinutes()<<5|c.getSeconds()>>1),n+=4,-1!=o&&(ct(t,n,r.crc),ct(t,n+4,o<0?-o-2:o),ct(t,n+8,r.size)),ct(t,n+12,u),ct(t,n+14,l),n+=16,null!=s&&(ct(t,n,f),ct(t,n+6,r.attrs),ct(t,n+10,s),n+=14),t.set(e,n),n+=u,l)for(var v in h){var d=h[v],g=d.length;ct(t,n,+v),ct(t,n+2,g),t.set(d,n+4),n+=4+g}return f&&(t.set(a,n),n+=f),n},fn=function(t,n,r,e,i){ct(t,n,101010256),ct(t,n+8,r),ct(t,n+10,r),ct(t,n+12,e),ct(t,n+16,i)},ln=function(){function t(t){this.filename=t,this.c=Y(),this.size=0,this.compression=0}return t.prototype.process=function(t,n){this.ondata(null,t,n)},t.prototype.push=function(t,n){this.ondata||I(5),this.c.p(t),this.size+=t.length,n&&(this.crc=this.c.d()),this.process(t,n||!1)},t}();_e.ZipPassThrough=ln;var cn=function(){function t(t,n){var r=this;n||(n={}),ln.call(this,t),this.d=new wt(n,(function(t,n){r.ondata(null,t,n)})),this.compression=8,this.flag=en(n.level)}return t.prototype.process=function(t,n){try{this.d.push(t,n)}catch(t){this.ondata(t,null,n)}},t.prototype.push=function(t,n){ln.prototype.push.call(this,t,n)},t}();_e.ZipDeflate=cn;var pn=function(){function t(t,n){var r=this;n||(n={}),ln.call(this,t),this.d=new xt(n,(function(t,n,e){r.ondata(t,n,e)})),this.compression=8,this.flag=en(n.level),this.terminate=this.d.terminate}return t.prototype.process=function(t,n){this.d.push(t,n)},t.prototype.push=function(t,n){ln.prototype.push.call(this,t,n)},t}();_e.AsyncZipDeflate=pn;var vn=function(){function t(t){this.ondata=t,this.u=[],this.d=1}return t.prototype.add=function(t){var r=this;if(this.ondata||I(5),2&this.d)this.ondata(I(4+8*(1&this.d),0,1),null,!1);else{var e=nn(t.filename),i=e.length,o=t.comment,s=o&&nn(o),a=i!=t.filename.length||s&&o.length!=s.length,u=i+un(t.extra)+30;i>65535&&this.ondata(I(11,0,1),null,!1);var h=new n(u);hn(h,0,t,e,a,-1);var f=[h],l=function(){for(var t=0,n=f;t<n.length;t++)r.ondata(null,n[t],!1);f=[]},c=this.d;this.d=0;var p=this.u.length,v=Q(t,{f:e,u:a,o:s,t:function(){t.terminate&&t.terminate()},r:function(){if(l(),c){var t=r.u[p+1];t?t.r():r.d=1}c=1}}),d=0;t.ondata=function(e,i,o){if(e)r.ondata(e,i,o),r.terminate();else if(d+=i.length,f.push(i),o){var s=new n(16);ct(s,0,134695760),ct(s,4,t.crc),ct(s,8,d),ct(s,12,t.size),f.push(s),v.c=d,v.b=u+d+16,v.crc=t.crc,v.size=t.size,c&&v.r(),c=1}else c&&l()},this.u.push(v)}},t.prototype.end=function(){var t=this;2&this.d?this.ondata(I(4+8*(1&this.d),0,1),null,!0):(this.d?this.e():this.u.push({r:function(){1&t.d&&(t.u.splice(-1,1),t.e())},t:function(){}}),this.d=3)},t.prototype.e=function(){for(var t=0,r=0,e=0,i=0,o=this.u;i<o.length;i++)e+=46+(h=o[i]).f.length+un(h.extra)+(h.o?h.o.length:0);for(var s=new n(e+22),a=0,u=this.u;a<u.length;a++){var h;hn(s,t,h=u[a],h.f,h.u,-h.c-2,r,h.o),t+=46+h.f.length+un(h.extra)+(h.o?h.o.length:0),r+=h.b}fn(s,t,this.u.length,e,r),this.ondata(null,s,!0),this.d=2},t.prototype.terminate=function(){for(var t=0,n=this.u;t<n.length;t++)n[t].t();this.d=2},t}();function dn(t,r,e){e||(e=r,r={}),"function"!=typeof e&&I(7);var i={};Rt(t,"",i,r);var o=Object.keys(i),s=o.length,a=0,u=0,h=s,f=Array(s),l=[],c=function(){for(var t=0;t<l.length;++t)l[t]()},p=function(t,n){xn((function(){e(t,n)}))};xn((function(){p=e}));var v=function(){var t=new n(u+22),r=a,e=u-a;u=0;for(var i=0;i<h;++i){var o=f[i];try{var s=o.c.length;hn(t,u,o,o.f,o.u,s);var l=30+o.f.length+un(o.extra),c=u+l;t.set(o.c,c),hn(t,a,o,o.f,o.u,s,u,o.m),a+=16+l+(o.m?o.m.length:0),u=c+s}catch(t){return p(t,null)}}fn(t,a,f.length,e,r),p(null,t)};s||v();for(var d=function(t){var n=o[t],r=i[n],e=r[0],h=r[1],d=Y(),g=e.length;d.p(e);var y=nn(n),m=y.length,b=h.comment,w=b&&nn(b),x=w&&w.length,z=un(h.extra),k=0==h.level?0:8,M=function(r,e){if(r)c(),p(r,null);else{var i=e.length;f[t]=Q(h,{size:g,crc:d.d(),c:e,f:y,m:w,u:m!=n.length||w&&b.length!=x,compression:k}),a+=30+m+z+i,u+=76+2*(m+z)+(x||0)+i,--s||v()}};if(m>65535&&M(I(11,0,1),null),k)if(g<16e4)try{M(null,kt(e,h))}catch(t){M(t,null)}else l.push(zt(e,h,M));else M(null,e)},g=0;g<h;++g)d(g);return c}function gn(t,r){r||(r={});var e={},i=[];Rt(t,"",e,r);var o=0,s=0;for(var a in e){var u=e[a],h=u[0],f=u[1],l=0==f.level?0:8,c=(M=nn(a)).length,p=f.comment,v=p&&nn(p),d=v&&v.length,g=un(f.extra);c>65535&&I(11);var y=l?kt(h,f):h,m=y.length,b=Y();b.p(h),i.push(Q(f,{size:h.length,crc:b.d(),c:y,f:M,m:v,u:c!=a.length||v&&p.length!=d,o:o,compression:l})),o+=30+c+g+m,s+=76+2*(c+g)+(d||0)+m}for(var w=new n(s+22),x=o,z=s-o,k=0;k<i.length;++k){var M;hn(w,(M=i[k]).o,M,M.f,M.u,M.c.length);var S=30+M.f.length+un(M.extra);w.set(M.c,M.o+S),hn(w,o,M,M.f,M.u,M.c.length,M.o,M.m),o+=16+S+(M.m?M.m.length:0)}return fn(w,o,i.length,z,x),w}_e.Zip=vn,_e.zip=dn,_e.zipSync=gn;var yn=function(){function t(){}return t.prototype.push=function(t,n){this.ondata(null,t,n)},t.compression=0,t}();_e.UnzipPassThrough=yn;var mn=function(){function t(){var t=this;this.i=new Mt((function(n,r){t.ondata(null,n,r)}))}return t.prototype.push=function(t,n){try{this.i.push(t,n)}catch(t){this.ondata(t,null,n)}},t.compression=8,t}();_e.UnzipInflate=mn;var bn=function(){function t(t,n){var r=this;n<32e4?this.i=new Mt((function(t,n){r.ondata(null,t,n)})):(this.i=new St((function(t,n,e){r.ondata(t,n,e)})),this.terminate=this.i.terminate)}return t.prototype.push=function(t,n){this.i.terminate&&(t=D(t,0)),this.i.push(t,n)},t.compression=8,t}();_e.AsyncUnzipInflate=bn;var wn=function(){function t(t){this.onfile=t,this.k=[],this.o={0:yn},this.p=N}return t.prototype.push=function(t,r){var e=this;if(this.onfile||I(5),this.p||I(4),this.c>0){var i=Math.min(this.c,t.length),o=t.subarray(0,i);if(this.c-=i,this.d?this.d.push(o,!this.c):this.k[0].push(o),(t=t.subarray(i)).length)return this.push(t,r)}else{var s=0,a=0,u=void 0,h=void 0;this.p.length?t.length?((h=new n(this.p.length+t.length)).set(this.p),h.set(t,this.p.length)):h=this.p:h=t;for(var f=h.length,l=this.c,c=l&&this.d,p=function(){var t,n=ft(h,a);if(67324752==n){s=1,u=a,v.d=null,v.c=0;var r=ht(h,a+6),i=ht(h,a+8),o=2048&r,c=8&r,p=ht(h,a+26),d=ht(h,a+28);if(f>a+30+p+d){var g=[];v.k.unshift(g),s=2;var y,m=ft(h,a+18),b=ft(h,a+22),w=rn(h.subarray(a+30,a+=30+p),!o);4294967295==m?(t=c?[-2]:an(h,a),m=t[0],b=t[1]):c&&(m=-1),a+=d,v.c=m;var x={name:w,compression:i,start:function(){if(x.ondata||I(5),m){var t=e.o[i];t||x.ondata(I(14,"unknown compression type "+i,1),null,!1),(y=m<0?new t(w):new t(w,m,b)).ondata=function(t,n,r){x.ondata(t,n,r)};for(var n=0,r=g;n<r.length;n++)y.push(r[n],!1);e.k[0]==g&&e.c?e.d=y:y.push(N,!0)}else x.ondata(null,N,!0)},terminate:function(){y&&y.terminate&&y.terminate()}};m>=0&&(x.size=m,x.originalSize=b),v.onfile(x)}return"break"}if(l){if(134695760==n)return u=a+=12+(-2==l&&8),s=3,v.c=0,"break";if(33639248==n)return u=a-=4,s=3,v.c=0,"break"}},v=this;a<f-4&&"break"!==p();++a);if(this.p=N,l<0){var d=h.subarray(0,s?u-12-(-2==l&&8)-(134695760==ft(h,u-16)&&4):a);c?c.push(d,!!s):this.k[+(2==s)].push(d)}if(2&s)return this.push(h.subarray(a),r);this.p=h.subarray(a)}r&&(this.c&&I(13),this.p=null)},t.prototype.register=function(t){this.o[t.compression]=t},t}();_e.Unzip=wn;var xn="function"==typeof queueMicrotask?queueMicrotask:"function"==typeof setTimeout?setTimeout:function(t){t()};function zn(t,r,e){e||(e=r,r={}),"function"!=typeof e&&I(7);var i=[],o=function(){for(var t=0;t<i.length;++t)i[t]()},s={},a=function(t,n){xn((function(){e(t,n)}))};xn((function(){a=e}));for(var u=t.length-22;101010256!=ft(t,u);--u)if(!u||t.length-u>65558)return a(I(13,0,1),null),o;var h=ht(t,u+8);if(h){var f=h,l=ft(t,u+16),c=4294967295==l||65535==f;if(c){var p=ft(t,u-12);(c=101075792==ft(t,p))&&(f=h=ft(t,p+32),l=ft(t,p+48))}for(var v=r&&r.filter,d=function(r){var e=sn(t,l,c),u=e[0],f=e[1],p=e[2],d=e[3],g=e[4],y=on(t,e[5]);l=g;var m=function(t,n){t?(o(),a(t,null)):(n&&(s[d]=n),--h||a(null,s))};if(!v||v({name:d,size:f,originalSize:p,compression:u}))if(u)if(8==u){var b=t.subarray(y,y+f);if(p<524288||f>.8*p)try{m(null,Tt(b,{out:new n(p)}))}catch(t){m(t,null)}else i.push(At(b,{size:p},m))}else m(I(14,"unknown compression type "+u,1),null);else m(null,D(t,y,y+f));else m(null,null)},g=0;g<f;++g)d()}else a(null,{});return o}function kn(t,r){for(var e={},i=t.length-22;101010256!=ft(t,i);--i)(!i||t.length-i>65558)&&I(13);var o=ht(t,i+8);if(!o)return{};var s=ft(t,i+16),a=4294967295==s||65535==o;if(a){var u=ft(t,i-12);(a=101075792==ft(t,u))&&(o=ft(t,u+32),s=ft(t,u+48))}for(var h=r&&r.filter,f=0;f<o;++f){var l=sn(t,s,a),c=l[0],p=l[1],v=l[2],d=l[3],g=l[4],y=on(t,l[5]);s=g,h&&!h({name:d,size:p,originalSize:v,compression:c})||(c?8==c?e[d]=Tt(t.subarray(y,y+p),{out:new n(v)}):I(14,"unknown compression type "+c):e[d]=D(t,y,y+p))}return e}_e.unzip=zn,_e.unzipSync=kn;return _e});
+</script>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const yen=n=>(n==null||isNaN(n))?'':Number(n).toLocaleString('ja-JP');
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+/* ===== 状態 ===== */
+let bankFiles=[];   // {name, deposits:[...]}
+let planDoboku=null; // {name, unzipped, sheetPath, sheetXml, entries:[...]}
+let planYayoi=[];    // [{name, dept, entries:[...]}]
+let master={};       // normKey -> [請求先,...]（1名義→複数請求先候補OK：鹿島の支店違い等）
+let confirmed={};    // depKey -> {payee,type,row,code,dept,工事番号,工事名,fee}
+let ignoreSet=new Set(); // depositのkey(対象外)
+let results=[];      // 照合結果
+let resTab='all';
+const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed';
+// マスタ保存GAS：URLをここに固定（大石さんは触らなくても最初から共有される）
+const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbyQNsc3cvrgle_ruuNLd6knrJ0l6vAU-ImTpAYEsIyOLdzPoLgF0wj0SgTZMGdFD3Tz/exec';
+let GAS_URL=localStorage.getItem('nyukin_gas')||DEFAULT_GAS_URL;
+
+/* ===== 文字正規化 ===== */
+function normName(s){
+  return String(s==null?'':s).normalize('NFKC').replace(/[\s　]/g,'').replace(/[（）()]/g,m=>({'（':'(','）':')'}[m]||m)).toUpperCase();
+}
+function normPayee(s){
+  return String(s==null?'':s).normalize('NFKC').replace(/[\s　]/g,'').replace(/㈱/g,'(株)').replace(/㈲/g,'(有)').toUpperCase();
+}
+
+/* ===== CSV 1行パース（"..."対応）===== */
+function splitCsv(line){
+  const out=[]; let cur='',q=false;
+  for(let i=0;i<line.length;i++){ const c=line[i];
+    if(q){ if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c==='"') q=true; else if(c===','){ out.push(cur); cur=''; } else cur+=c; }
+  }
+  out.push(cur); return out;
+}
+function toInt(s){ if(s==null)return null; const t=String(s).replace(/[,\s　"¥￥]/g,''); if(t===''||!/^-?\d+$/.test(t))return null; return parseInt(t,10); }
+function normDate(s){
+  s=String(s||'').trim();
+  let m=s.match(/(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})/);
+  if(m){ return m[1]+'/'+('0'+m[2]).slice(-2)+'/'+('0'+m[3]).slice(-2); }
+  return s;
+}
+
+/* ===== 入金種別の判定（振込/手形/電子債権/その他）===== */
+function classifyKind(tekiyo, tegata){
+  const t=String(tegata||'')+' '+String(tekiyo||'');
+  if(/電子債権|でんさい/.test(t)) return '電子債権';
+  if(/手形|他券/.test(t)) return '手形';
+  if(/振込/.test(t)) return '振込';
+  return 'その他';
+}
+
+/* ===== 銀行CSV パース ===== */
+function parseBankCsv(text, fname){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim()!=='');
+  const joined=text;
+  const deposits=[];
+  if(/照会口座/.test(joined)){ // 静銀フォーマット
+    let hi=-1, head=null;
+    for(let i=0;i<lines.length;i++){ if(/照会口座/.test(lines[i])){ head=splitCsv(lines[i]).map(x=>x.trim()); hi=i; break; } }
+    if(!head) return {bank:'静銀',deposits};
+    const col=n=>head.findIndex(h=>h.replace(/\s/g,'').indexOf(n)>=0);
+    const cDate=col('勘定日'), cIn=col('入金金額'), cKind=col('取引区分'), cSum=head.length-1, cFi=col('金融機関名'), cBr=col('支店名');
+    for(let i=hi+1;i<lines.length;i++){
+      const r=splitCsv(lines[i]).map(x=>x.trim()); if(r.length<3)continue;
+      const amt=toInt(r[cIn]); const kindText=(r[cKind]||'');
+      if(amt==null||amt<=0) continue;   // 入金（貸方）のみ。出金は入金金額が空なので自動除外
+      const name=(r[cSum]||'').trim();
+      const bk=[r[cFi]||'',r[cBr]||''].filter(Boolean).join(' ');
+      deposits.push({date:normDate(r[cDate]), name, amount:amt, bank:bk||'静銀', src:'静銀', kind:classifyKind(kindText,''), raw:r.join(',')});
+    }
+    return {bank:'静銀',deposits};
+  }
+  if(/お預かり金額/.test(joined)){ // 島掛（信金）フォーマット
+    let hi=-1;
+    for(let i=0;i<lines.length;i++){ if(/^日付,/.test(lines[i])||/お預かり金額/.test(lines[i])){ hi=i; break; } }
+    if(hi<0) return {bank:'島掛',deposits};
+    for(let i=hi+1;i<lines.length;i++){
+      const r=splitCsv(lines[i]).map(x=>x.trim()); if(r.length<6)continue;
+      // 日付,手形種別,摘要,お支払い金額(4),お預かり金額(5),残高(6)
+      const inAmt=toInt(r[4]);      // お預かり=入金
+      if(inAmt==null||inAmt<=0) continue;   // 入金行のみ（5列目が数字）
+      const name=(r[3]||'').trim();  // 名義は4列目
+      deposits.push({date:normDate(r[0]), name, amount:inAmt, bank:'島掛信金', src:'島掛', kind:classifyKind(r[2]||'', r[1]||''), raw:r.join(',')});
+    }
+    return {bank:'島掛',deposits};
+  }
+  return {bank:'不明',deposits};
+}
+
+/* ===== XLSX 読み（fflate＋XML）===== */
+function xmlUnescape(s){ return String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(m,d)=>String.fromCharCode(+d)).replace(/&amp;/g,'&'); }
+function colToNum(letters){ let n=0; for(const c of letters){ n=n*26+(c.charCodeAt(0)-64); } return n; }
+function refSplit(ref){ const m=/^([A-Z]+)(\d+)$/.exec(ref); return m?{col:m[1],row:+m[2]}:null; }
+
+function readXlsx(buf){
+  const zip=fflate.unzipSync(new Uint8Array(buf));
+  // シート
+  let sheetPath=Object.keys(zip).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort()[0];
+  const sheetXml=fflate.strFromU8(zip[sheetPath]);
+  // 共有文字列
+  let shared=[];
+  if(zip['xl/sharedStrings.xml']){
+    const sx=fflate.strFromU8(zip['xl/sharedStrings.xml']);
+    const doc=new DOMParser().parseFromString(sx,'application/xml');
+    const sis=doc.getElementsByTagName('si');
+    for(let i=0;i<sis.length;i++){ const ts=sis[i].getElementsByTagName('t'); let s=''; for(let j=0;j<ts.length;j++) s+=ts[j].textContent; shared.push(s); }
+  }
+  // セル→grid
+  const grid={}; // grid[row][col]=value
+  const doc=new DOMParser().parseFromString(sheetXml,'application/xml');
+  const cs=doc.getElementsByTagName('c');
+  for(let i=0;i<cs.length;i++){
+    const c=cs[i]; const ref=c.getAttribute('r'); const rs=refSplit(ref); if(!rs)continue;
+    const t=c.getAttribute('t'); let v=null;
+    if(t==='inlineStr'){ const ts=c.getElementsByTagName('t'); v=ts.length?ts[0].textContent:''; }
+    else { const vs=c.getElementsByTagName('v'); if(!vs.length){continue;} const raw=vs[0].textContent;
+      if(t==='s'){ v=shared[+raw]!=null?shared[+raw]:''; }
+      else if(t==='str'||t==='b'){ v=raw; }
+      else { v=(/^-?\d+(\.\d+)?$/.test(raw))?parseFloat(raw):raw; } }
+    (grid[rs.row]=grid[rs.row]||{})[rs.col]=v;
+  }
+  return {zip, sheetPath, sheetXml, grid};
+}
+
+/* ===== 予定表 判別＆パース ===== */
+function classifyPlan(grid){
+  let txt='';
+  for(const r in grid){ for(const c in grid[r]){ txt+=String(grid[r][c]); } if(txt.length>2000)break; }
+  if(/請求一覧|工事別/.test(txt)) return '土木';
+  if(/請求先別回収状況|請求先コード/.test(txt)) return '弥生';
+  return '不明';
+}
+function parseDoboku(grid){
+  const rows=Object.keys(grid).map(Number).sort((a,b)=>a-b);
+  const entries=[]; let cur=null;
+  const isKoji=v=>typeof v==='string'&&/^\d{5,6}-\d{2}$/.test(v.trim());
+  for(const r of rows){
+    const row=grid[r]; const B=row.B, C=row.C;
+    if(isKoji(B)){ cur={no:String(B).trim(), name:(C||'').toString().trim()}; continue; }
+    if(cur && (String(B).trim()==='31' || /^\d{1,2}$/.test(String(B).trim())) && C){
+      const amt=toInt(row.J);
+      if(amt!=null){ entries.push({type:'土木', dept:'土木', 請求先:String(C).trim(), 工事名:cur.name, 工事番号:cur.no, amount:amt, row:r}); }
+    }
+  }
+  return entries;
+}
+function parseYayoi(grid, dept){
+  const rows=Object.keys(grid).map(Number).sort((a,b)=>a-b);
+  const entries=[];
+  for(const r of rows){
+    const row=grid[r]; const A=row.A, B=row.B;
+    if(!B || /請求先コード|請求先別回収状況/.test(String(A)+String(B))) continue;
+    const amtJ=toInt(row.J), amtC=toInt(row.C);
+    if(amtJ==null && amtC==null) continue;
+    entries.push({type:'弥生', dept, 請求先:String(B).trim(), code:String(A||'').trim(), amount:amtJ||0, altAmount:amtC||0, row:r});
+  }
+  return entries.filter(e=>e.amount>0||e.altAmount>0);
+}
+
+/* ===== 全予定表エントリ ===== */
+function allEntries(){
+  let a=[]; if(planDoboku) a=a.concat(planDoboku.entries);
+  planYayoi.forEach(p=>a=a.concat(p.entries));
+  return a;
+}
+function uniquePayees(){
+  const set=new Set(); allEntries().forEach(e=>set.add(e.請求先)); return [...set].sort();
+}
+
+/* ===== 照合 ===== */
+function depKey(d){ return d.src+'|'+d.date+'|'+d.amount+'|'+d.name; }
+function amtMatch(entry,amount){ return entry.amount===amount || (entry.altAmount&&entry.altAmount===amount); }
+function planAmt(e){ return e.amount || e.altAmount || 0; }
+function tolOK(dep,plan){ return plan>dep && (plan-dep)<=Math.max(1000, Math.round(plan*0.01)); } // 手数料/協力費で少額差
+function trunc(s,n){ s=String(s||''); return s.length>n?s.slice(0,n)+'…':s; }
+let _dmap={};
+function buildDeptMap(){ _dmap={}; allEntries().forEach(e=>{ const k=normPayee(e.請求先); (_dmap[k]=_dmap[k]||new Set()).add(e.dept||(e.type==='土木'?'土木':'弥生')); }); }
+function crossDepts(payee){ const s=_dmap[normPayee(payee)]; return s?[...s]:[]; }
+function isCross(payee){ return crossDepts(payee).length>1; }
+function findEntry(cf){ const es=allEntries();
+  if(cf.type==='土木') return es.find(e=>e.type==='土木'&&e.row===cf.row) || es.find(e=>e.type==='土木'&&e.請求先===cf.payee&&e.工事番号===cf.工事番号);
+  return es.find(e=>e.type==='弥生'&&e.請求先===cf.payee&&(cf.code?e.code===cf.code:true)); }
+function saveConfirmed(){ localStorage.setItem(MCONF,JSON.stringify(confirmed)); }
+function addMaster(name,payee){ const k=normName(name); master[k]=master[k]||[]; if(!master[k].some(p=>normPayee(p)===normPayee(payee))) master[k].push(payee); saveMasterLocal(); }
+
+function runMatch(){
+  const entries=allEntries();
+  buildDeptMap();
+  results=[];
+  const seen=new Set();
+  bankFiles.forEach(bf=>bf.deposits.forEach(d=>{
+    const key=depKey(d);
+    if(seen.has(key)) return; seen.add(key);
+    if(ignoreSet.has(key)){ results.push({d,key,status:'ignored'}); return; }
+    const cf=confirmed[key];
+    if(cf){ const e=findEntry(cf); if(e){ results.push({d,key,status:'matched',entry:e,fee:cf.fee||0}); return; } }
+    const payeeList=master[normName(d.name)]||[];
+    const pool = payeeList.length ? entries.filter(e=>payeeList.some(p=>normPayee(p)===normPayee(e.請求先))) : [];
+    const exact = pool.filter(e=>amtMatch(e,d.amount));   // マスタ有り＆金額ピタリ＝残高0＝自動
+    if(payeeList.length && exact.length===1){ results.push({d,key,status:'matched',entry:exact[0],fee:0}); return; }
+    // 要確認：候補（金額ピタリ→残0／近い→手数料差）
+    const exactCands = entries.filter(e=>amtMatch(e,d.amount));
+    const nearCands  = (payeeList.length?pool:entries).filter(e=>tolOK(d.amount,planAmt(e)));
+    let reason;
+    if(!payeeList.length) reason = exactCands.length?'名義未登録（残高0の候補あり）':(nearCands.length?'名義未登録（手数料差の候補あり）':'名義未登録');
+    else if(exact.length>1) reason='複数候補（金額一致が複数）';
+    else reason = nearCands.length?'手数料/協力費で少額差あり':'金額一致なし（按分/別月?）';
+    results.push({d,key,status:'review',payeeList,reason,exactCands,nearCands});
+  }));
+  render();
+}
+
+/* ===== 描画 ===== */
+function fmtEntry(e){ return e.type==='土木'?(e.請求先+'／'+e.工事名+'（'+e.工事番号+'）'):(e.請求先+'（'+(e.dept||'弥生')+'）'); }
+function kindTag(k){ const c=k==='振込'?'y':'d'; return '<span class="tag '+c+'">'+esc(k||'—')+'</span>'; }
+function payeeOptions(sel){
+  return '<option value="">— 請求先を選ぶ —</option>'+uniquePayees().map(p=>'<option'+(p===sel?' selected':'')+'>'+esc(p)+'</option>').join('');
+}
+function crossBadge(payee){ return isCross(payee)?'<span class="tag cross" title="複数部門にまたがる請求先。1振込の内訳（按分）を確認">内訳確認:'+esc(crossDepts(payee).join('+'))+'</span>':''; }
+function candChip(di,ci,e,near,dep){
+  const plan=planAmt(e), diff=plan-dep;
+  const label=(e.type==='土木'?e.請求先+'／'+trunc(e.工事名,14):e.請求先+'（'+(e.dept||'弥生')+'）');
+  const amt=near?('予定'+yen(plan)+'／差'+yen(diff)):('予定'+yen(plan)+'／残0');
+  return '<button class="chip-c '+(near?'near':'exact')+'" data-di="'+di+'" data-ci="'+ci+'" data-near="'+(near?1:0)+'">'+esc(label)+' <b>'+amt+'</b> '+crossBadge(e.請求先)+'</button>';
+}
+function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+trunc(e.工事名||'',18)+' ¥'+yen(planAmt(e)); }
+function bestCand(r){ if(r.exactCands&&r.exactCands.length) return {e:r.exactCands[0],near:false}; if(r.nearCands&&r.nearCands.length) return {e:r.nearCands[0],near:true}; return null; }
+function render(){
+  const rev=results.filter(r=>r.status==='review');
+  const mat=results.filter(r=>r.status==='matched');
+  const ign=results.filter(r=>r.status==='ignored');
+  $('cReview').textContent=rev.length?('('+rev.length+')'):'';
+  $('cMatched').textContent=mat.length?('('+mat.length+')'):'';
+  $('cIgnored').textContent=ign.length?('('+ign.length+')'):'';
+  $('matchInfo').textContent='入金 '+results.length+'件：マッチ '+mat.length+'／要確認 '+rev.length+'／対象外 '+ign.length;
+  const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
+  const body=$('resBody');
+  const list = resTab==='matched'?mat : resTab==='review'?rev : resTab==='ignored'?ign : results;
+  if(!list.length){ body.innerHTML='<div class="empty">'+(results.length?'該当なし':'STEP1・2を読み込んで「照合する」を押してください')+'</div>'; updateOutputs(); return; }
+  let h='<div class="twrap"><table><thead><tr><th>状態</th><th>日付</th><th>種別</th><th>振込名義</th><th class="num">入金額</th><th>銀行</th><th>請求先／工事</th><th class="num">予定額</th><th class="num">差額</th><th></th></tr></thead><tbody>';
+  list.forEach(r=>{
+    const di=results.indexOf(r);
+    const st = r.status==='matched'?'<span class="tag y">済</span>':r.status==='ignored'?'<span class="tag">除外</span>':'<span class="tag d">要確認</span>';
+    h+='<tr class="'+(r.status==='ignored'?'dim':'')+'"><td>'+st+'</td><td>'+esc(r.d.date)+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'</td>';
+    if(r.status==='matched'){
+      const plan=planAmt(r.entry), diff=plan-r.d.amount;
+      h+='<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+'</td>';
+      h+='<td class="num">'+yen(plan)+'</td>';
+      h+='<td class="num">'+(diff===0?'<span class="tag y">残0</span>':('<span class="tag d">'+yen(diff)+'</span>'))+'</td>';
+      h+='<td><button class="btn sub mini" data-un="'+di+'">戻す</button></td>';
+    } else if(r.status==='review'){
+      const b=bestCand(r);
+      let cell='';
+      if(b){ const e=b.e,plan=planAmt(e),diff=plan-r.d.amount;
+        cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
+      cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
+      h+='<td>'+cell+'</td>';
+      h+='<td class="num muted">'+(b?yen(planAmt(b.e)):'—')+'</td>';
+      h+='<td class="num muted">'+(b?(b.near?yen(planAmt(b.e)-r.d.amount):'0'):'—')+'</td>';
+      h+='<td><button class="btn sub mini" data-ign="'+di+'">除外</button></td>';
+    } else {
+      h+='<td class="muted" colspan="3">対象外</td><td><button class="btn sub mini" data-res="'+di+'">戻す</button></td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  body.innerHTML=h;
+  updateOutputs();
+  renderLink();
+}
+function updateOutputs(){
+  const hasMatch=results.some(r=>r.status==='matched');
+  $('outDoboku').disabled=!(planDoboku && results.some(r=>r.status==='matched'&&r.entry.type==='土木'));
+  $('outList').disabled=!results.length;
+  $('outImport').disabled=!hasMatch;
+}
+
+/* ===== 操作 ===== */
+$('resTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; resTab=b.dataset.t; document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
+$('resBody').addEventListener('click',e=>{
+  const best=e.target.closest('[data-best]');
+  if(best){ const r=results[+best.dataset.di]; const b=bestCand(r); if(b) confirmMatch(r,b.e,b.near); return; }
+  const fix=e.target.closest('[data-fix]');
+  if(fix){ manualFix(results[+fix.dataset.fix]); return; }
+  const ign=e.target.closest('[data-ign]');
+  if(ign){ const di=+ign.dataset.ign; ignoreSet.add(results[di].key); saveIgnore(); runMatch(); return; }
+  const un=e.target.closest('[data-un]');
+  if(un){ const di=+un.dataset.un; const r=results[di]; delete confirmed[r.key]; const nk=normName(r.d.name); if(master[nk]&&r.entry){ master[nk]=master[nk].filter(p=>normPayee(p)!==normPayee(r.entry.請求先)); if(!master[nk].length)delete master[nk]; } saveMasterLocal(); saveConfirmed(); renderMaster(); pushMaster(); runMatch(); return; }
+  const res=e.target.closest('[data-res]');
+  if(res){ const di=+res.dataset.res; ignoreSet.delete(results[di].key); saveIgnore(); runMatch(); return; }
+});
+function confirmMatch(r,entry,near){
+  const d=r.d; const fee=Math.max(0, planAmt(entry)-d.amount);
+  confirmed[depKey(d)]={payee:entry.請求先,type:entry.type,row:entry.row||null,code:entry.code||null,dept:entry.dept||null,工事番号:entry.工事番号||null,工事名:entry.工事名||null,fee:near?fee:0};
+  addMaster(d.name,entry.請求先); saveConfirmed(); renderMaster(); pushMaster(); runMatch();
+}
+function manualFix(r){
+  const inp=document.querySelector('[data-sel="'+results.indexOf(r)+'"]'); const val=inp?inp.value.trim():'';
+  if(!val){ alert('一覧から予定を選んでください（請求先や金額で検索）'); return; }
+  const e=allEntries().find(x=>dispEntry(x)===val);
+  if(!e){ alert('一覧から選んでください（候補に無い場合は請求先や金額で検索して選択）'); return; }
+  const near = planAmt(e)>r.d.amount && tolOK(r.d.amount,planAmt(e));
+  confirmMatch(r,e,near);   // 選んだ予定に紐づけ＋名義を学習（差額は手数料へ）
+}
+$('runMatch').addEventListener('click',runMatch);
+document.getElementById('toptabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; const t=b.dataset.tt;
+  document.querySelectorAll('#toptabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.getElementById('tabReconcile').style.display = t==='reconcile'?'':'none';
+  document.getElementById('tabMaster').style.display = t==='master'?'':'none';
+  if(t==='master') renderLink();
+});
+
+/* ===== マスタ ===== */
+function saveMasterLocal(){ localStorage.setItem(MKEY,JSON.stringify(master)); }
+function saveIgnore(){ localStorage.setItem(MIGN,JSON.stringify([...ignoreSet])); }
+function renderMaster(){
+  const tb=$('masterTbl').querySelector('tbody');
+  const keys=Object.keys(master).sort();
+  tb.innerHTML=keys.length?keys.map(k=>'<tr><td>'+esc(k)+'</td><td>'+esc((master[k]||[]).join(' ／ '))+'</td><td><span class="fchip"><span class="x" data-mdel="'+esc(k)+'">×</span></span></td></tr>').join(''):'<tr><td colspan="3" class="empty">まだありません（要確認で選ぶと増えます）</td></tr>';
+}
+$('masterTbl').addEventListener('click',e=>{ const d=e.target.closest('[data-mdel]'); if(d){ delete master[d.dataset.mdel]; saveMasterLocal(); renderMaster(); renderLink(); pushMaster(); runMatch(); } });
+
+/* ===== STEP3 名義の紐づけ ===== */
+let _linkRows=[];
+function afterMaster(){ saveMasterLocal(); renderMaster(); pushMaster(); runMatch(); }  // runMatch→render→renderLink
+function addMasterKey(nk,payee){ master[nk]=master[nk]||[]; if(!master[nk].some(p=>normPayee(p)===normPayee(payee))) master[nk].push(payee); afterMaster(); }
+function uniqueBankNames(){
+  const m={}, seen=new Set();
+  bankFiles.forEach(bf=>bf.deposits.forEach(d=>{ const k=depKey(d); if(seen.has(k))return; seen.add(k);
+    const nk=normName(d.name); if(!m[nk]) m[nk]={nk,name:d.name,amts:new Set(),count:0}; m[nk].amts.add(d.amount); m[nk].count++; }));
+  return m;
+}
+function proposalsFor(amtsSet){
+  const es=allEntries(); const by={};
+  amtsSet.forEach(a=>es.forEach(e=>{ const ex=amtMatch(e,a); const nr=!ex&&tolOK(a,planAmt(e)); if(ex||nr){ const k=normPayee(e.請求先); if(!by[k]||(by[k].near&&ex)) by[k]={payee:e.請求先, amount:a, plan:planAmt(e), near:!ex}; } }));
+  return Object.values(by);
+}
+function renderLink(){
+  const host=$('linkBody'); if(!host) return;
+  const dl=$('payeeList'); if(dl) dl.innerHTML=uniquePayees().map(p=>'<option value="'+esc(p)+'">').join('');
+  if(!bankFiles.length || !(planDoboku||planYayoi.length)){ host.innerHTML='<div class="empty">銀行CSVと予定表を読み込むと、ここに名義一覧が出ます</div>'; $('bulkLink').disabled=true; $('linkInfo').textContent=''; return; }
+  const onlyUn = $('onlyUnlinked') ? $('onlyUnlinked').checked : true;
+  const names=uniqueBankNames();
+  const keys=Object.keys(names).sort((a,b)=>names[b].count-names[a].count);
+  _linkRows=[]; let linked=0, proposable=0;
+  keys.forEach(nk=>{ const it=names[nk]; const cur=(master[nk]||[]).slice();
+    const props=proposalsFor(it.amts).filter(p=>!cur.some(c=>normPayee(c)===normPayee(p.payee)));
+    if(cur.length)linked++; if(!cur.length&&props.length)proposable++;
+    _linkRows.push({nk,name:it.name,amts:[...it.amts].sort((a,b)=>b-a),count:it.count,cur,props}); });
+  const view=_linkRows.map((r,i)=>({r,i})).filter(x=>onlyUn? x.r.cur.length===0 : true);
+  const prevScroll = (host.querySelector('.twrap')||{}).scrollTop||0;
+  if(!view.length){ host.innerHTML='<div class="empty">'+(onlyUn?'未紐づけの名義はありません 🎉（「未紐づけだけ表示」を外すと全件見えます）':'名義がありません')+'</div>'; }
+  else {
+    let h='<div class="twrap"><table><thead><tr><th>振込名義</th><th class="num">件</th><th>出現金額</th><th>請求先（紐づけ済み）</th><th>提案（クリックで紐づけ）・追加</th></tr></thead><tbody>';
+    view.forEach(({r,i})=>{
+      h+='<tr><td><b>'+esc(r.name)+'</b></td><td class="num">'+r.count+'</td>';
+      h+='<td class="muted" style="font-size:11.5px">'+r.amts.slice(0,3).map(yen).join('・')+(r.amts.length>3?' 他':'')+'</td>';
+      let c=''; r.cur.forEach((p,ci)=>c+='<span class="fchip">'+esc(p)+' <span class="x" data-uli="'+i+'" data-uci="'+ci+'">×</span></span> ');
+      if(!r.cur.length) c='<span class="tag d">未紐づけ</span>';
+      h+='<td>'+c+'</td>';
+      let p=''; r.props.slice(0,4).forEach((pp,pi)=>p+='<button class="'+(pp.near?'btn sub mini':'btn mini plink')+'" data-li="'+i+'" data-pi="'+pi+'" style="margin:0 5px 4px 0">＋ '+esc(pp.payee)+'（¥'+yen(pp.plan)+(pp.near?'/手数料差':'')+'）</button>');
+      if(!r.props.length) p+='<span class="muted" style="font-size:11px">提案なし　</span>';
+      p+='<span style="display:inline-flex;gap:4px"><input class="selp" list="payeeList" data-add="'+i+'" placeholder="請求先を検索" style="min-width:150px"><button class="btn mini" data-addi="'+i+'">追加</button></span>';
+      h+='<td>'+p+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+    host.innerHTML=h;
+    const tw=host.querySelector('.twrap'); if(tw) tw.scrollTop=prevScroll;   // 紐づけしても位置を保持
+  }
+  $('bulkLink').disabled = proposable===0;
+  $('linkInfo').textContent='名義 '+keys.length+'件：紐づけ済み '+linked+'／未紐づけ '+(keys.length-linked)+(proposable?('・自動提案 '+proposable+'件'):'');
+}
+$('linkBody').addEventListener('click',e=>{
+  const li=e.target.closest('[data-li]'); if(li){ const r=_linkRows[+li.dataset.li]; addMasterKey(r.nk, r.props[+li.dataset.pi].payee); return; }
+  const ul=e.target.closest('[data-uli]'); if(ul){ const r=_linkRows[+ul.dataset.uli]; const p=r.cur[+ul.dataset.uci]; if(master[r.nk]){ master[r.nk]=master[r.nk].filter(x=>normPayee(x)!==normPayee(p)); if(!master[r.nk].length)delete master[r.nk]; } afterMaster(); return; }
+  const ad=e.target.closest('[data-addi]'); if(ad){ const i=+ad.dataset.addi; const inp=document.querySelector('input[data-add="'+i+'"]'); const v=inp?inp.value.trim():''; if(!v){ alert('請求先を入力してください'); return; } addMasterKey(_linkRows[i].nk, v); return; }
+});
+$('bulkLink').addEventListener('click',()=>{
+  let n=0; _linkRows.forEach(r=>{ if(!r.cur.length && r.props.length===1){ master[r.nk]=master[r.nk]||[]; if(!master[r.nk].some(p=>normPayee(p)===normPayee(r.props[0].payee))){ master[r.nk].push(r.props[0].payee); n++; } } });
+  if(n) afterMaster(); alert(n+'件の名義を自動で紐づけました（提案が1件に絞れたものだけ）。');
+});
+$('onlyUnlinked').addEventListener('change',renderLink);
+$('masterReload').addEventListener('click',()=>loadMaster(true));
+$('masterSave').addEventListener('click',pushMaster);
+
+/* ===== GAS 同期（任意）===== */
+function setGasState(s){ const el=$('gasState'); el.className='pill '+(s==='on'?'on':'off'); el.textContent={on:'接続',off:'未接続',loading:'同期中…',err:'エラー'}[s]||s; }
+function jsonp(params){ return new Promise((res,rej)=>{ if(!GAS_URL){rej(new Error('no url'));return;} const cb='__nm'+Math.random().toString(36).slice(2); const s=document.createElement('script'); const to=setTimeout(()=>{cl();rej(new Error('timeout'));},12000); function cl(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);} window[cb]=d=>{cl();res(d);}; s.onerror=()=>{cl();rej(new Error('net'));}; s.src=GAS_URL+'?'+params+'&callback='+cb; document.body.appendChild(s); }); }
+function loadMaster(manual){
+  if(!GAS_URL){ setGasState('off'); return; }
+  setGasState('loading');
+  jsonp('action=load').then(d=>{ if(d&&d.master){ master=d.master||{}; saveMasterLocal(); renderMaster(); setGasState('on'); $('masterInfo').textContent='GASから読込 '+Object.keys(master).length+'件'; if(results.length)runMatch(); } else throw 0; })
+    .catch(()=>{ setGasState(manual?'err':'off'); });
+}
+function pushMaster(){
+  if(!GAS_URL){ return; }
+  setGasState('loading');
+  fetch(GAS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({master:master})})
+    .then(()=>jsonp('action=load')).then(d=>{ if(d&&d.master){ setGasState('on'); $('masterInfo').textContent='GASへ保存 '+Object.keys(master).length+'件'; } else setGasState('on'); })
+    .catch(()=>setGasState('err'));
+}
+/* 初接続はローカルを消さないよう「マージ（統合）」してから保存・アップ */
+function mergeMaster(remote){
+  Object.keys(remote||{}).forEach(k=>{
+    const arr=Array.isArray(remote[k])?remote[k]:(remote[k]?[remote[k]]:[]);
+    master[k]=master[k]||[];
+    arr.forEach(p=>{ if(p && !master[k].some(x=>normPayee(x)===normPayee(p))) master[k].push(p); });
+  });
+}
+function connectGas(){
+  if(!GAS_URL){ setGasState('off'); return; }
+  setGasState('loading');
+  jsonp('action=load').then(d=>{
+    const before=Object.keys(master).length;
+    mergeMaster(d&&d.master); saveMasterLocal(); renderMaster();
+    const after=Object.keys(master).length;
+    // 統合後の全量をGASへ書き戻し（両側を一致させる）
+    return fetch(GAS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({master:master})})
+      .then(()=>{ setGasState('on'); $('masterInfo').textContent='GASと統合：名義 '+after+'件（うちローカル既存 '+before+'件）'; if(results.length)runMatch(); });
+  }).catch(()=>setGasState('err'));
+}
+$('gasUrl').addEventListener('change',e=>{ GAS_URL=e.target.value.trim(); localStorage.setItem('nyukin_gas',GAS_URL); if(GAS_URL) connectGas(); else setGasState('off'); });
+
+/* ===== ファイル読み込み ===== */
+function decodeMaybeSjis(buf){
+  const u8=new Uint8Array(buf);
+  try{ const sjis=new TextDecoder('shift_jis',{fatal:false}).decode(u8);
+    // UTF-8で読めるならUTF-8優先（BOM/日本語の妥当性で簡易判定）
+    const utf=new TextDecoder('utf-8',{fatal:false}).decode(u8);
+    // 文字化けの「replacement char」が少ない方を採用
+    const badS=(sjis.match(/�/g)||[]).length, badU=(utf.match(/�/g)||[]).length;
+    return badU<=badS?utf:sjis;
+  }catch(e){ return new TextDecoder('utf-8').decode(u8); }
+}
+function readBank(file){
+  return file.arrayBuffer().then(buf=>{ const text=decodeMaybeSjis(buf); const p=parseBankCsv(text,file.name);
+    bankFiles.push({name:file.name, bank:p.bank, deposits:p.deposits}); });
+}
+function readPlan(file){
+  return file.arrayBuffer().then(buf=>{
+    const x=readXlsx(buf); const cls=classifyPlan(x.grid);
+    if(cls==='土木'){ planDoboku={name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, entries:parseDoboku(x.grid)}; }
+    else if(cls==='弥生'){ const dept=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; planYayoi.push({name:file.name, dept, entries:parseYayoi(x.grid,dept)}); }
+    else { alert('予定表の種類を判別できませんでした：'+file.name); }
+  });
+}
+function renderBankFiles(){
+  $('bankFiles').innerHTML=bankFiles.map((b,i)=>'<span class="fchip"><span class="t b">'+esc(b.bank)+'</span>'+esc(b.name)+' <span class="muted">('+b.deposits.length+'入金)</span> <span class="x" data-bdel="'+i+'">×</span></span>').join('');
+  const total=bankFiles.reduce((s,b)=>s+b.deposits.length,0);
+  $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金合計</span> <b>'+total+'</b> 件'):'';
+  $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
+  renderLink();
+}
+function renderPlanFiles(){
+  const chips=[];
+  if(planDoboku) chips.push('<span class="fchip"><span class="t">土木</span>'+esc(planDoboku.name)+' <span class="muted">('+planDoboku.entries.length+'工事)</span> <span class="x" data-pdel="doboku">×</span></span>');
+  planYayoi.forEach((p,i)=>chips.push('<span class="fchip"><span class="t y">'+esc(p.dept)+'</span>'+esc(p.name)+' <span class="muted">('+p.entries.length+'件)</span> <span class="x" data-pdel="y'+i+'">×</span></span>'));
+  $('planFiles').innerHTML=chips.join('');
+  const de=planDoboku?planDoboku.entries.length:0, ye=planYayoi.reduce((s,p)=>s+p.entries.length,0);
+  $('planSum').innerHTML=(planDoboku||planYayoi.length)?('<span class="k">土木</span> <b>'+de+'</b> 工事　<span class="k">弥生</span> <b>'+ye+'</b> 件'):'';
+  $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
+  renderLink();
+}
+$('bankFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-bdel]'); if(d){ bankFiles.splice(+d.dataset.bdel,1); renderBankFiles(); results=[]; render(); } });
+$('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pdel]'); if(d){ const k=d.dataset.pdel; if(k==='doboku')planDoboku=null; else planYayoi.splice(+k.slice(1),1); renderPlanFiles(); results=[]; render(); } });
+
+/* ドロップ＆選択 */
+function wire(dropId,inputId,handler,after){
+  const drop=$(dropId), input=$(inputId);
+  drop.addEventListener('click',()=>input.click());
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');handleFiles(e.dataTransfer.files);});
+  input.addEventListener('change',e=>handleFiles(e.target.files));
+  function handleFiles(fl){ const arr=[...fl]; Promise.all(arr.map(f=>handler(f).catch(err=>{console.error(err);alert('読み込み失敗：'+f.name+'\n'+err);}))).then(after); input.value=''; }
+}
+wire('dropBank','fileBank',readBank,renderBankFiles);
+wire('dropPlan','filePlan',readPlan,renderPlanFiles);
+
+/* ===== 出力：記入済み予定表（土木xlsx・レイアウト維持）===== */
+function setCell(xml, ref, value, isNum){
+  const rs=refSplit(ref); const rowN=rs.row;
+  const cell = isNum ? '<c r="'+ref+'"><v>'+value+'</v></c>' : '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+esc(value)+'</t></is></c>';
+  const rowRe=new RegExp('(<row r="'+rowN+'"[^>]*>)([\\s\\S]*?)(</row>)');
+  const m=xml.match(rowRe);
+  if(!m){
+    // 行が無い場合は挿入（末尾前）—簡易対応（通常は存在する）
+    return xml;
+  }
+  let inner=m[2];
+  // 既存の同セル削除
+  inner=inner.replace(new RegExp('<c r="'+ref+'"(?:[^>]*/>|[^>]*>[\\s\\S]*?</c>)'),'');
+  // セル一覧を取り出し、対象を足して列順にソート
+  const cells=[]; inner.replace(/<c\b[^>]*\/>|<c\b[^>]*>[\s\S]*?<\/c>/g,s=>{cells.push(s);return s;});
+  cells.push(cell);
+  cells.sort((a,b)=>{ const ra=/r="([A-Z]+)\d+"/.exec(a), rb=/r="([A-Z]+)\d+"/.exec(b); return colToNum(ra?ra[1]:'A')-colToNum(rb?rb[1]:'A'); });
+  return xml.slice(0,m.index)+m[1]+cells.join('')+m[3]+xml.slice(m.index+m[0].length);
+}
+$('outDoboku').addEventListener('click',()=>{
+  if(!planDoboku) return;
+  let xml=planDoboku.sheetXml;
+  const done=results.filter(r=>r.status==='matched'&&r.entry.type==='土木');
+  done.forEach(r=>{
+    const row=r.entry.row;
+    xml=setCell(xml,'L'+row, r.d.date, false);      // 入金日
+    xml=setCell(xml,'M'+row, r.d.bank, false);       // 銀行名
+    xml=setCell(xml,'N'+row, r.d.amount, true);      // 振込額
+    if(r.fee>0) xml=setCell(xml,'O'+row, r.fee, true);  // 手数料/差額（残高が0になるように）
+  });
+  const zip=Object.assign({},planDoboku.zip);
+  zip[planDoboku.sheetPath]=fflate.strToU8(xml);
+  const out=fflate.zipSync(zip);
+  dl(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), planDoboku.name.replace(/\.xlsx$/,'')+'_記入済み.xlsx');
+});
+function csvCell(s){ s=String(s==null?'':s); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),3000); }
+function bom(str){ return new Blob(['﻿'+str],{type:'text/csv;charset=utf-8'}); }
+$('outList').addEventListener('click',()=>{
+  const rows=[['状態','日付','種別','振込名義','入金額','銀行','請求先','部門','工事名','工事番号','予定額','差額(手数料)','内訳確認']];
+  results.forEach(r=>{
+    if(r.status==='matched'){ const e=r.entry; const plan=planAmt(e); rows.push(['マッチ',r.d.date,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,e.請求先,e.dept||(e.type==='土木'?'土木':'弥生'),e.工事名||'',e.工事番号||'',plan,plan-r.d.amount, isCross(e.請求先)?crossDepts(e.請求先).join('+'):'']); }
+    else if(r.status==='review'){ rows.push(['要確認',r.d.date,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,(r.payeeList||[]).join('|'),'',r.reason||'','','','','']); }
+    else rows.push(['対象外',r.d.date,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,'','','','','','','']);
+  });
+  dl(bom(rows.map(r=>r.map(csvCell).join(',')).join('\r\n')),'消込リスト_'+today()+'.csv');
+});
+$('outImport').addEventListener('click',()=>{
+  const rows=[['入金日','種別','請求先','工事番号','入金額','手数料','銀行名','摘要']];
+  results.filter(r=>r.status==='matched').forEach(r=>{ const e=r.entry; rows.push([r.d.date,r.d.kind||'',e.請求先,e.工事番号||'',r.d.amount,r.fee||0,r.d.bank,r.d.name]); });
+  dl(bom(rows.map(r=>r.map(csvCell).join(',')).join('\r\n')),'取込用_暫定_'+today()+'.csv');
+});
+function today(){ const d=new Date(); return d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2); }
+
+/* ===== 初期化 ===== */
+try{ master=JSON.parse(localStorage.getItem(MKEY)||'{}')||{}; }catch(e){ master={}; }
+Object.keys(master).forEach(k=>{ if(typeof master[k]==='string') master[k]=[master[k]]; if(!Array.isArray(master[k])) master[k]=[]; });  // 旧形式(文字列)→配列に移行
+try{ confirmed=JSON.parse(localStorage.getItem(MCONF)||'{}')||{}; }catch(e){ confirmed={}; }
+try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
+$('gasUrl').value=GAS_URL;
+renderMaster(); render();
+if(GAS_URL) connectGas(); else setGasState('off');  // 埋め込みURLへ自動接続＋ローカルと統合（消さない）
+})();
+</script>
+</body>
+</html>
