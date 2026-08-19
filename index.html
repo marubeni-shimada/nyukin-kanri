@@ -411,9 +411,9 @@ function parseBankCsv(text, fname){
   const lines=text.split(/\r?\n/).filter(l=>l.trim()!=='');
   const joined=text;
   const deposits=[];
-  if(/照会口座/.test(joined)){ // 静銀フォーマット
+  if(/照会口座/.test(joined) || (/入金金額/.test(joined) && /勘定日|取引区分/.test(joined))){ // 静銀フォーマット
     let hi=-1, head=null;
-    for(let i=0;i<lines.length;i++){ if(/照会口座/.test(lines[i])){ head=splitCsv(lines[i]).map(x=>x.trim()); hi=i; break; } }
+    for(let i=0;i<lines.length;i++){ if(/照会口座/.test(lines[i]) || /入金金額/.test(lines[i])){ head=splitCsv(lines[i]).map(x=>x.trim()); hi=i; break; } }
     if(!head) return {bank:'静銀',deposits};
     const col=n=>head.findIndex(h=>h.replace(/\s/g,'').indexOf(n)>=0);
     const cDate=col('勘定日'), cIn=col('入金金額'), cKind=col('取引区分'), cSum=head.length-1, cFi=col('金融機関名'), cBr=col('支店名');
@@ -427,9 +427,9 @@ function parseBankCsv(text, fname){
     }
     return {bank:'静銀',deposits};
   }
-  if(/お預かり金額/.test(joined)){ // 島掛（信金）フォーマット
+  if(/お預かり金額|お預り金額/.test(joined)){ // 島掛（信金）フォーマット
     let hi=-1;
-    for(let i=0;i<lines.length;i++){ if(/^日付,/.test(lines[i])||/お預かり金額/.test(lines[i])){ hi=i; break; } }
+    for(let i=0;i<lines.length;i++){ if(/^日付,/.test(lines[i])||/お預かり金額|お預り金額/.test(lines[i])){ hi=i; break; } }
     if(hi<0) return {bank:'島掛',deposits};
     for(let i=hi+1;i<lines.length;i++){
       const r=splitCsv(lines[i]).map(x=>x.trim()); if(r.length<6)continue;
@@ -669,18 +669,20 @@ function breakdownHtml(r,di){
 }
 
 function render(){
-  const done=results.filter(isDone);
-  const pending=results.filter(r=>r.status==='review' && !isDone(r));
-  const ign=results.filter(r=>r.status==='ignored');
+  const scoped=results.filter(inDept);   // 選択中の部門タブに絞って数える
+  const done=scoped.filter(isDone);
+  const pending=scoped.filter(r=>r.status==='review' && !isDone(r));
+  const ign=scoped.filter(r=>r.status==='ignored');
   $('cReview').textContent=pending.length?('('+pending.length+')'):'';
   $('cMatched').textContent=done.length?('('+done.length+')'):'';
   $('cIgnored').textContent=ign.length?('('+ign.length+')'):'';
-  $('matchInfo').textContent='入金 '+results.length+'件：未処理 '+pending.length+'／消込済み '+done.length+'／対象外 '+ign.length;
+  const depLabel = deptTab==='all'?'全部':deptTab==='share'?'一本の振込':deptTab;
+  $('matchInfo').textContent=depLabel+'：未処理 '+pending.length+'／消込済み '+done.length+(ign.length?('／対象外 '+ign.length):'')+'　（全体 '+results.length+'件）';
   const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
   renderDeptTabs();
   const body=$('resBody');
-  const base = resTab==='matched'?done : resTab==='review'?pending : resTab==='ignored'?ign : results;
-  const list = base.filter(inDept);
+  const base = resTab==='matched'?done : resTab==='review'?pending : resTab==='ignored'?ign : scoped;
+  const list = base;
   if(!list.length){
     let msg;
     if(!results.length) msg='STEP1・2を読み込んで「照合する」を押してください';
@@ -936,11 +938,16 @@ function decodeMaybeSjis(buf){
 function stampDate(){ const d=new Date(); return d.getFullYear()+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2); }
 function readBank(file){
   return file.arrayBuffer().then(buf=>{ const text=decodeMaybeSjis(buf); const p=parseBankCsv(text,file.name);
+    if(p.bank==='不明' || p.deposits.length===0){
+      const first=(text.split(/\r?\n/).find(l=>l.trim())||'').slice(0,160);
+      alert('この銀行CSVを読み取れませんでした：'+file.name+'\n\n先頭行:\n'+first+'\n\n静銀＝「照会口座／入金金額」、島掛＝「お預かり金額」の見出しが必要です。\n書式が違う場合は、この先頭行を担当に伝えてください。');
+    }
     const imp=stampDate();
     // 貯めていく：既に取り込んだ入金（同一キー）は自動で除外して重複させない
     const seen=new Set(); bankFiles.forEach(bf=>bf.deposits.forEach(d=>seen.add(depKey(d))));
     const fresh=p.deposits.filter(d=>{ const k=depKey(d); if(seen.has(k))return false; seen.add(k); d.importedAt=imp; return true; });
-    bankFiles.push({name:file.name, bank:p.bank, deposits:fresh, dup:p.deposits.length-fresh.length, importedAt:imp}); });
+    if(fresh.length) bankFiles.push({name:file.name, bank:p.bank, deposits:fresh, dup:p.deposits.length-fresh.length, importedAt:imp});
+    else if(p.deposits.length) alert('この銀行CSVは、すべて取込済み（重複）でした：'+file.name+'（'+p.deposits.length+'件はすでに貯まっています）'); });
 }
 function readPlan(file){
   return file.arrayBuffer().then(buf=>{
