@@ -6,87 +6,258 @@
 <title>入金消込ツール</title>
 <style>
   :root{
-    --paper:#f5f6f8; --panel:#fff; --ink:#1a2230; --ink2:#43506a; --muted:#7b869a; --muted2:#aab2c2;
-    --line:#e6e9ef; --line2:#f0f2f6; --ac:#2563eb; --ac2:#1d4fd0; --ac-soft:#e8f0fe;
-    --ok:#1c7a3e; --ok-bg:#e7f5ec; --warn:#8a6d10; --warn-bg:#fdf3d7; --red:#c0392b; --red-bg:#fbe9e7;
-    --shadow:0 1px 2px rgba(20,30,50,.05),0 10px 28px rgba(20,30,50,.07);
+    --paper:#f6f7f9; --panel:#ffffff; --ink:#16202e; --ink2:#3d4a5c; --muted:#6b7686; --muted2:#a7afbc;
+    --line:#e7eaef; --line2:#f1f3f6; --ac:#2b57e6; --ac2:#2247c4; --ac-soft:#eef2fe;
+    --ok:#1f7a46; --ok-bg:#ecf5ef; --warn:#8a6417; --warn-bg:#fcf1da; --warn-line:#eab868; --red:#bb3b2c; --red-bg:#fbeae7;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06);
+    --r:12px; --r2:8px;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --paper:#0f141b; --panel:#161d27; --ink:#e7ecf3; --ink2:#c2ccdb; --muted:#93a0b4; --muted2:#5e6a7d;
-      --line:#242c39; --line2:#1c2330; --ac:#5b8bff; --ac2:#7ea3ff; --ac-soft:#16233c;
-      --ok:#5fd39a; --ok-bg:#10271b; --warn:#e6cf5a; --warn-bg:#332b0f; --red:#e88b7d; --red-bg:#331713; }
+    :root{ --paper:#0e131a; --panel:#151b24; --ink:#e8edf4; --ink2:#c1ccda; --muted:#8b97a8; --muted2:#5a6575;
+      --line:#232b37; --line2:#1a212c; --ac:#6693ff; --ac2:#89adff; --ac-soft:#15223a;
+      --ok:#63d39c; --ok-bg:#102319; --warn:#e6c869; --warn-bg:#2e260f; --warn-line:#6b501c; --red:#e88b7d; --red-bg:#2f1613; }
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Yu Gothic UI","Meiryo","Segoe UI",system-ui,sans-serif;line-height:1.6;font-size:14px;}
-  header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;}
-  .head{max-width:1180px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-  .logo{width:38px;height:38px;border-radius:10px;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px;}
-  .title h1{margin:0;font-size:17px;} .title p{margin:0;font-size:12px;color:var(--muted);}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Yu Gothic UI","Meiryo","Segoe UI",system-ui,sans-serif;line-height:1.6;font-size:14px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  ::selection{background:var(--ac-soft);}
+  header{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:saturate(1.6) blur(8px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;}
+  .head{max-width:1120px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:13px;flex-wrap:wrap;}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:700;font-size:17px;letter-spacing:-.02em;}
+  .title h1{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em;} .title p{margin:1px 0 0;font-size:11.5px;color:var(--muted);}
   .head .sp{margin-left:auto;}
   .gas{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);}
   .gas input{width:230px;max-width:40vw;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;background:var(--paper);color:var(--ink);font-family:inherit;}
-  .pill{font-size:11px;font-weight:800;border-radius:999px;padding:3px 9px;}
+  .pill{font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;}
+  .pill::before{content:"";width:6px;height:6px;border-radius:999px;background:currentColor;opacity:.9;}
   .pill.on{background:var(--ok-bg);color:var(--ok);} .pill.off{background:var(--line2);color:var(--muted);}
 
-  main{max-width:1180px;margin:0 auto;padding:20px 22px 60px;}
-  .toptabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);}
-  .toptabs button{border:0;background:none;padding:10px 20px;font-size:14.5px;font-weight:800;color:var(--muted);cursor:pointer;font-family:inherit;border-bottom:3px solid transparent;margin-bottom:-1px;}
-  .toptabs button.on{color:var(--ac);border-bottom-color:var(--ac);}
-  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;margin-bottom:16px;}
-  .step h2{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:9px;}
-  .step h2 .n{width:22px;height:22px;border-radius:7px;background:var(--ac-soft);color:var(--ac2);display:grid;place-items:center;font-size:12px;font-weight:800;}
-  .step .desc{font-size:12.5px;color:var(--muted);margin:0 0 12px 31px;}
+  main{max-width:1120px;margin:0 auto;padding:24px 24px 72px;}
+  .toptabs{display:flex;gap:2px;margin-bottom:22px;border-bottom:1px solid var(--line);}
+  .toptabs button{border:0;background:none;padding:11px 18px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s;}
+  .toptabs button:hover{color:var(--ink2);}
+  .toptabs button.on{color:var(--ink);border-bottom-color:var(--ac);}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:14px;}
+  .step h2{margin:0 0 3px;font-size:14.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;}
+  .step h2 .n{width:21px;height:21px;border-radius:6px;background:var(--ac-soft);color:var(--ac2);display:grid;place-items:center;font-size:11.5px;font-weight:700;}
+  .step .desc{font-size:12px;color:var(--muted);margin:0 0 14px 31px;line-height:1.5;}
   .drop{border:1.5px dashed var(--line);border-radius:11px;padding:16px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:.12s;background:var(--paper);}
   .drop:hover,.drop.over{border-color:var(--ac);background:var(--ac-soft);color:var(--ac2);}
   .drop b{color:var(--ac2);}
   .files{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
-  .fchip{font-size:12px;background:var(--line2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;display:flex;align-items:center;gap:6px;}
-  .fchip .t{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:var(--ac-soft);color:var(--ac2);}
-  .fchip .t.y{background:#eaf6ec;color:#1c7a3e;} .fchip .t.b{background:#fdf3d7;color:#8a6d10;}
-  .fchip .x{cursor:pointer;color:var(--muted2);font-weight:800;}
+  .fchip{font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r2);padding:4px 10px;display:flex;align-items:center;gap:7px;}
+  .fchip .t{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--ac-soft);color:var(--ac2);}
+  .fchip .t.y{background:var(--line2);color:var(--ink2);} .fchip .t.b{background:var(--line2);color:var(--ink2);}
+  .fchip .x{cursor:pointer;color:var(--muted2);font-weight:700;padding:0 2px;}
+  .fchip .x:hover{color:var(--red);}
   .sum{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px;}
   .sum .k{color:var(--muted);} .sum b{font-variant-numeric:tabular-nums;}
 
-  .btn{border:0;background:var(--ac);color:#fff;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
-  .btn:hover{filter:brightness(1.06);} .btn:disabled{opacity:.5;cursor:default;}
-  .btn.sub{background:var(--panel);color:var(--ac);border:1px solid var(--line);}
-  .btn.g{background:#1c7a3e;} .btn.mini{padding:5px 10px;font-size:12px;}
+  .btn{border:1px solid transparent;background:var(--ac);color:#fff;border-radius:var(--r2);padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .12s,background .12s;}
+  .btn:hover{filter:brightness(1.05);} .btn:active{filter:brightness(.97);} .btn:disabled{opacity:.45;cursor:default;filter:none;}
+  .btn.sub{background:var(--panel);color:var(--ink2);border:1px solid var(--line);} .btn.sub:hover{background:var(--line2);filter:none;}
+  .btn.g{background:var(--ok);} .btn.mini{padding:5px 10px;font-size:12px;}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 
-  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
-  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line2);vertical-align:middle;}
-  th{color:var(--muted);font-weight:700;font-size:11.5px;position:sticky;top:0;background:var(--panel);}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:2px;}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);vertical-align:middle;}
+  th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.02em;position:sticky;top:0;background:var(--panel);z-index:1;}
+  tbody tr:last-child td{border-bottom:0;}
+  tbody tr:hover td{background:color-mix(in srgb,var(--ac-soft) 40%,transparent);}
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
-  .twrap{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;}
-  .tag{font-size:10.5px;font-weight:800;border-radius:5px;padding:1px 7px;}
-  .tag.d{background:var(--warn-bg);color:var(--warn);} .tag.y{background:var(--ok-bg);color:var(--ok);}
-  .tag.matched{background:var(--ok-bg);color:var(--ok);} .tag.review{background:var(--warn-bg);color:var(--warn);}
-  .tag.cross{background:#efe7fb;color:#5b3fa0;}
-  @media (prefers-color-scheme: dark){ .tag.cross{background:#2a2340;color:#b9a6ff;} }
-  .cand{display:inline-block;font-size:12px;font-weight:700;cursor:pointer;padding:2px 0;text-decoration:none;}
-  .cand.exact{color:var(--ok);} .cand.near{color:var(--warn);} .cand:hover{text-decoration:underline;}
-  .pick{display:flex;gap:5px;margin-top:4px;} .pick .selp{min-width:150px;}
+  .twrap{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);}
+  .tag{font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;letter-spacing:.01em;white-space:nowrap;}
+  .tag.d{background:var(--warn-bg);color:var(--warn);}
+  .tag.y{background:transparent;color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);}
+  .tag.k{background:var(--line2);color:var(--muted);font-weight:600;}
+  .tag.cross{background:transparent;color:#7259c0;border:1px solid color-mix(in srgb,#7259c0 35%,transparent);}
+  @media (prefers-color-scheme: dark){ .tag.cross{color:#b9a6ff;border-color:#4a3d78;} }
+  .cand{display:inline-block;font-size:12px;font-weight:600;cursor:pointer;padding:2px 0;text-decoration:none;color:var(--ac2);}
+  .cand.near{color:var(--warn);} .cand:hover{text-decoration:underline;}
+  .pick{display:flex;gap:5px;margin-top:5px;} .pick .selp{min-width:150px;}
   tr.dim{opacity:.5;}
-  .btn.plink{background:var(--ok);} .btn.plink:hover{filter:brightness(1.07);}
-  .selp{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px;font-family:inherit;background:var(--paper);color:var(--ink);min-width:180px;}
-  .empty{padding:22px;text-align:center;color:var(--muted);font-size:13px;}
-  .tabs{display:flex;gap:4px;margin-bottom:8px;}
-  .tabs button{border:0;background:none;padding:7px 13px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;border-bottom:2.5px solid transparent;}
-  .tabs button.on{color:var(--ac);border-bottom-color:var(--ac);}
+  .btn.plink{background:var(--panel);color:var(--ac2);border:1px solid var(--line);} .btn.plink:hover{background:var(--ac-soft);filter:none;}
+  .selp{border:1px solid var(--line);border-radius:var(--r2);padding:6px 9px;font-size:12px;font-family:inherit;background:var(--paper);color:var(--ink);min-width:180px;}
+  .selp:focus{outline:2px solid var(--ac-soft);border-color:var(--ac);}
+  .empty{padding:28px;text-align:center;color:var(--muted);font-size:13px;}
+  .tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--line);}
+  .tabs button{border:0;background:none;padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s;}
+  .tabs button:hover{color:var(--ink2);}
+  .tabs button.on{color:var(--ink);border-bottom-color:var(--ac);}
   details.master{margin-top:4px;} details.master summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--ac2);}
   .note{font-size:11.5px;color:var(--muted);margin-top:8px;}
   .muted{color:var(--muted);}
+  .sub2{font-size:10.5px;color:var(--muted);margin-top:1px;line-height:1.2;}
+  /* v0.2 部門タブ */
+  .depttabs{display:flex;gap:6px;margin:2px 0 14px;flex-wrap:wrap;}
+  .depttabs button{border:1px solid var(--line);background:var(--panel);padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer;font-family:inherit;border-radius:999px;display:inline-flex;align-items:center;gap:7px;transition:background .12s,border-color .12s;}
+  .depttabs button:hover{background:var(--line2);}
+  .depttabs button.on{color:#fff;background:var(--ac);border-color:var(--ac);}
+  .depttabs .cnt{font-size:11px;font-weight:700;border-radius:999px;padding:0 6px;background:var(--line2);color:var(--muted);}
+  .depttabs button.on .cnt{background:rgba(255,255,255,.22);color:#fff;}
+  /* v0.2 金額差の強調（画面で唯一の注意色＝アンバー） */
+  tr.flag>td{background:color-mix(in srgb,var(--warn-bg) 60%,transparent);}
+  tr.flag>td:first-child{box-shadow:inset 3px 0 0 var(--warn-line);}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 8px;margin-left:4px;white-space:nowrap;border:1px solid transparent;}
+  .badge.short{background:transparent;color:var(--red);border-color:color-mix(in srgb,var(--red) 35%,transparent);}
+  .badge.over{background:transparent;color:var(--ac2);border-color:color-mix(in srgb,var(--ac2) 35%,transparent);}
+  .badge.fee{background:transparent;color:var(--warn);border-color:var(--warn-line);}
+  .badge.share{background:var(--line2);color:var(--ink2);}
+  .diff0{color:var(--muted);font-weight:600;} .diffS{color:var(--red);font-weight:700;} .diffO{color:var(--ac2);font-weight:700;}
+  /* v0.2 一本振込の内訳 */
+  .lk{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 9px;background:transparent;color:var(--ac2);border:1px solid color-mix(in srgb,var(--ac2) 35%,transparent);white-space:nowrap;}
+  .stg{font-size:11px;font-weight:600;margin-top:3px;color:var(--muted);} .stg.wait{color:var(--warn);} .stg.done{color:var(--ok);}
+  .toggle{cursor:pointer;color:var(--ac2);font-weight:600;font-size:11.5px;user-select:none;}
+  .toggle:hover{text-decoration:underline;}
+  tr.detail>td{background:var(--line2);padding:0;}
+  .bd{margin:0 6px 12px;border:1px solid var(--line);border-left:3px solid var(--warn-line);border-radius:var(--r2);padding:14px 16px;background:var(--panel);}
+  .bd h4{margin:0 0 10px;font-size:12.5px;font-weight:700;color:var(--ink2);}
+  .bd table{width:auto;min-width:520px;margin:0;}
+  .bd th,.bd td{border-bottom:1px solid var(--line);padding:6px 10px;background:transparent;}
+  .bd tbody tr:hover td{background:transparent;}
+  .dept{font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 8px;display:inline-flex;align-items:center;gap:5px;}
+  .dept::before{content:"";width:7px;height:7px;border-radius:2px;background:currentColor;}
+  .dept.d1{color:var(--ac2);}
+  .dept.d2{color:var(--ok);}
+  .dept.d3{color:#7259c0;}
+  .dept.d0{color:var(--warn);}
+  @media (prefers-color-scheme: dark){ .dept.d3{color:#b9a6ff;} }
+  .bd input.amt{width:120px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-family:inherit;font-variant-numeric:tabular-nums;background:var(--paper);color:var(--ink);}
+  .bd input.amt:focus{outline:2px solid var(--ac-soft);border-color:var(--ac);}
+  .chk{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:4px 11px;cursor:pointer;background:var(--panel);transition:background .12s;}
+  .chk:hover{background:var(--line2);}
+  .chk.on{background:var(--ok-bg);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent);}
+  .bd .bal{font-size:12px;font-weight:700;} .bal.ok{color:var(--ok);} .bal.ng{color:var(--red);}
+</style>
+<style>
+/* ============================================================
+   リッチUI スキン（今風・脳汁版）── 構造/機能は同一、見た目のみ上書き
+   ※戻したいときはこの<style>ブロックを消すだけ／落ち着いた版は別ファイル
+   ============================================================ */
+:root{
+  --ac:#5b5bf5; --ac2:#4a43d6; --ac-soft:#eeeeff;
+  --grad:linear-gradient(135deg,#6d5efc 0%,#4f46e5 55%,#7c3aed 100%);
+  --grad-soft:linear-gradient(135deg,#eff0ff,#f4edff);
+  --glow:0 10px 26px -8px rgba(91,91,245,.5);
+  --shadow:0 1px 2px rgba(24,24,60,.05),0 14px 34px -14px rgba(30,27,75,.22);
+  --r:18px; --r2:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --ac:#7d76ff; --ac2:#a99cff; --ac-soft:#1b1a33;
+    --grad:linear-gradient(135deg,#7d76ff,#5b52e6 55%,#8b5cf6);
+    --grad-soft:linear-gradient(135deg,#191a33,#221a3a);
+    --glow:0 10px 30px -8px rgba(125,118,255,.55);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 16px 38px -16px rgba(0,0,0,.6); }
+}
+@keyframes popIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes sheen{0%{background-position:-140% 0}100%{background-position:140% 0}}
+
+body{
+  background:
+    radial-gradient(1100px 520px at 12% -12%, color-mix(in srgb,var(--ac) 13%,transparent), transparent 60%),
+    radial-gradient(900px 520px at 105% -6%, color-mix(in srgb,#8b5cf6 11%,transparent), transparent 55%),
+    var(--paper);
+  background-attachment:fixed;
+}
+
+/* ヘッダー：すりガラス＋下にグラデの一本線＋発光ブランド */
+header{background:color-mix(in srgb,var(--panel) 78%,transparent);backdrop-filter:saturate(1.9) blur(14px);position:sticky;}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--grad);}
+.logo{background:var(--grad);box-shadow:var(--glow);}
+.title h1{font-weight:800;letter-spacing:-.02em;}
+.pill.on{background:color-mix(in srgb,#22c55e 14%,transparent);color:#16a34a;}
+
+/* セクション：浮遊カード＋ホバーで持ち上がる＋登場アニメ */
+.step{border-radius:var(--r);box-shadow:var(--shadow);transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s;animation:popIn .28s ease both;}
+.step:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(24,24,60,.05),0 26px 52px -20px rgba(30,27,75,.34);}
+.step h2{font-weight:800;letter-spacing:-.02em;}
+.step h2 .n{background:var(--grad);color:#fff;box-shadow:var(--glow);}
+
+/* 主ボタン：グラデ＋発光＋押すと沈む */
+.btn{background:var(--grad);border-radius:var(--r2);box-shadow:var(--glow);font-weight:700;transition:transform .15s cubic-bezier(.2,.8,.2,1),box-shadow .15s,filter .15s;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 16px 34px -8px rgba(91,91,245,.6);filter:saturate(1.05);}
+.btn:active{transform:translateY(0);box-shadow:var(--glow);}
+.btn.sub{background:var(--panel);color:var(--ac2);box-shadow:none;border:1px solid var(--line);}
+.btn.sub:hover{transform:translateY(-2px);box-shadow:var(--shadow);background:var(--panel);}
+.btn.g{background:linear-gradient(135deg,#34d399,#10b981 60%,#059669);box-shadow:0 10px 26px -8px rgba(16,185,129,.5);}
+.btn.mini{box-shadow:none;} .btn.mini:hover{box-shadow:0 8px 18px -6px rgba(91,91,245,.45);}
+.btn.plink{background:var(--panel);color:var(--ac2);box-shadow:none;}
+
+/* 上部タブ：アクティブに下線グラデ */
+.toptabs button.on{color:var(--ac2);border-bottom-color:transparent;position:relative;}
+.toptabs button.on::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:3px;border-radius:3px;background:var(--grad);}
+
+/* 部門タブ：アクティブはグラデのピル＋発光 */
+.depttabs button{border-radius:999px;transition:transform .14s cubic-bezier(.2,.8,.2,1),box-shadow .14s,background .14s;}
+.depttabs button:hover{transform:translateY(-1px);}
+.depttabs button.on{background:var(--grad);border-color:transparent;box-shadow:var(--glow);color:#fff;}
+.depttabs button.share.on{background:var(--grad);}
+
+/* サブタブ（要確認など）：グラデ下線 */
+.tabs button.on{color:var(--ac2);border-bottom-color:transparent;position:relative;}
+.tabs button.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px;background:var(--grad);}
+
+/* テーブル：丸み＋行ホバーで淡いアクセント＋左に細バー */
+.twrap{border-radius:var(--r);box-shadow:var(--shadow);}
+tbody tr{transition:background .12s,box-shadow .12s;}
+tbody tr:hover td{background:color-mix(in srgb,var(--ac-soft) 60%,transparent);}
+tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--ac);}
+
+/* タグ/バッジ：一本振込・部門内訳はグラデ地に */
+.badge.share{background:var(--grad-soft);color:var(--ac2);border-color:transparent;}
+.lk{background:var(--grad-soft);color:var(--ac2);border-color:transparent;font-weight:800;}
+.cand{color:var(--ac2);font-weight:700;}
+
+/* 金額差の強調行：左バーをアクセントに＋淡い発光 */
+tr.flag>td{background:color-mix(in srgb,var(--warn-bg) 72%,transparent);}
+tr.flag>td:first-child{box-shadow:inset 4px 0 0 #f59e0b;}
+
+/* 内訳パネル：登場アニメ＋グラデ左バー＋やわらかい面 */
+tr.detail>td{background:transparent;}
+.bd{animation:popIn .2s ease both;border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:var(--r2);background:var(--grad-soft);box-shadow:var(--shadow);}
+.chk{transition:transform .12s,background .12s,box-shadow .12s;}
+.chk:hover{transform:translateY(-1px);}
+.chk.on{background:linear-gradient(135deg,#34d399,#10b981);color:#fff;border-color:transparent;box-shadow:0 8px 20px -6px rgba(16,185,129,.5);}
+
+/* 入力/選択：フォーカスでアクセントリング */
+.selp:focus,.bd input.amt:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 22%,transparent);}
+
+/* ドロップ枠：ホバーで発光 */
+.drop{border-radius:var(--r2);transition:border-color .15s,background .15s,box-shadow .15s;}
+.drop:hover,.drop.over{box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 14%,transparent);}
+
+/* スクロールバーを細く今風に */
+.twrap::-webkit-scrollbar{width:10px;height:10px}
+.twrap::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--ac) 40%,transparent);border-radius:999px;border:2px solid var(--panel)}
+
+/* ============ 構造変更：照合結果を主役に、取込は上部に小さく ============ */
+.head{max-width:1360px;}
+main{max-width:1360px;}
+/* 取込(STEP1・2)を2列にコンパクト化 */
+.importrow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.importrow .step{margin-bottom:0;padding:16px 18px;}
+.importrow .step .desc{margin-bottom:10px;}
+.importrow .drop{padding:13px;font-size:12.5px;}
+@media(max-width:860px){ .importrow{grid-template-columns:1fr;} }
+/* 照合結果を全幅・広く・高く */
+#stepMatch{padding:22px 24px;}
+#stepMatch h2{font-size:16px;}
+#stepMatch .twrap{max-height:min(66vh,760px);}
+#stepMatch table{font-size:13px;}
+#stepMatch th,#stepMatch td{padding:11px 14px;}
+#stepMatch thead th{background:color-mix(in srgb,var(--panel) 96%,var(--ac));backdrop-filter:blur(2px);}
+#stepMatch .depttabs button{padding:8px 16px;font-size:13px;}
+#stepMatch .tabs button{padding:9px 15px;font-size:13px;}
 </style>
 </head>
 <body>
 <header>
   <div class="head">
     <div class="logo">¥</div>
-    <div class="title"><h1>入金消込ツール</h1><p>銀行入金を予定表に自動で紐づけ（土木＝どっと原価／営業・環境＝弥生）</p></div>
+    <div class="title"><h1>入金消込ツール <span class="muted" style="font-size:11px;font-weight:600">v0.2</span></h1><p>銀行入金を予定表に自動で紐づけ（土木＝どっと原価／営業・環境＝弥生）。部門タブ＋一本振込の内訳確認。</p></div>
     <div class="sp"></div>
     <div class="gas">
       <input id="gasUrl" type="hidden">
-      <span class="muted" style="font-size:12px">名義マスタ共有</span>
+      <span class="muted" style="font-size:12px">中央共有（名義・入金）</span>
       <span id="gasState" class="pill off">未接続</span>
     </div>
   </div>
@@ -99,10 +270,11 @@
   </div>
 
   <div id="tabReconcile">
+  <div class="importrow">
   <!-- STEP1 銀行明細 -->
   <div class="step">
     <h2><span class="n">1</span>銀行の入金明細CSVを読み込む</h2>
-    <p class="desc">静銀・島掛など複数OK。Shift_JISのまま読めます。フォーマットは自動判別。入金（振込・手形・電子債権）を種別付きで抽出します（出金・手数料は除外）。</p>
+    <p class="desc">静銀・島掛など複数OK。フォーマット自動判別。<b>取り込むほど貯まっていきます</b>（保存され次回も残る・重複は自動除外）。予定表は別のタイミングでOK。</p>
     <div class="drop" id="dropBank">ここにCSVをドラッグ、またはクリックして選択（複数可）</div>
     <input type="file" id="fileBank" accept=".csv" multiple hidden>
     <div class="files" id="bankFiles"></div>
@@ -112,22 +284,26 @@
   <!-- STEP2 予定表 -->
   <div class="step">
     <h2><span class="n">2</span>予定表を読み込む</h2>
-    <p class="desc">土木＝どっと原価「請求一覧表(工事別)」／営業・環境＝弥生「請求先別回収状況一覧表」。種類は自動判別します。</p>
+    <p class="desc">土木＝どっと原価／営業・環境＝弥生。種類は自動判別。<b>予定表を入れた時点で自動照合</b>。銀行と別のタイミングでOK。</p>
     <div class="drop" id="dropPlan">ここにExcel(.xlsx)をドラッグ、またはクリックして選択（複数可）</div>
     <input type="file" id="filePlan" accept=".xlsx" multiple hidden>
     <div class="files" id="planFiles"></div>
     <div class="sum" id="planSum"></div>
+    <div class="row" style="margin-top:10px"><button class="btn sub mini" id="clearPlan">予定表をクリア</button></div>
   </div>
 
+  </div><!-- /importrow -->
+
   <!-- STEP3 照合結果 -->
-  <div class="step">
+  <div class="step" id="stepMatch">
     <h2><span class="n">3</span>照合結果（一覧）</h2>
-    <p class="desc">名義×金額で自動照合。名義を紐づけるほど自動が増えます。個別に直したい行はその場で検索して確定もできます。</p>
+    <p class="desc">名義×金額で自動照合。<b>入金額と請求額が食い違う入金は黄色で強調</b>。部門タブで土木／営業を分けて確認。<b>一本の振込（部門またぎ）は🔗付き</b>で両部署の内訳確認ができます。</p>
     <div class="row" style="margin-bottom:10px"><button class="btn" id="runMatch" disabled>照合する</button><span class="muted" id="matchInfo"></span></div>
+    <div class="depttabs" id="deptTabs"></div>
     <div class="tabs" id="resTabs">
-      <button data-t="all" class="on">すべて</button>
-      <button data-t="review">要確認 <span id="cReview"></span></button>
-      <button data-t="matched">マッチ済み <span id="cMatched"></span></button>
+      <button data-t="review" class="on">未処理 <span id="cReview"></span></button>
+      <button data-t="matched">消込済み <span id="cMatched"></span></button>
+      <button data-t="all">すべて</button>
       <button data-t="ignored">対象外 <span id="cIgnored"></span></button>
     </div>
     <div id="resBody"></div>
@@ -187,8 +363,11 @@ let master={};       // normKey -> [請求先,...]（1名義→複数請求先�
 let confirmed={};    // depKey -> {payee,type,row,code,dept,工事番号,工事名,fee}
 let ignoreSet=new Set(); // depositのkey(対象外)
 let results=[];      // 照合結果
-let resTab='all';
-const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed';
+let resTab='review';  // 既定＝未処理（確定したものは自動で消込済みへ移る）
+let deptTab='all';   // v0.2 部門タブ（all/土木/営業/環境/share）
+let splitConfirm={}; // v0.2 一本振込の内訳＋両部署確認：key -> {alloc:{dept:額}, resid:額, ok:{dept:bool}}
+const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan';
+let allowPersist=true;  // 銀行・予定表の取込をこのPCに保存（サンプル表示中はfalse）。順不同・別日でも残す
 // マスタ保存GAS：URLをここに固定（大石さんは触らなくても最初から共有される）
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbyQNsc3cvrgle_ruuNLd6knrJ0l6vAU-ImTpAYEsIyOLdzPoLgF0wj0SgTZMGdFD3Tz/exec';
 let GAS_URL=localStorage.getItem('nyukin_gas')||DEFAULT_GAS_URL;
@@ -390,7 +569,7 @@ function runMatch(){
 
 /* ===== 描画 ===== */
 function fmtEntry(e){ return e.type==='土木'?(e.請求先+'／'+e.工事名+'（'+e.工事番号+'）'):(e.請求先+'（'+(e.dept||'弥生')+'）'); }
-function kindTag(k){ const c=k==='振込'?'y':'d'; return '<span class="tag '+c+'">'+esc(k||'—')+'</span>'; }
+function kindTag(k){ return '<span class="tag k">'+esc(k||'—')+'</span>'; }
 function payeeOptions(sel){
   return '<option value="">— 請求先を選ぶ —</option>'+uniquePayees().map(p=>'<option'+(p===sel?' selected':'')+'>'+esc(p)+'</option>').join('');
 }
@@ -403,43 +582,148 @@ function candChip(di,ci,e,near,dep){
 }
 function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+trunc(e.工事名||'',18)+' ¥'+yen(planAmt(e)); }
 function bestCand(r){ if(r.exactCands&&r.exactCands.length) return {e:r.exactCands[0],near:false}; if(r.nearCands&&r.nearCands.length) return {e:r.nearCands[0],near:true}; return null; }
+/* ===== v0.2 部門・一本振込 ヘルパー ===== */
+let openDetails=new Set();        // 内訳を開いている入金（r.keyで保持）
+function saveSplit(){ try{ localStorage.setItem(MSPLIT,JSON.stringify(splitConfirm)); }catch(e){} }
+function deptOf(e){ return e.dept||(e.type==='土木'?'土木':'弥生'); }
+function payeesOf(r){
+  if(r.status==='matched') return [r.entry.請求先];
+  if(r.status==='review') return (r.payeeList&&r.payeeList.length)?r.payeeList.slice():[];
+  return [];
+}
+function resultDepts(r){
+  if(r.status==='matched'){ const cd=crossDepts(r.entry.請求先); return cd.length?cd:[deptOf(r.entry)]; }
+  const s=new Set(); payeesOf(r).forEach(p=>crossDepts(p).forEach(d=>s.add(d))); return [...s];
+}
+function isShared(r){
+  if(r.status==='ignored') return false;
+  if(r.status==='matched') return crossDepts(r.entry.請求先).length>1;
+  return resultDepts(r).length>1;
+}
+function sharedBreakdown(r){
+  const payees=payeesOf(r).length?payeesOf(r):(r.entry?[r.entry.請求先]:[]);
+  const es=allEntries();
+  return resultDepts(r).map(dp=>{
+    const list=es.filter(e=>deptOf(e)===dp && payees.some(p=>normPayee(p)===normPayee(e.請求先)));
+    const plan=list.reduce((s,e)=>s+planAmt(e),0);
+    const label=list.map(e=>fmtEntry(e)).join('／')||(esc(payees.join('／'))+'（'+dp+'）');
+    return {dept:dp, plan, label};
+  });
+}
+function splitOkAll(r){ const sc=splitConfirm[r.key]; const dps=resultDepts(r); return !!(sc&&sc.ok&&dps.length&&dps.every(d=>sc.ok[d])); }
+function isDone(r){ if(r.status==='matched') return true; if(isShared(r)) return splitOkAll(r); return false; }  // 確定＝消込済み（自動一致・確定・一本両部署OK）→ 作業リストから消える
+function deptCls(d){ return d==='土木'?'d1':d==='営業'?'d2':d==='環境'?'d3':'d1'; }
+
+function renderDeptTabs(){
+  const host=$('deptTabs'); if(!host)return;
+  if(!results.length){ host.innerHTML=''; return; }
+  const order=['土木','営業','環境','弥生'];
+  const present=[...new Set(allEntries().map(deptOf))].sort((a,b)=>{const ia=order.indexOf(a),ib=order.indexOf(b);return (ia<0?9:ia)-(ib<0?9:ib);});
+  const counts={}; results.forEach(r=>{ if(r.status==='ignored'||isDone(r))return; resultDepts(r).forEach(d=>counts[d]=(counts[d]||0)+1); });  // 残り（未処理）のみ数える
+  const shared=results.filter(isShared).length;                          // 一本振込が存在するか
+  const sharedPending=results.filter(r=>isShared(r)&&!isDone(r)).length;  // 一本振込の残り
+  const active=results.filter(r=>r.status!=='ignored' && !isDone(r)).length;
+  let h='<button data-dt="all" class="'+(deptTab==='all'?'on':'')+'">全部 <span class="cnt">'+active+'</span></button>';
+  present.forEach(d=>{ h+='<button data-dt="'+esc(d)+'" class="'+(deptTab===d?'on':'')+'">'+esc(d)+' <span class="cnt">'+(counts[d]||0)+'</span></button>'; });
+  if(shared) h+='<button data-dt="share" class="share'+(deptTab==='share'?' on':'')+'">一本の振込 <span class="cnt">'+sharedPending+'</span></button>';
+  host.innerHTML=h;
+}
+function inDept(r){
+  if(deptTab==='all') return true;
+  if(deptTab==='share') return isShared(r);
+  if(r.status==='ignored') return false;
+  return resultDepts(r).includes(deptTab);
+}
+function diffCells(plan,dep){
+  // 予定額セル・差額セル（強調用HTML）と flag 判定を返す
+  const diff=plan-dep;
+  let dcell, flag=false;
+  if(diff===0){ dcell='<span class="diff0">残0</span>'; }
+  else if(diff>0){ flag=true; const fee=diff<=Math.max(1000,Math.round(plan*0.01));
+    dcell='<span class="diffS">-'+yen(diff)+'</span> '+(fee?'<span class="badge fee">手数料差</span>':'<span class="badge short">不足</span>'); }
+  else { flag=true; dcell='<span class="diffO">+'+yen(-diff)+'</span> <span class="badge over">過入金</span>'; }
+  return {planCell:'<span class="num">'+yen(plan)+'</span>', diffCell:dcell, flag:flag};
+}
+function breakdownHtml(r,di){
+  const deposit=r.d.amount, key=r.key;
+  const sc=splitConfirm[key]||{alloc:{},ok:{}};
+  const bd=sharedBreakdown(r); let sub=0, rows='';
+  bd.forEach(x=>{
+    const alloc=(sc.alloc&&sc.alloc[x.dept]!=null)?sc.alloc[x.dept]:x.plan; sub+=alloc;
+    const gap=alloc-x.plan, on=(sc.ok&&sc.ok[x.dept])?' on':'';
+    rows+='<tr><td><span class="dept '+deptCls(x.dept)+'">'+esc(x.dept)+'</span></td>'
+      +'<td>'+esc(x.label)+'</td>'
+      +'<td class="num">'+yen(x.plan)+'</td>'
+      +'<td class="num"><input class="amt" data-alloc data-dept="'+esc(x.dept)+'" data-plan="'+x.plan+'" value="'+yen(alloc)+'"></td>'
+      +'<td class="num" data-gap>'+(gap>0?'+':'')+yen(gap)+'</td>'
+      +'<td><span class="chk'+on+'" data-ok="'+di+'" data-okdept="'+esc(x.dept)+'">'+(on?'✓ '+esc(x.dept)+' 確認済':esc(x.dept)+' 確認')+'</span></td></tr>';
+  });
+  const resid=deposit-sub;
+  rows+='<tr><td><span class="dept d0">控除</span></td><td>安全協力費（予定表に無い残差）</td><td class="num muted">—</td>'
+    +'<td class="num" data-resid>'+yen(resid)+'</td><td class="num muted">—</td><td class="muted" style="font-size:11px">ラベル要確認</td></tr>';
+  return '<div class="bd"><h4>この入金 '+yen(deposit)+'（'+esc(r.d.name)+'・一本）の内訳 ── 予定額は各部署ファイル（土木＝どっと原価／営業＝弥生）から自動</h4>'
+    +'<table><thead><tr><th>部門</th><th>請求先／工事</th><th class="num">予定額</th><th class="num">充当</th><th class="num">差</th><th>確認</th></tr></thead><tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="3" style="text-align:right">充当合計</td><td class="num" data-balsum>'+yen(sub)+'</td>'
+    +'<td colspan="2"><span class="bal ok" data-bal>合計 '+yen(sub+resid)+' ＝ 入金額 残0 ✓</span></td></tr></tfoot></table>'
+    +'<div class="note">※ 充当を直すと差は「安全協力費」に自動で寄ります（合計は常に入金額）。両部署が確認したら消込。※内訳のCSV反映は次段階(Phase2)。</div></div>';
+}
+
 function render(){
-  const rev=results.filter(r=>r.status==='review');
-  const mat=results.filter(r=>r.status==='matched');
+  const done=results.filter(isDone);
+  const pending=results.filter(r=>r.status==='review' && !isDone(r));
   const ign=results.filter(r=>r.status==='ignored');
-  $('cReview').textContent=rev.length?('('+rev.length+')'):'';
-  $('cMatched').textContent=mat.length?('('+mat.length+')'):'';
+  $('cReview').textContent=pending.length?('('+pending.length+')'):'';
+  $('cMatched').textContent=done.length?('('+done.length+')'):'';
   $('cIgnored').textContent=ign.length?('('+ign.length+')'):'';
-  $('matchInfo').textContent='入金 '+results.length+'件：マッチ '+mat.length+'／要確認 '+rev.length+'／対象外 '+ign.length;
+  $('matchInfo').textContent='入金 '+results.length+'件：未処理 '+pending.length+'／消込済み '+done.length+'／対象外 '+ign.length;
   const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
+  renderDeptTabs();
   const body=$('resBody');
-  const list = resTab==='matched'?mat : resTab==='review'?rev : resTab==='ignored'?ign : results;
-  if(!list.length){ body.innerHTML='<div class="empty">'+(results.length?'該当なし':'STEP1・2を読み込んで「照合する」を押してください')+'</div>'; updateOutputs(); return; }
+  const base = resTab==='matched'?done : resTab==='review'?pending : resTab==='ignored'?ign : results;
+  const list = base.filter(inDept);
+  if(!list.length){
+    let msg;
+    if(!results.length) msg='STEP1・2を読み込んで「照合する」を押してください';
+    else if(resTab==='review') msg=(pending.length? '該当なし（部門タブを変えてください）' : '未処理はありません。確定分は「消込済み」タブで確認できます');
+    else msg='該当なし（部門タブ／絞り込みを変えてください）';
+    body.innerHTML='<div class="empty">'+msg+'</div>'; updateOutputs(); renderLink(); return;
+  }
   let h='<div class="twrap"><table><thead><tr><th>状態</th><th>日付</th><th>種別</th><th>振込名義</th><th class="num">入金額</th><th>銀行</th><th>請求先／工事</th><th class="num">予定額</th><th class="num">差額</th><th></th></tr></thead><tbody>';
   list.forEach(r=>{
     const di=results.indexOf(r);
+    if(isShared(r)){
+      // 一本の振込（部門またぎ）＝内訳＋両部署確認
+      const okAll=splitOkAll(r), dps=resultDepts(r), sc=splitConfirm[r.key];
+      const totPlan=sharedBreakdown(r).reduce((s,x)=>s+x.plan,0), open=openDetails.has(r.key);
+      h+='<tr class="'+(okAll?'':'flag')+'"><td>'+(okAll?'<span class="tag y">済</span>':'<span class="tag d">要確認</span>')+'</td><td>'+esc(r.d.date)+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(r.d.importedAt||'—')+'</div></td>';
+      h+='<td>'+esc(payeesOf(r).join('／')||r.d.name)+' <span class="lk">🔗 一本の振込</span> <span class="toggle" data-tgl="'+di+'">'+(open?'▼ 内訳を閉じる':'▶ 内訳')+'</span>'
+        +'<div class="stg '+(okAll?'done':'wait')+'">'+dps.map(d=>((sc&&sc.ok&&sc.ok[d])?'✓ ':'・')+esc(d)+(sc&&sc.ok&&sc.ok[d]?' 確認済':' 未確認')).join('　')+'</div></td>';
+      h+='<td class="num">'+yen(totPlan)+'</td><td class="num"><span class="badge share">部門内訳</span></td><td></td></tr>';
+      h+='<tr class="detail" data-detail="'+di+'" style="display:'+(open?'':'none')+'"><td colspan="10">'+breakdownHtml(r,di)+'</td></tr>';
+      return;
+    }
     const st = r.status==='matched'?'<span class="tag y">済</span>':r.status==='ignored'?'<span class="tag">除外</span>':'<span class="tag d">要確認</span>';
-    h+='<tr class="'+(r.status==='ignored'?'dim':'')+'"><td>'+st+'</td><td>'+esc(r.d.date)+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'</td>';
+    let rowCls=r.status==='ignored'?'dim':'';
+    let mid='';
     if(r.status==='matched'){
-      const plan=planAmt(r.entry), diff=plan-r.d.amount;
-      h+='<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+'</td>';
-      h+='<td class="num">'+yen(plan)+'</td>';
-      h+='<td class="num">'+(diff===0?'<span class="tag y">残0</span>':('<span class="tag d">'+yen(diff)+'</span>'))+'</td>';
-      h+='<td><button class="btn sub mini" data-un="'+di+'">戻す</button></td>';
+      const plan=planAmt(r.entry); const dc=diffCells(plan,r.d.amount); if(dc.flag)rowCls+=' flag';
+      mid='<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+'</td>'
+        +'<td class="num">'+yen(plan)+'</td>'
+        +'<td class="num">'+dc.diffCell+'</td>'
+        +'<td><button class="btn sub mini" data-un="'+di+'">戻す</button></td>';
     } else if(r.status==='review'){
-      const b=bestCand(r);
-      let cell='';
+      const b=bestCand(r); let cell='';
       if(b){ const e=b.e,plan=planAmt(e),diff=plan-r.d.amount;
         cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
       cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
-      h+='<td>'+cell+'</td>';
-      h+='<td class="num muted">'+(b?yen(planAmt(b.e)):'—')+'</td>';
-      h+='<td class="num muted">'+(b?(b.near?yen(planAmt(b.e)-r.d.amount):'0'):'—')+'</td>';
-      h+='<td><button class="btn sub mini" data-ign="'+di+'">除外</button></td>';
+      mid='<td>'+cell+'</td>'
+        +'<td class="num muted">'+(b?yen(planAmt(b.e)):'—')+'</td>'
+        +'<td class="num muted">'+(b?(b.near?yen(planAmt(b.e)-r.d.amount):'0'):'—')+'</td>'
+        +'<td><button class="btn sub mini" data-ign="'+di+'">除外</button></td>';
     } else {
-      h+='<td class="muted" colspan="3">対象外</td><td><button class="btn sub mini" data-res="'+di+'">戻す</button></td>';
+      mid='<td class="muted" colspan="3">対象外</td><td><button class="btn sub mini" data-res="'+di+'">戻す</button></td>';
     }
-    h+='</tr>';
+    h+='<tr class="'+rowCls+'"><td>'+st+'</td><td>'+esc(r.d.date)+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(r.d.importedAt||'—')+'</div></td>'+mid+'</tr>';
   });
   h+='</tbody></table></div>';
   body.innerHTML=h;
@@ -448,14 +732,39 @@ function render(){
 }
 function updateOutputs(){
   const hasMatch=results.some(r=>r.status==='matched');
-  $('outDoboku').disabled=!(planDoboku && results.some(r=>r.status==='matched'&&r.entry.type==='土木'));
+  $('outDoboku').disabled=!(planDoboku && planDoboku.sheetXml && results.some(r=>r.status==='matched'&&r.entry.type==='土木'));
   $('outList').disabled=!results.length;
   $('outImport').disabled=!hasMatch;
 }
 
 /* ===== 操作 ===== */
 $('resTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; resTab=b.dataset.t; document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
+$('deptTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; deptTab=b.dataset.dt; render(); });
+$('resBody').addEventListener('input',e=>{
+  const inp=e.target.closest('input[data-alloc]'); if(!inp)return;
+  const detail=inp.closest('tr.detail'); if(!detail)return;
+  const r=results[+detail.dataset.detail]; if(!r)return; const key=r.key, deposit=r.d.amount;
+  splitConfirm[key]=splitConfirm[key]||{alloc:{},ok:{}};
+  let sub=0;
+  detail.querySelectorAll('input[data-alloc]').forEach(i=>{
+    const v=toInt(i.value)||0; sub+=v; splitConfirm[key].alloc[i.dataset.dept]=v;
+    const plan=parseInt(i.dataset.plan,10)||0, g=v-plan;
+    const gc=i.closest('tr').querySelector('[data-gap]'); if(gc)gc.textContent=(g>0?'+':'')+yen(g);
+  });
+  const resid=deposit-sub;
+  const rc=detail.querySelector('[data-resid]'); if(rc)rc.textContent=yen(resid);
+  const bs=detail.querySelector('[data-balsum]'); if(bs)bs.textContent=yen(sub);
+  const bal=detail.querySelector('[data-bal]'); if(bal)bal.textContent='合計 '+yen(sub+resid)+' ＝ 入金額 残0 ✓';
+  splitConfirm[key].resid=resid; saveSplit(); scheduleSync();
+});
 $('resBody').addEventListener('click',e=>{
+  const tgl=e.target.closest('[data-tgl]');
+  if(tgl){ const r=results[+tgl.dataset.tgl]; if(openDetails.has(r.key))openDetails.delete(r.key); else openDetails.add(r.key); render(); return; }
+  const okc=e.target.closest('[data-ok]');
+  if(okc){ const r=results[+okc.dataset.ok], dp=okc.dataset.okdept, key=r.key;
+    splitConfirm[key]=splitConfirm[key]||{alloc:{},ok:{}};
+    sharedBreakdown(r).forEach(x=>{ if(splitConfirm[key].alloc[x.dept]==null) splitConfirm[key].alloc[x.dept]=x.plan; });
+    splitConfirm[key].ok[dp]=!splitConfirm[key].ok[dp]; openDetails.add(r.key); saveSplit(); scheduleSync(); render(); return; }
   const best=e.target.closest('[data-best]');
   if(best){ const r=results[+best.dataset.di]; const b=bestCand(r); if(b) confirmMatch(r,b.e,b.near); return; }
   const fix=e.target.closest('[data-fix]');
@@ -491,6 +800,13 @@ document.getElementById('toptabs').addEventListener('click',e=>{ const b=e.targe
 /* ===== マスタ ===== */
 function saveMasterLocal(){ localStorage.setItem(MKEY,JSON.stringify(master)); }
 function saveIgnore(){ localStorage.setItem(MIGN,JSON.stringify([...ignoreSet])); }
+/* 取込データの保存（銀行・予定表）：順不同・別日でも残す。予定表はentriesのみ保存（xlsx本体は保存しない＝記入済み出力はセッション内で有効） */
+function saveBank(){ if(!allowPersist)return; try{ localStorage.setItem(MBANK,JSON.stringify(bankFiles)); }catch(e){} }
+function savePlan(){ if(!allowPersist)return; try{
+  const pd=planDoboku?{name:planDoboku.name,entries:planDoboku.entries}:null;
+  const py=planYayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries}));
+  localStorage.setItem(MPLAN,JSON.stringify({doboku:pd,yayoi:py}));
+}catch(e){} }
 function renderMaster(){
   const tb=$('masterTbl').querySelector('tbody');
   const keys=Object.keys(master).sort();
@@ -527,7 +843,7 @@ function renderLink(){
     _linkRows.push({nk,name:it.name,amts:[...it.amts].sort((a,b)=>b-a),count:it.count,cur,props}); });
   const view=_linkRows.map((r,i)=>({r,i})).filter(x=>onlyUn? x.r.cur.length===0 : true);
   const prevScroll = (host.querySelector('.twrap')||{}).scrollTop||0;
-  if(!view.length){ host.innerHTML='<div class="empty">'+(onlyUn?'未紐づけの名義はありません 🎉（「未紐づけだけ表示」を外すと全件見えます）':'名義がありません')+'</div>'; }
+  if(!view.length){ host.innerHTML='<div class="empty">'+(onlyUn?'未紐づけの名義はありません（「未紐づけだけ表示」を外すと全件見えます）':'名義がありません')+'</div>'; }
   else {
     let h='<div class="twrap"><table><thead><tr><th>振込名義</th><th class="num">件</th><th>出現金額</th><th>請求先（紐づけ済み）</th><th>提案（クリックで紐づけ）・追加</th></tr></thead><tbody>';
     view.forEach(({r,i})=>{
@@ -564,19 +880,6 @@ $('masterSave').addEventListener('click',pushMaster);
 /* ===== GAS 同期（任意）===== */
 function setGasState(s){ const el=$('gasState'); el.className='pill '+(s==='on'?'on':'off'); el.textContent={on:'接続',off:'未接続',loading:'同期中…',err:'エラー'}[s]||s; }
 function jsonp(params){ return new Promise((res,rej)=>{ if(!GAS_URL){rej(new Error('no url'));return;} const cb='__nm'+Math.random().toString(36).slice(2); const s=document.createElement('script'); const to=setTimeout(()=>{cl();rej(new Error('timeout'));},12000); function cl(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);} window[cb]=d=>{cl();res(d);}; s.onerror=()=>{cl();rej(new Error('net'));}; s.src=GAS_URL+'?'+params+'&callback='+cb; document.body.appendChild(s); }); }
-function loadMaster(manual){
-  if(!GAS_URL){ setGasState('off'); return; }
-  setGasState('loading');
-  jsonp('action=load').then(d=>{ if(d&&d.master){ master=d.master||{}; saveMasterLocal(); renderMaster(); setGasState('on'); $('masterInfo').textContent='GASから読込 '+Object.keys(master).length+'件'; if(results.length)runMatch(); } else throw 0; })
-    .catch(()=>{ setGasState(manual?'err':'off'); });
-}
-function pushMaster(){
-  if(!GAS_URL){ return; }
-  setGasState('loading');
-  fetch(GAS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({master:master})})
-    .then(()=>jsonp('action=load')).then(d=>{ if(d&&d.master){ setGasState('on'); $('masterInfo').textContent='GASへ保存 '+Object.keys(master).length+'件'; } else setGasState('on'); })
-    .catch(()=>setGasState('err'));
-}
 /* 初接続はローカルを消さないよう「マージ（統合）」してから保存・アップ */
 function mergeMaster(remote){
   Object.keys(remote||{}).forEach(k=>{
@@ -585,17 +888,37 @@ function mergeMaster(remote){
     arr.forEach(p=>{ if(p && !master[k].some(x=>normPayee(x)===normPayee(p))) master[k].push(p); });
   });
 }
-function connectGas(){
+/* 中央共有：入金プールをフラット化（重複除外・rawは送らない） */
+function leanDeposits(){ const seen=new Set(),out=[]; bankFiles.forEach(bf=>bf.deposits.forEach(d=>{ const k=depKey(d); if(seen.has(k))return; seen.add(k); out.push({key:k,date:d.date,name:d.name,amount:d.amount,bank:d.bank,src:d.src,kind:d.kind,importedAt:d.importedAt||''}); })); return out; }
+/* 中央の状態をローカルへマージ（名義・入金・確定・内訳。ローカル変更を優先で残す） */
+function mergeShared(d){
+  mergeMaster(d&&d.master);
+  const have=new Set(); bankFiles.forEach(bf=>bf.deposits.forEach(x=>have.add(depKey(x))));
+  const add=((d&&d.bank)||[]).filter(x=>x&&x.key&&!have.has(x.key)).map(x=>({date:x.date,name:x.name,amount:x.amount,bank:x.bank,src:x.src,kind:x.kind,importedAt:x.importedAt}));
+  if(add.length) bankFiles.push({name:'（中央共有）入金プール',bank:'共有',deposits:add,dup:0,importedAt:''});
+  confirmed=Object.assign({},(d&&d.confirmed)||{},confirmed);
+  splitConfirm=Object.assign({},(d&&d.split)||{},splitConfirm);
+}
+function sharedBody(){ return JSON.stringify({master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm}); }
+function pushShared(){ if(!GAS_URL)return; setGasState('loading');
+  fetch(GAS_URL,{method:'POST',mode:'no-cors',body:sharedBody()})
+    .then(()=>{ setGasState('on'); if($('masterInfo')) $('masterInfo').textContent='中央へ保存：名義 '+Object.keys(master).length+' ／ 入金 '+leanDeposits().length+'件'; })
+    .catch(()=>setGasState('err'));
+}
+let _syncT=null;
+function scheduleSync(){ if(!GAS_URL)return; clearTimeout(_syncT); _syncT=setTimeout(pushShared,700); }  // 変更をまとめて中央へ
+function pushMaster(){ pushShared(); }         // 互換：名義変更時も全状態を同期
+function loadMaster(manual){ connectGas(manual); }
+function connectGas(manual){
   if(!GAS_URL){ setGasState('off'); return; }
   setGasState('loading');
   jsonp('action=load').then(d=>{
-    const before=Object.keys(master).length;
-    mergeMaster(d&&d.master); saveMasterLocal(); renderMaster();
-    const after=Object.keys(master).length;
-    // 統合後の全量をGASへ書き戻し（両側を一致させる）
-    return fetch(GAS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({master:master})})
-      .then(()=>{ setGasState('on'); $('masterInfo').textContent='GASと統合：名義 '+after+'件（うちローカル既存 '+before+'件）'; if(results.length)runMatch(); });
-  }).catch(()=>setGasState('err'));
+    mergeShared(d||{});
+    saveMasterLocal(); saveBank(); saveConfirmed(); saveSplit();
+    renderMaster(); renderBankFiles(); renderPlanFiles(); render(); autoMatch();
+    return fetch(GAS_URL,{method:'POST',mode:'no-cors',body:sharedBody()})
+      .then(()=>{ setGasState('on'); if($('masterInfo')) $('masterInfo').textContent='中央と同期：名義 '+Object.keys(master).length+' ／ 入金 '+leanDeposits().length+'件'; });
+  }).catch(()=>setGasState(manual?'err':'off'));
 }
 $('gasUrl').addEventListener('change',e=>{ GAS_URL=e.target.value.trim(); localStorage.setItem('nyukin_gas',GAS_URL); if(GAS_URL) connectGas(); else setGasState('off'); });
 
@@ -606,27 +929,33 @@ function decodeMaybeSjis(buf){
     // UTF-8で読めるならUTF-8優先（BOM/日本語の妥当性で簡易判定）
     const utf=new TextDecoder('utf-8',{fatal:false}).decode(u8);
     // 文字化けの「replacement char」が少ない方を採用
-    const badS=(sjis.match(/�/g)||[]).length, badU=(utf.match(/�/g)||[]).length;
+    const badS=(sjis.match(/ /g)||[]).length, badU=(utf.match(/ /g)||[]).length;
     return badU<=badS?utf:sjis;
   }catch(e){ return new TextDecoder('utf-8').decode(u8); }
 }
+function stampDate(){ const d=new Date(); return d.getFullYear()+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2); }
 function readBank(file){
   return file.arrayBuffer().then(buf=>{ const text=decodeMaybeSjis(buf); const p=parseBankCsv(text,file.name);
-    bankFiles.push({name:file.name, bank:p.bank, deposits:p.deposits}); });
+    const imp=stampDate();
+    // 貯めていく：既に取り込んだ入金（同一キー）は自動で除外して重複させない
+    const seen=new Set(); bankFiles.forEach(bf=>bf.deposits.forEach(d=>seen.add(depKey(d))));
+    const fresh=p.deposits.filter(d=>{ const k=depKey(d); if(seen.has(k))return false; seen.add(k); d.importedAt=imp; return true; });
+    bankFiles.push({name:file.name, bank:p.bank, deposits:fresh, dup:p.deposits.length-fresh.length, importedAt:imp}); });
 }
 function readPlan(file){
   return file.arrayBuffer().then(buf=>{
     const x=readXlsx(buf); const cls=classifyPlan(x.grid);
     if(cls==='土木'){ planDoboku={name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, entries:parseDoboku(x.grid)}; }
-    else if(cls==='弥生'){ const dept=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; planYayoi.push({name:file.name, dept, entries:parseYayoi(x.grid,dept)}); }
+    else if(cls==='弥生'){ const dept=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; planYayoi=planYayoi.filter(p=>p.dept!==dept); planYayoi.push({name:file.name, dept, entries:parseYayoi(x.grid,dept)}); }
     else { alert('予定表の種類を判別できませんでした：'+file.name); }
   });
 }
 function renderBankFiles(){
-  $('bankFiles').innerHTML=bankFiles.map((b,i)=>'<span class="fchip"><span class="t b">'+esc(b.bank)+'</span>'+esc(b.name)+' <span class="muted">('+b.deposits.length+'入金)</span> <span class="x" data-bdel="'+i+'">×</span></span>').join('');
+  $('bankFiles').innerHTML=bankFiles.map((b,i)=>'<span class="fchip"><span class="t b">'+esc(b.bank)+'</span>'+esc(b.name)+' <span class="muted">('+b.deposits.length+'入金'+(b.dup?'・重複'+b.dup+'除外':'')+')</span>'+(b.importedAt?' <span class="muted">取込 '+esc(b.importedAt)+'</span>':'')+' <span class="x" data-bdel="'+i+'">×</span></span>').join('');
   const total=bankFiles.reduce((s,b)=>s+b.deposits.length,0);
-  $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金合計</span> <b>'+total+'</b> 件'):'';
+  $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金</span> <b>'+total+'</b> 件 貯まっています <span class="muted">（保存済み・重複は自動除外。予定表を入れると照合）</span>'):'';
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
+  saveBank();
   renderLink();
 }
 function renderPlanFiles(){
@@ -635,12 +964,14 @@ function renderPlanFiles(){
   planYayoi.forEach((p,i)=>chips.push('<span class="fchip"><span class="t y">'+esc(p.dept)+'</span>'+esc(p.name)+' <span class="muted">('+p.entries.length+'件)</span> <span class="x" data-pdel="y'+i+'">×</span></span>'));
   $('planFiles').innerHTML=chips.join('');
   const de=planDoboku?planDoboku.entries.length:0, ye=planYayoi.reduce((s,p)=>s+p.entries.length,0);
-  $('planSum').innerHTML=(planDoboku||planYayoi.length)?('<span class="k">土木</span> <b>'+de+'</b> 工事　<span class="k">弥生</span> <b>'+ye+'</b> 件'):'';
+  $('planSum').innerHTML=(planDoboku||planYayoi.length)?('<span class="k">土木</span> <b>'+de+'</b> 工事　<span class="k">弥生</span> <b>'+ye+'</b> 件 <span class="muted">（保存済み）</span>'):'';
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
+  savePlan();
   renderLink();
 }
-$('bankFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-bdel]'); if(d){ bankFiles.splice(+d.dataset.bdel,1); renderBankFiles(); results=[]; render(); } });
+$('bankFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-bdel]'); if(d){ bankFiles.splice(+d.dataset.bdel,1); renderBankFiles(); results=[]; render(); scheduleSync(); } });
 $('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pdel]'); if(d){ const k=d.dataset.pdel; if(k==='doboku')planDoboku=null; else planYayoi.splice(+k.slice(1),1); renderPlanFiles(); results=[]; render(); } });
+$('clearPlan').addEventListener('click',()=>{ if((planDoboku||planYayoi.length) && !confirm('取り込んだ予定表を全部消しますか？'))return; planDoboku=null; planYayoi=[]; results=[]; renderPlanFiles(); render(); });
 
 /* ドロップ＆選択 */
 function wire(dropId,inputId,handler,after){
@@ -652,8 +983,9 @@ function wire(dropId,inputId,handler,after){
   input.addEventListener('change',e=>handleFiles(e.target.files));
   function handleFiles(fl){ const arr=[...fl]; Promise.all(arr.map(f=>handler(f).catch(err=>{console.error(err);alert('読み込み失敗：'+f.name+'\n'+err);}))).then(after); input.value=''; }
 }
-wire('dropBank','fileBank',readBank,renderBankFiles);
-wire('dropPlan','filePlan',readPlan,renderPlanFiles);
+function autoMatch(){ if(bankFiles.length && (planDoboku||planYayoi.length)) runMatch(); }  // 両方そろったら自動照合（順不同）
+wire('dropBank','fileBank',readBank,()=>{ renderBankFiles(); autoMatch(); scheduleSync(); });  // 取り込んだ銀行を中央へ共有
+wire('dropPlan','filePlan',readPlan,()=>{ renderPlanFiles(); autoMatch(); });
 
 /* ===== 出力：記入済み予定表（土木xlsx・レイアウト維持）===== */
 function setCell(xml, ref, value, isNum){
@@ -694,11 +1026,12 @@ function csvCell(s){ s=String(s==null?'':s); return /[",\n]/.test(s)?'"'+s.repla
 function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),3000); }
 function bom(str){ return new Blob(['﻿'+str],{type:'text/csv;charset=utf-8'}); }
 $('outList').addEventListener('click',()=>{
-  const rows=[['状態','日付','種別','振込名義','入金額','銀行','請求先','部門','工事名','工事番号','予定額','差額(手数料)','内訳確認']];
+  const rows=[['状態','入金日','取込日','種別','振込名義','入金額','銀行','請求先','部門','工事名','工事番号','予定額','差額(手数料)','内訳確認']];
   results.forEach(r=>{
-    if(r.status==='matched'){ const e=r.entry; const plan=planAmt(e); rows.push(['マッチ',r.d.date,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,e.請求先,e.dept||(e.type==='土木'?'土木':'弥生'),e.工事名||'',e.工事番号||'',plan,plan-r.d.amount, isCross(e.請求先)?crossDepts(e.請求先).join('+'):'']); }
-    else if(r.status==='review'){ rows.push(['要確認',r.d.date,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,(r.payeeList||[]).join('|'),'',r.reason||'','','','','']); }
-    else rows.push(['対象外',r.d.date,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,'','','','','','','']);
+    const imp=r.d.importedAt||'';
+    if(r.status==='matched'){ const e=r.entry; const plan=planAmt(e); rows.push([isDone(r)?'消込済み':'マッチ',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,e.請求先,e.dept||(e.type==='土木'?'土木':'弥生'),e.工事名||'',e.工事番号||'',plan,plan-r.d.amount, isCross(e.請求先)?crossDepts(e.請求先).join('+'):'']); }
+    else if(r.status==='review'){ rows.push([isDone(r)?'消込済み(一本)':'未処理',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,(r.payeeList||[]).join('|'),'',r.reason||'','','','','']); }
+    else rows.push(['対象外',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,'','','','','','','']);
   });
   dl(bom(rows.map(r=>r.map(csvCell).join(',')).join('\r\n')),'消込リスト_'+today()+'.csv');
 });
@@ -709,14 +1042,74 @@ $('outImport').addEventListener('click',()=>{
 });
 function today(){ const d=new Date(); return d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2); }
 
+/* ===== サンプルデータ（このリッチUI版のみ・UI確認用／localStorage・GASには保存しない） ===== */
+function loadDemo(){
+  allowPersist=false;  // サンプルはこのPCに保存しない
+  planDoboku={name:'（サンプル）入金予定表 R8.7.xlsx', zip:{}, sheetPath:'xl/worksheets/sheet1.xml', sheetXml:'<worksheet></worksheet>',
+    entries:[
+      {type:'土木',dept:'土木',請求先:'丸二建設㈱',工事名:'◇◇河川改修工事',工事番号:'12433-01',amount:1800000,row:10},
+      {type:'土木',dept:'土木',請求先:'あすか道路㈱',工事名:'市道○○改良工事',工事番号:'12345-01',amount:1320000,row:12},
+      {type:'土木',dept:'土木',請求先:'国土建設㈱',工事名:'県道××舗装工事',工事番号:'12377-01',amount:2000000,row:20},
+      {type:'土木',dept:'土木',請求先:'山田建設㈱',工事名:'△△護岸工事',工事番号:'12360-01',amount:1200000,row:14},
+      {type:'土木',dept:'土木',請求先:'丸西工業㈱',工事名:'○○下水道工事',工事番号:'12388-01',amount:880000,row:16},
+      {type:'土木',dept:'土木',請求先:'大石建設㈱',工事名:'市道補修工事',工事番号:'12410-01',amount:430000,row:18}
+    ]};
+  planYayoi=[
+    {name:'（サンプル）請求先別回収状況_営業7月.xlsx',dept:'営業',entries:[
+      {type:'弥生',dept:'営業',請求先:'丸二建設㈱',code:'E001',amount:1100000,altAmount:1100000,row:5},
+      {type:'弥生',dept:'営業',請求先:'石本土木㈱',code:'E002',amount:660000,altAmount:660000,row:6}
+    ]},
+    {name:'（サンプル）請求先別回収状況_環境7月.xlsx',dept:'環境',entries:[
+      {type:'弥生',dept:'環境',請求先:'東海工業㈱',code:'K001',amount:1100000,altAmount:1100000,row:5}
+    ]}
+  ];
+  const dps=[
+    {date:'2026/08/11',name:'ﾏﾙﾆｹﾝｾﾂ(ｶ',amount:3000000,bank:'静銀',src:'demo',kind:'振込',raw:''},   // 一本振込（土木+営業+協力費）
+    {date:'2026/08/10',name:'ｱｽｶﾄﾞｳﾛ(ｶ',amount:1320000,bank:'静銀',src:'demo',kind:'振込',raw:''},    // 一致→済
+    {date:'2026/08/13',name:'ｺｸﾄﾞｹﾝｾﾂ(ｶ',amount:2050000,bank:'静銀',src:'demo',kind:'手形',raw:''},   // 過入金
+    {date:'2026/08/12',name:'ﾔﾏﾀﾞｹﾝｾﾂ(ｶ',amount:500000,bank:'静銀',src:'demo',kind:'振込',raw:''},     // 不足（部分入金）
+    {date:'2026/08/14',name:'ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ',amount:879340,bank:'静銀',src:'demo',kind:'振込',raw:''},  // 手数料差
+    {date:'2026/08/17',name:'ｵｵｲｼｹﾝｾﾂ(ｶ',amount:430000,bank:'島掛信金',src:'demo',kind:'振込',raw:''}, // 一致→済
+    {date:'2026/08/09',name:'ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ',amount:660000,bank:'島掛信金',src:'demo',kind:'振込',raw:''},// 営業 一致→済
+    {date:'2026/08/18',name:'ﾄｳｶｲｺｳｷﾞｮｳ(ｶ',amount:1100000,bank:'島掛信金',src:'demo',kind:'でんさい',raw:''},// 環境 一致→済
+    {date:'2026/08/16',name:'ﾃﾞﾝｼｻｲｹﾝ ｶ)ﾆｼ',amount:640000,bank:'静銀',src:'demo',kind:'振込',raw:''}     // 名義未登録
+  ];
+  bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps}];
+  master={};
+  [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱']]
+    .forEach(function(pr){ master[normName(pr[0])]=[pr[1]]; });
+  confirmed={};
+  confirmed[depKey(dps[2])]={payee:'国土建設㈱',type:'土木',row:20,code:null,dept:'土木',工事番号:'12377-01',工事名:'県道××舗装工事',fee:0};   // 過入金
+  confirmed[depKey(dps[3])]={payee:'山田建設㈱',type:'土木',row:14,code:null,dept:'土木',工事番号:'12360-01',工事名:'△△護岸工事',fee:0};     // 不足
+  confirmed[depKey(dps[4])]={payee:'丸西工業㈱',type:'土木',row:16,code:null,dept:'土木',工事番号:'12388-01',工事名:'○○下水道工事',fee:660}; // 手数料差
+  splitConfirm={}; ignoreSet=new Set();
+  setGasState('off'); const gs=$('gasState'); if(gs) gs.textContent='サンプル';
+  renderBankFiles(); renderPlanFiles(); renderMaster(); runMatch();
+  const host=document.getElementById('tabReconcile');
+  if(host && !document.getElementById('demoBanner')){
+    const b=document.createElement('div'); b.id='demoBanner';
+    b.style.cssText='margin:0 0 14px;padding:11px 14px;border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:var(--r2);background:var(--grad-soft);color:var(--ac2);font-size:12.5px;font-weight:700;';
+    b.textContent='● サンプルデータ表示中（UI確認用）。実運用は落ち着いた版、または STEP1・2 に本物のファイルを入れてください。保存はされません。';
+    host.insertBefore(b, host.firstChild);
+  }
+}
+
 /* ===== 初期化 ===== */
-try{ master=JSON.parse(localStorage.getItem(MKEY)||'{}')||{}; }catch(e){ master={}; }
-Object.keys(master).forEach(k=>{ if(typeof master[k]==='string') master[k]=[master[k]]; if(!Array.isArray(master[k])) master[k]=[]; });  // 旧形式(文字列)→配列に移行
-try{ confirmed=JSON.parse(localStorage.getItem(MCONF)||'{}')||{}; }catch(e){ confirmed={}; }
-try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
-$('gasUrl').value=GAS_URL;
-renderMaster(); render();
-if(GAS_URL) connectGas(); else setGasState('off');  // 埋め込みURLへ自動接続＋ローカルと統合（消さない）
+const DEMO=false;  // ← 実運用版：空スタート＋GAS自動接続（サンプルは読み込まない）。UI確認用のサンプル入りは別ファイル(リッチUI)。
+if(DEMO){ loadDemo(); }
+else {
+  try{ master=JSON.parse(localStorage.getItem(MKEY)||'{}')||{}; }catch(e){ master={}; }
+  Object.keys(master).forEach(k=>{ if(typeof master[k]==='string') master[k]=[master[k]]; if(!Array.isArray(master[k])) master[k]=[]; });  // 旧形式(文字列)→配列に移行
+  try{ confirmed=JSON.parse(localStorage.getItem(MCONF)||'{}')||{}; }catch(e){ confirmed={}; }
+  try{ splitConfirm=JSON.parse(localStorage.getItem(MSPLIT)||'{}')||{}; }catch(e){ splitConfirm={}; }
+  try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
+  try{ bankFiles=JSON.parse(localStorage.getItem(MBANK)||'[]')||[]; }catch(e){ bankFiles=[]; }  // 先に取り込んでおいた銀行を復元
+  try{ const pj=JSON.parse(localStorage.getItem(MPLAN)||'null'); if(pj){ if(pj.doboku) planDoboku={name:pj.doboku.name, entries:pj.doboku.entries}; planYayoi=Array.isArray(pj.yayoi)?pj.yayoi:[]; } }catch(e){}  // 予定表(entries)も復元
+  $('gasUrl').value=GAS_URL;
+  renderMaster(); renderBankFiles(); renderPlanFiles(); render();
+  autoMatch();  // 両方そろっていれば開いた時点で照合
+  if(GAS_URL) connectGas(); else setGasState('off');  // 埋め込みURLへ自動接続＋ローカルと統合（消さない）
+}
 })();
 </script>
 </body>
