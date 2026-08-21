@@ -707,7 +707,7 @@ function render(){
       // 一本の振込（部門またぎ）＝内訳＋両部署確認
       const okAll=splitOkAll(r), dps=resultDepts(r), sc=splitConfirm[r.key];
       const totPlan=sharedBreakdown(r).reduce((s,x)=>s+x.plan,0), open=openDetails.has(r.key);
-      h+='<tr class="'+(okAll?'':'flag')+'"><td>'+(okAll?'<span class="tag y">済</span>':'<span class="tag d">要確認</span>')+'</td><td>'+esc(r.d.date)+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(r.d.importedAt||'—')+'</div></td>';
+      h+='<tr class="'+(okAll?'':'flag')+'"><td>'+(okAll?'<span class="tag y">済</span>':'<span class="tag d">要確認</span>')+'</td><td>'+esc(normDate(r.d.date))+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(normDate(r.d.importedAt)||'—')+'</div></td>';
       h+='<td>'+esc(payeesOf(r).join('／')||r.d.name)+' <span class="lk">🔗 一本の振込</span> <span class="toggle" data-tgl="'+di+'">'+(open?'▼ 内訳を閉じる':'▶ 内訳')+'</span>'
         +'<div class="stg '+(okAll?'done':'wait')+'">'+dps.map(d=>((sc&&sc.ok&&sc.ok[d])?'✓ ':'・')+esc(d)+(sc&&sc.ok&&sc.ok[d]?' 確認済':' 未確認')).join('　')+'</div></td>';
       h+='<td class="num">'+yen(totPlan)+'</td><td class="num"><span class="badge share">部門内訳</span></td><td></td></tr>';
@@ -735,7 +735,7 @@ function render(){
     } else {
       mid='<td class="muted" colspan="3">対象外</td><td><button class="btn sub mini" data-res="'+di+'">戻す</button></td>';
     }
-    h+='<tr class="'+rowCls+'"><td>'+st+'</td><td>'+esc(r.d.date)+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(r.d.importedAt||'—')+'</div></td>'+mid+'</tr>';
+    h+='<tr class="'+rowCls+'"><td>'+st+'</td><td>'+esc(normDate(r.d.date))+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(normDate(r.d.importedAt)||'—')+'</div></td>'+mid+'</tr>';
   });
   h+='</tbody></table></div>';
   body.innerHTML=h;
@@ -1120,7 +1120,7 @@ else {
   try{ confirmed=JSON.parse(localStorage.getItem(MCONF)||'{}')||{}; }catch(e){ confirmed={}; }
   try{ splitConfirm=JSON.parse(localStorage.getItem(MSPLIT)||'{}')||{}; }catch(e){ splitConfirm={}; }
   try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
-  try{ bankFiles=JSON.parse(localStorage.getItem(MBANK)||'[]')||[]; }catch(e){ bankFiles=[]; }  // 先に取り込んでおいた銀行を復元
+  try{ bankFiles=JSON.parse(localStorage.getItem(MBANK)||'[]')||[]; bankFiles.forEach(bf=>(bf.deposits||[]).forEach(d=>{ d.date=normDate(d.date); if(d.importedAt) d.importedAt=normDate(d.importedAt); })); }catch(e){ bankFiles=[]; }  // 先に取り込んでおいた銀行を復元（日付GMT表記を正規化）
   try{ const pj=JSON.parse(localStorage.getItem(MPLAN)||'null'); if(pj){ if(pj.doboku) planDoboku={name:pj.doboku.name, entries:pj.doboku.entries}; planYayoi=Array.isArray(pj.yayoi)?pj.yayoi:[]; } }catch(e){}  // 予定表(entries)も復元
   $('gasUrl').value=GAS_URL;
   renderMaster(); renderBankFiles(); renderPlanFiles(); render();
