@@ -392,8 +392,13 @@ function splitCsv(line){
 function toInt(s){ if(s==null)return null; const t=String(s).replace(/[,\s　"¥￥]/g,''); if(t===''||!/^-?\d+$/.test(t))return null; return parseInt(t,10); }
 function normDate(s){
   s=String(s||'').trim();
-  let m=s.match(/(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})/);
+  if(!s) return '';
+  let m=s.match(/(\d{4})[年\/\-.](\d{1,2})[月\/\-.](\d{1,2})/);
   if(m){ return m[1]+'/'+('0'+m[2]).slice(-2)+'/'+('0'+m[3]).slice(-2); }
+  // "Tue Jul 21 2026 00:00:00 GMT+0900" 等のJS日付文字列を救済（共有GAS経由でGMT表記になる分）
+  const MON={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  m=s.match(/\b([A-Z][a-z]{2}) (\d{1,2}) (\d{4})\b/);
+  if(m && MON[m[1]]) return m[3]+'/'+('0'+MON[m[1]]).slice(-2)+'/'+('0'+m[2]).slice(-2);
   return s;
 }
 
@@ -619,19 +624,24 @@ function renderDeptTabs(){
   if(!results.length){ host.innerHTML=''; return; }
   const order=['土木','営業','環境','弥生'];
   const present=[...new Set(allEntries().map(deptOf))].sort((a,b)=>{const ia=order.indexOf(a),ib=order.indexOf(b);return (ia<0?9:ia)-(ib<0?9:ib);});
-  const counts={}; results.forEach(r=>{ if(r.status==='ignored'||isDone(r))return; resultDepts(r).forEach(d=>counts[d]=(counts[d]||0)+1); });  // 残り（未処理）のみ数える
+  const counts={}; results.forEach(r=>{ if(r.status==='ignored'||isDone(r)||isShared(r))return; resultDepts(r).forEach(d=>counts[d]=(counts[d]||0)+1); });  // 残り（未処理）・単独部門のみ（一本は別枠）
   const shared=results.filter(isShared).length;                          // 一本振込が存在するか
   const sharedPending=results.filter(r=>isShared(r)&&!isDone(r)).length;  // 一本振込の残り
+  const nodeptAny=results.filter(r=>r.status!=='ignored'&&!isShared(r)&&resultDepts(r).length===0).length;      // 部門なしが存在するか
+  const nodeptPending=results.filter(r=>r.status!=='ignored'&&!isDone(r)&&!isShared(r)&&resultDepts(r).length===0).length;
   const active=results.filter(r=>r.status!=='ignored' && !isDone(r)).length;
   let h='<button data-dt="all" class="'+(deptTab==='all'?'on':'')+'">全部 <span class="cnt">'+active+'</span></button>';
   present.forEach(d=>{ h+='<button data-dt="'+esc(d)+'" class="'+(deptTab===d?'on':'')+'">'+esc(d)+' <span class="cnt">'+(counts[d]||0)+'</span></button>'; });
   if(shared) h+='<button data-dt="share" class="share'+(deptTab==='share'?' on':'')+'">一本の振込 <span class="cnt">'+sharedPending+'</span></button>';
+  if(nodeptAny) h+='<button data-dt="nodept" class="'+(deptTab==='nodept'?'on':'')+'">未分類 <span class="cnt">'+nodeptPending+'</span></button>';
   host.innerHTML=h;
 }
 function inDept(r){
   if(deptTab==='all') return true;
   if(deptTab==='share') return isShared(r);
+  if(deptTab==='nodept') return r.status!=='ignored' && !isShared(r) && resultDepts(r).length===0;  // どの部門にも属さない入金
   if(r.status==='ignored') return false;
+  if(isShared(r)) return false;            // 一本振込は専用「一本の振込」タブへ（二重計上を防ぐ）
   return resultDepts(r).includes(deptTab);
 }
 function diffCells(plan,dep){
@@ -676,7 +686,7 @@ function render(){
   $('cReview').textContent=pending.length?('('+pending.length+')'):'';
   $('cMatched').textContent=done.length?('('+done.length+')'):'';
   $('cIgnored').textContent=ign.length?('('+ign.length+')'):'';
-  const depLabel = deptTab==='all'?'全部':deptTab==='share'?'一本の振込':deptTab;
+  const depLabel = deptTab==='all'?'全部':deptTab==='share'?'一本の振込':deptTab==='nodept'?'未分類':deptTab;
   $('matchInfo').textContent=depLabel+'：未処理 '+pending.length+'／消込済み '+done.length+(ign.length?('／対象外 '+ign.length):'')+'　（全体 '+results.length+'件）';
   const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
   renderDeptTabs();
@@ -896,7 +906,7 @@ function leanDeposits(){ const seen=new Set(),out=[]; bankFiles.forEach(bf=>bf.d
 function mergeShared(d){
   mergeMaster(d&&d.master);
   const have=new Set(); bankFiles.forEach(bf=>bf.deposits.forEach(x=>have.add(depKey(x))));
-  const add=((d&&d.bank)||[]).filter(x=>x&&x.key&&!have.has(x.key)).map(x=>({date:x.date,name:x.name,amount:x.amount,bank:x.bank,src:x.src,kind:x.kind,importedAt:x.importedAt}));
+  const add=((d&&d.bank)||[]).filter(x=>x&&x.key&&!have.has(x.key)).map(x=>({date:normDate(x.date),name:x.name,amount:x.amount,bank:x.bank,src:x.src,kind:x.kind,importedAt:normDate(x.importedAt)}));
   if(add.length) bankFiles.push({name:'（中央共有）入金プール',bank:'共有',deposits:add,dup:0,importedAt:''});
   confirmed=Object.assign({},(d&&d.confirmed)||{},confirmed);
   splitConfirm=Object.assign({},(d&&d.split)||{},splitConfirm);
