@@ -1250,8 +1250,15 @@ function mergeShared(d){
   confirmed=Object.assign({},(d&&d.confirmed)||{},confirmed);
   splitConfirm=Object.assign({},(d&&d.split)||{},splitConfirm);
   multiConfirm=Object.assign({},(d&&d.multi)||{},multiConfirm);
+  // 予定表：ローカルに無ければ中央共有から取り込む（別PCでも照合できるように）
+  if(d && d.plan){
+    if(!planDoboku && d.plan.doboku && d.plan.doboku.entries && d.plan.doboku.entries.length) planDoboku={name:d.plan.doboku.name||'（中央共有）予定表', entries:d.plan.doboku.entries};
+    if((!planYayoi||!planYayoi.length) && Array.isArray(d.plan.yayoi) && d.plan.yayoi.length) planYayoi=d.plan.yayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries}));
+  }
 }
-function sharedBody(){ return JSON.stringify({master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm,multi:multiConfirm}); }
+function planShare(){ return {doboku: planDoboku?{name:planDoboku.name,entries:planDoboku.entries}:null, yayoi: planYayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries}))}; }
+function hasPlanData(){ return !!((planDoboku&&planDoboku.entries&&planDoboku.entries.length)||planYayoi.some(p=>p.entries&&p.entries.length)); }
+function sharedBody(){ const o={master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm,multi:multiConfirm}; if(hasPlanData()) o.plan=planShare(); return JSON.stringify(o); }  // 予定表があるときだけ共有（空で上書きして他PCの予定表を消さない）
 function pushShared(){ if(!GAS_URL)return; setGasState('loading');
   fetch(GAS_URL,{method:'POST',mode:'no-cors',body:sharedBody()})
     .then(()=>{ setGasState('on'); if($('masterInfo')) $('masterInfo').textContent='中央へ保存：名義 '+Object.keys(master).length+' ／ 入金 '+leanDeposits().length+'件'; })
@@ -1266,7 +1273,7 @@ function connectGas(manual){
   setGasState('loading');
   jsonp('action=load').then(d=>{
     mergeShared(d||{});
-    saveMasterLocal(); saveBank(); saveConfirmed(); saveSplit();
+    saveMasterLocal(); saveBank(); saveConfirmed(); saveSplit(); saveMulti(); savePlan();
     renderMaster(); renderBankFiles(); renderPlanFiles(); render(); autoMatch();
     return fetch(GAS_URL,{method:'POST',mode:'no-cors',body:sharedBody()})
       .then(()=>{ setGasState('on'); if($('masterInfo')) $('masterInfo').textContent='中央と同期：名義 '+Object.keys(master).length+' ／ 入金 '+leanDeposits().length+'件'; });
@@ -1342,7 +1349,7 @@ function wire(dropId,inputId,handler,after){
 }
 function autoMatch(){ if(bankFiles.length && (planDoboku||planYayoi.length)) runMatch(); }  // 両方そろったら自動照合（順不同）
 wire('dropBank','fileBank',readBank,()=>{ renderBankFiles(); autoMatch(); scheduleSync(); });  // 取り込んだ銀行を中央へ共有
-wire('dropPlan','filePlan',readPlan,()=>{ renderPlanFiles(); autoMatch(); });
+wire('dropPlan','filePlan',readPlan,()=>{ renderPlanFiles(); autoMatch(); scheduleSync(); });  // 取り込んだ予定表を中央へ共有
 
 /* ===== 出力：記入済み予定表（土木xlsx・レイアウト維持）===== */
 function setCell(xml, ref, value, isNum){
