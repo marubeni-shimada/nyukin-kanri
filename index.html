@@ -831,6 +831,7 @@ function multiRowHtml(r,di){
   return h;
 }
 function render(){
+  const _rb=$('resBody'); const _twOld=_rb?_rb.querySelector('.twrap'):null; const _scTop=_twOld?_twOld.scrollTop:0; const _winY=window.scrollY;   // 内訳の開閉等で画面が飛ばないようスクロール保持
   const scoped=results.filter(inDept);   // 選択中の部門タブに絞って数える
   const done=scoped.filter(isDone);
   const pending=scoped.filter(r=>r.status==='review' && !isDone(r));
@@ -903,6 +904,7 @@ function render(){
   });
   h+='</tbody></table></div>';
   body.innerHTML=h;
+  const _twNew=body.querySelector('.twrap'); if(_twNew) _twNew.scrollTop=_scTop; window.scrollTo(0,_winY);   // スクロール位置を復元（内訳開閉で上に飛ばない）
   updateOutputs();
   renderLink();
   renderCollect();
