@@ -1284,13 +1284,13 @@ $('gasUrl').addEventListener('change',e=>{ GAS_URL=e.target.value.trim(); localS
 /* ===== ファイル読み込み ===== */
 function decodeMaybeSjis(buf){
   const u8=new Uint8Array(buf);
-  try{ const sjis=new TextDecoder('shift_jis',{fatal:false}).decode(u8);
-    // UTF-8で読めるならUTF-8優先（BOM/日本語の妥当性で簡易判定）
-    const utf=new TextDecoder('utf-8',{fatal:false}).decode(u8);
-    // 文字化けの「replacement char」が少ない方を採用
-    const badS=(sjis.match(/ /g)||[]).length, badU=(utf.match(/ /g)||[]).length;
-    return badU<=badS?utf:sjis;
-  }catch(e){ return new TextDecoder('utf-8').decode(u8); }
+  // 判定＝「まずUTF-8として厳密デコード」。通ればUTF-8、失敗（＝不正バイトあり）ならSJIS。
+  // ※半角カナ主体の銀行CSV(SJIS)は厳密UTF-8で必ず失敗する＝確実にSJISで読める（置換文字カウントの誤判定を排除）
+  try{ return new TextDecoder('utf-8',{fatal:true}).decode(u8); }
+  catch(e){
+    try{ return new TextDecoder('shift_jis',{fatal:false}).decode(u8); }
+    catch(e2){ return new TextDecoder('utf-8',{fatal:false}).decode(u8); }
+  }
 }
 function stampDate(){ const d=new Date(); return d.getFullYear()+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2); }
 function readBank(file){
