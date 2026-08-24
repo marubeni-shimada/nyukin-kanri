@@ -247,13 +247,42 @@ main{max-width:1360px;}
 #stepMatch thead th{background:color-mix(in srgb,var(--panel) 96%,var(--ac));backdrop-filter:blur(2px);}
 #stepMatch .depttabs button{padding:8px 16px;font-size:13px;}
 #stepMatch .tabs button{padding:9px 15px;font-size:13px;}
+/* v0.3 複数工事への充当パネル */
+.lk.multi{background:linear-gradient(135deg,#a78bfa22,#7c3aed22);}
+.mnote{font-size:12px;color:var(--ac2);font-weight:700;margin:4px 0 6px;}
+.mchoose{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px;}
+.mopt{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:12.5px;cursor:pointer;background:var(--panel);}
+.mopt.on{border-color:var(--ac);background:var(--grad-soft);}
+.mopt b{color:var(--ac2);}
+.mbal{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:11px 2px 4px;font-size:12.5px;}
+.mbal .mdiff{font-weight:800;padding:3px 10px;border-radius:8px;background:var(--grad-soft);color:var(--ac2);}
+.mbal .mdiff.warn{background:var(--warn-bg);color:#b45309;}
+/* v0.3 シンプル一覧（照合結果を5列＋理由に） */
+.stt{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;white-space:nowrap}
+.stt.ok{color:#0f9d6b} .stt.need{color:#c0791f} .stt.ign{color:#9aa2b1}
+.reason{display:block;font-size:11px;color:var(--mut,#828b9c);font-weight:600;margin-top:3px;white-space:normal}
+#stepMatch td .who{font-weight:700}
+#stepMatch td .amt2{font-weight:800;font-variant-numeric:tabular-nums}
+/* v0.3 複数工事パネル（かんたん版：工事チェック＋控除1つ） */
+.mworks{margin:2px 0 4px;max-width:560px}
+.mw{display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:9px;cursor:pointer}
+.mw:hover{background:color-mix(in srgb,var(--ac) 6%,transparent)}
+.mw .mck{width:20px;height:20px;border-radius:6px;border:1.6px solid #c7cede;background:#fff;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+.mw.on .mck{background:var(--ac);border-color:var(--ac)}
+.mw .mnm{flex:1;font-size:13px;font-weight:600}
+.mw:not(.on) .mnm{color:#9aa2b1;font-weight:500}
+.mw .mam{font-variant-numeric:tabular-nums;font-size:13px;color:var(--ac2)}
+.ded3{display:none;align-items:center;gap:10px;margin:6px 8px 2px;font-size:12.5px;max-width:560px}
+.ded3.show{display:flex}
+.ded3 input{width:130px;text-align:right;font:inherit;font-size:13.5px;font-weight:700;padding:7px 9px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums}
+.ded3 .mauto{font-size:10px;background:var(--grad-soft);color:var(--ac2);border-radius:99px;padding:2px 8px;font-weight:700}
 </style>
 </head>
 <body>
 <header>
   <div class="head">
     <div class="logo">¥</div>
-    <div class="title"><h1>入金消込ツール <span class="muted" style="font-size:11px;font-weight:600">v0.2</span></h1><p>銀行入金を予定表に自動で紐づけ（土木＝どっと原価／営業・環境＝弥生）。部門タブ＋一本振込の内訳確認。</p></div>
+    <div class="title"><h1>入金消込ツール <span class="muted" style="font-size:11px;font-weight:600">v0.3</span></h1><p>銀行入金を予定表に自動で紐づけ（土木＝どっと原価／営業・環境＝弥生）。部門タブ＋一本振込の内訳＋複数工事への充当。</p></div>
     <div class="sp"></div>
     <div class="gas">
       <input id="gasUrl" type="hidden">
@@ -409,7 +438,8 @@ let results=[];      // 照合結果
 let resTab='review';  // 既定＝未処理（確定したものは自動で消込済みへ移る）
 let deptTab='all';   // v0.2 部門タブ（all/土木/営業/環境/share）
 let splitConfirm={}; // v0.2 一本振込の内訳＋両部署確認：key -> {alloc:{dept:額}, resid:額, ok:{dept:bool}}
-const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan';
+let multiConfirm={}; // v0.3 複数工事への充当：depKey -> {combo:[eid...], ded:{eid:控除額}, done:bool}
+const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan', MMULTI='nyukin_multi';
 let allowPersist=true;  // 銀行・予定表の取込をこのPCに保存（サンプル表示中はfalse）。順不同・別日でも残す
 // マスタ保存GAS：URLをここに固定（大石さんは触らなくても最初から共有される）
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbyQNsc3cvrgle_ruuNLd6knrJ0l6vAU-ImTpAYEsIyOLdzPoLgF0wj0SgTZMGdFD3Tz/exec';
@@ -610,7 +640,16 @@ function runMatch(){
     if(!payeeList.length) reason = exactCands.length?'名義未登録（残高0の候補あり）':(nearCands.length?'名義未登録（手数料差の候補あり）':'名義未登録');
     else if(exact.length>1) reason='複数候補（金額一致が複数）';
     else reason = nearCands.length?'手数料/協力費で少額差あり':'金額一致なし（按分/別月?）';
-    results.push({d,key,status:'review',payeeList,reason,exactCands,nearCands});
+    // v0.3 複数工事への充当：同一部門・同一請求先で、複数工事の合計＝入金（or 控除で少額差）
+    let multi=null;
+    const mdepts=new Set(); payeeList.forEach(p=>crossDepts(p).forEach(dd=>mdepts.add(dd)));
+    if(payeeList.length && exact.length===0 && mdepts.size<=1 && pool.length>=2){
+      const em=subsetCombos(pool,d.amount,{exact:true});
+      if(em.length>=1){ multi={kind:'exact', combos:em.slice(0,6).map(x=>x.items), poolEids:pool.map(_eid)}; }
+      else if(!(nearCands&&nearCands.length)){ const dm=subsetCombos(pool,d.amount,{exact:false}); if(dm.length){ multi={kind:'deduct', combos:[dm[0].items], poolEids:pool.map(_eid)}; } }
+    }
+    if(multi) reason='複数工事に充当'+(multi.kind==='deduct'?'（控除あり）':(multi.combos.length>1?'（候補'+multi.combos.length+'通り）':'（候補確定）'));
+    results.push({d,key,status:'review',payeeList,reason,exactCands,nearCands,multi});
   }));
   render();
 }
@@ -659,7 +698,34 @@ function sharedBreakdown(r){
   });
 }
 function splitOkAll(r){ const sc=splitConfirm[r.key]; const dps=resultDepts(r); return !!(sc&&sc.ok&&dps.length&&dps.every(d=>sc.ok[d])); }
-function isDone(r){ if(r.status==='matched') return true; if(isShared(r)) return splitOkAll(r); return false; }  // 確定＝消込済み（自動一致・確定・一本両部署OK）→ 作業リストから消える
+/* v0.3 複数工事への充当 ヘルパー */
+function saveMulti(){ try{ localStorage.setItem(MMULTI,JSON.stringify(multiConfirm)); }catch(e){} }
+function subsetCombos(pool,target,opt){   // 予定額の部分集合（size>=2）で、合計＝target（exact）or 合計>target で少額超（控除）
+  const n=pool.length; if(n<2||n>12) return [];
+  const out=[]; const seen=new Set();
+  for(let m=1;m<(1<<n);m++){
+    let cnt=0,sum=0,ids=[],items=[];
+    for(let i=0;i<n;i++) if(m&(1<<i)){cnt++;sum+=planAmt(pool[i]);ids.push(_eid(pool[i]));items.push(pool[i]);}
+    if(cnt<2) continue;
+    if(opt.exact){ if(sum!==target) continue; }
+    else { const gap=sum-target; if(!(gap>0 && gap<=Math.max(100000,Math.round(target*0.06)) && gap<=Math.round(target*0.30))) continue; }  // 控除（手数料/相殺/安全協力費）想定の少額超
+    const kk=ids.slice().sort().join('#'); if(seen.has(kk))continue; seen.add(kk);
+    out.push({items,sum});
+  }
+  if(!opt.exact) out.sort((a,b)=>(a.sum-target)-(b.sum-target));
+  return out;
+}
+function entriesByEids(eids){ if(!eids||!eids.length) return []; const s=new Set(eids); return allEntries().filter(e=>s.has(_eid(e))); }
+function isMulti(r){ return r.status==='review' && !!r.multi; }
+function multiOk(r){ const mc=multiConfirm[r.key]; return !!(mc&&mc.done); }
+function multiSumPlan(combo){ return entriesByEids(combo).reduce((a,e)=>a+planAmt(e),0); }
+function multiDistDed(mc){ const works=entriesByEids(mc.combo); const total=works.reduce((a,e)=>a+planAmt(e),0)||1; const D=mc.ded||0; const out={}; let acc=0; works.forEach((e,i)=>{ const share=(i===works.length-1)?(D-acc):Math.round(D*planAmt(e)/total); out[_eid(e)]=share; acc+=share; }); return out; }  // 控除を工事へ按分（NEO/記入済み予定表用・最後の工事で端数調整）
+function ensureMulti(r){ const k=r.key, dep=r.d.amount;
+  if(!multiConfirm[k]){ const combo=(r.multi.combos[0]||[]).map(_eid); const ded=Math.max(0, multiSumPlan(combo)-dep); multiConfirm[k]={combo,ded,done:false}; }
+  else { if(typeof multiConfirm[k].ded!=='number') multiConfirm[k].ded=Math.max(0, multiSumPlan(multiConfirm[k].combo||[])-dep); }
+  return multiConfirm[k];
+}
+function isDone(r){ if(r.status==='matched') return true; if(isShared(r)) return splitOkAll(r); if(isMulti(r)) return multiOk(r); return false; }  // 確定＝消込済み（自動一致・確定・一本両部署OK・複数工事充当OK）→ 作業リストから消える
 function deptCls(d){ return d==='土木'?'d1':d==='営業'?'d2':d==='環境'?'d3':'d1'; }
 
 function renderDeptTabs(){
@@ -721,6 +787,49 @@ function breakdownHtml(r,di){
     +'<div class="note">※ 充当を直すと差は「安全協力費」に自動で寄ります（合計は常に入金額）。両部署が確認したら消込。※内訳のCSV反映は次段階(Phase2)。</div></div>';
 }
 
+function multiPanelHtml(r,di){
+  const deposit=r.d.amount; ensureMulti(r); const mc=multiConfirm[r.key];
+  const pool=entriesByEids(r.multi.poolEids||mc.combo);   // 請求先の工事一覧（チェックで調整）
+  const onSet=new Set(mc.combo);
+  const sum=pool.filter(e=>onSet.has(_eid(e))).reduce((a,e)=>a+planAmt(e),0);
+  const gap=sum-deposit;                     // 控除が要る額
+  const ded=gap>0?mc.ded:0;
+  const jitsu=sum-ded, diff=deposit-jitsu;   // diff=0 で成立
+  let h='<div class="bd"><h4>この入金 '+yen(deposit)+' を下の工事へ充当（チェックで調整）</h4>';
+  h+='<div class="mworks">';
+  pool.forEach(e=>{ const eid=_eid(e), on=onSet.has(eid);
+    h+='<div class="mw'+(on?' on':'')+'" data-mw="'+di+'|'+esc(eid)+'"><span class="mck">'+(on?'✓':'')+'</span>'
+      +'<span class="mnm">'+esc(fmtEntry(e))+'</span><span class="mam">'+yen(planAmt(e))+'</span></div>';
+  });
+  h+='</div>';
+  h+='<div class="ded3'+(gap>0?' show':'')+'"><label>控除（手数料・安全協力費など）</label>'
+    +'<input type="text" inputmode="numeric" data-mded="'+di+'" value="'+yen(ded)+'"><span class="mauto">自動</span></div>';
+  h+='<div class="mbal"><span>工事の合計 <b>'+yen(sum)+'</b></span>'
+    +'<span class="mdiff'+(diff===0?'':' warn')+'" data-mdiff>'+(diff===0?'＝ 入金 ✓':(gap<0?'工事が足りません '+yen(-gap):'差 '+yen(Math.abs(diff))))+'</span>'
+    +'<span style="flex:1"></span><button class="btn primary" data-mgo="'+di+'"'+(diff!==0?' disabled':'')+'>この工事を消込</button></div>';
+  h+='<div class="note">チェックした工事に充当します。控除がある時だけ差額が自動で入ります（違う時だけ直す）。各工事は予定額どおり回収済みに。</div></div>';
+  return h;
+}
+/* v0.3 シンプル一覧：状態セル・入金(誰から)セル */
+function stateTd(kind,reason){
+  if(kind==='ok') return '<td><span class="stt ok">✓ 済</span></td>';
+  if(kind==='ign') return '<td><span class="stt ign">除外</span></td>';
+  return '<td><span class="stt need">● 要確認</span>'+(reason?'<span class="reason">'+esc(reason)+'</span>':'')+'</td>';
+}
+function whoTd(r){ return '<td><div class="who">'+esc(r.d.name)+'</div><div class="sub2">'+kindTag(r.d.kind)+' '+esc(normDate(r.d.date))+'・'+esc(r.d.bank)+'</div></td>'; }
+function amtTd(r,diffHtml){ return '<td class="num"><div class="amt2">'+yen(r.d.amount)+'</div>'+(diffHtml||'')+'</td>'; }
+function multiRowHtml(r,di){
+  ensureMulti(r); const mc=multiConfirm[r.key]; const done=multiOk(r); const open=openDetails.has(r.key);
+  const works=entriesByEids(mc.combo);
+  let h='<tr class="'+(done?'':'flag')+'">'
+    + stateTd(done?'ok':'need', done?'':(r.reason||'複数工事に充当'))
+    + whoTd(r)
+    + amtTd(r,'')
+    + '<td><span class="lk multi">🧩 複数工事</span> '+esc(works.map(e=>trunc(e.工事名||e.請求先,10)).join('＋')||r.d.name)+'</td>'
+    + '<td class="act">'+(done?'<button class="btn sub mini" data-mundo="'+di+'">戻す</button>':'<button class="btn primary mini" data-tgl="'+di+'">'+(open?'閉じる':'内訳を見る')+'</button>')+'</td></tr>';
+  h+='<tr class="detail" data-detail="'+di+'" style="display:'+(open?'':'none')+'"><td colspan="5">'+multiPanelHtml(r,di)+'</td></tr>';
+  return h;
+}
 function render(){
   const scoped=results.filter(inDept);   // 選択中の部門タブに絞って数える
   const done=scoped.filter(isDone);
@@ -743,42 +852,54 @@ function render(){
     else msg='該当なし（部門タブ／絞り込みを変えてください）';
     body.innerHTML='<div class="empty">'+msg+'</div>'; updateOutputs(); renderLink(); renderCollect(); return;
   }
-  let h='<div class="twrap"><table><thead><tr><th>状態</th><th>日付</th><th>種別</th><th>振込名義</th><th class="num">入金額</th><th>銀行</th><th>請求先／工事</th><th class="num">予定額</th><th class="num">差額</th><th></th></tr></thead><tbody>';
+  let h='<div class="twrap"><table><thead><tr><th style="width:170px">状態</th><th>入金（誰から）</th><th class="num" style="width:150px">金額</th><th>充当先（どの工事）</th><th style="width:120px"></th></tr></thead><tbody>';
   list.forEach(r=>{
     const di=results.indexOf(r);
     if(isShared(r)){
       // 一本の振込（部門またぎ）＝内訳＋両部署確認
-      const okAll=splitOkAll(r), dps=resultDepts(r), sc=splitConfirm[r.key];
-      const totPlan=sharedBreakdown(r).reduce((s,x)=>s+x.plan,0), open=openDetails.has(r.key);
-      h+='<tr class="'+(okAll?'':'flag')+'"><td>'+(okAll?'<span class="tag y">済</span>':'<span class="tag d">要確認</span>')+'</td><td>'+esc(normDate(r.d.date))+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(normDate(r.d.importedAt)||'—')+'</div></td>';
-      h+='<td>'+esc(payeesOf(r).join('／')||r.d.name)+' <span class="lk">🔗 一本の振込</span> <span class="toggle" data-tgl="'+di+'">'+(open?'▼ 内訳を閉じる':'▶ 内訳')+'</span>'
-        +'<div class="stg '+(okAll?'done':'wait')+'">'+dps.map(d=>((sc&&sc.ok&&sc.ok[d])?'✓ ':'・')+esc(d)+(sc&&sc.ok&&sc.ok[d]?' 確認済':' 未確認')).join('　')+'</div></td>';
-      h+='<td class="num">'+yen(totPlan)+'</td><td class="num"><span class="badge share">部門内訳</span></td><td></td></tr>';
-      h+='<tr class="detail" data-detail="'+di+'" style="display:'+(open?'':'none')+'"><td colspan="10">'+breakdownHtml(r,di)+'</td></tr>';
+      const okAll=splitOkAll(r), dps=resultDepts(r), sc=splitConfirm[r.key], open=openDetails.has(r.key);
+      h+='<tr class="'+(okAll?'':'flag')+'">'
+        + stateTd(okAll?'ok':'need', okAll?'':'一本の振込（部門またぎ）')
+        + whoTd(r)
+        + amtTd(r,'')
+        + '<td><span class="lk">🔗 一本の振込</span> '+esc(payeesOf(r).join('／')||r.d.name)
+          +'<div class="stg '+(okAll?'done':'wait')+'">'+dps.map(d=>((sc&&sc.ok&&sc.ok[d])?'✓ ':'・')+esc(d)+(sc&&sc.ok&&sc.ok[d]?' 確認済':' 未確認')).join('　')+'</div></td>'
+        + '<td class="act"><button class="btn primary mini" data-tgl="'+di+'">'+(open?'閉じる':'内訳を見る')+'</button></td></tr>';
+      h+='<tr class="detail" data-detail="'+di+'" style="display:'+(open?'':'none')+'"><td colspan="5">'+breakdownHtml(r,di)+'</td></tr>';
       return;
     }
-    const st = r.status==='matched'?'<span class="tag y">済</span>':r.status==='ignored'?'<span class="tag">除外</span>':'<span class="tag d">要確認</span>';
+    if(isMulti(r)){ h+=multiRowHtml(r,di); return; }   // v0.3 複数工事への充当
     let rowCls=r.status==='ignored'?'dim':'';
-    let mid='';
     if(r.status==='matched'){
       const plan=planAmt(r.entry); const dc=diffCells(plan,r.d.amount); if(dc.flag)rowCls+=' flag';
-      mid='<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+'</td>'
-        +'<td class="num">'+yen(plan)+'</td>'
-        +'<td class="num">'+dc.diffCell+'</td>'
-        +'<td><button class="btn sub mini" data-un="'+di+'">戻す</button></td>';
+      const diffHtml = dc.flag ? '<span class="diff">'+dc.diffCell+'</span>' : '<span class="diff"><span class="diff0">残0</span></span>';
+      h+='<tr class="'+rowCls+'">'
+        + stateTd('ok','')
+        + whoTd(r)
+        + amtTd(r,diffHtml)
+        + '<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+'</td>'
+        + '<td class="act"><button class="btn sub mini" data-un="'+di+'">戻す</button></td></tr>';
     } else if(r.status==='review'){
-      const b=bestCand(r); let cell='';
+      const b=bestCand(r); let diffHtml='';
+      let cell='';
       if(b){ const e=b.e,plan=planAmt(e),diff=plan-r.d.amount;
+        if(b.near) diffHtml='<span class="diff"><span class="diffS">予定'+yen(plan)+'／差'+yen(diff)+'</span></span>';
         cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
       cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
-      mid='<td>'+cell+'</td>'
-        +'<td class="num muted">'+(b?yen(planAmt(b.e)):'—')+'</td>'
-        +'<td class="num muted">'+(b?(b.near?yen(planAmt(b.e)-r.d.amount):'0'):'—')+'</td>'
-        +'<td><button class="btn sub mini" data-ign="'+di+'">除外</button></td>';
+      h+='<tr class="'+rowCls+'">'
+        + stateTd('need', r.reason||'要確認')
+        + whoTd(r)
+        + amtTd(r,diffHtml)
+        + '<td>'+cell+'</td>'
+        + '<td class="act"><button class="btn sub mini" data-ign="'+di+'">除外</button></td></tr>';
     } else {
-      mid='<td class="muted" colspan="3">対象外</td><td><button class="btn sub mini" data-res="'+di+'">戻す</button></td>';
+      h+='<tr class="'+rowCls+'">'
+        + stateTd('ign','')
+        + whoTd(r)
+        + amtTd(r,'')
+        + '<td class="muted">対象外</td>'
+        + '<td class="act"><button class="btn sub mini" data-res="'+di+'">戻す</button></td></tr>';
     }
-    h+='<tr class="'+rowCls+'"><td>'+st+'</td><td>'+esc(normDate(r.d.date))+'</td><td>'+kindTag(r.d.kind)+'</td><td>'+esc(r.d.name)+'</td><td class="num">'+yen(r.d.amount)+'</td><td>'+esc(r.d.bank)+'<div class="sub2">取込 '+esc(normDate(r.d.importedAt)||'—')+'</div></td>'+mid+'</tr>';
   });
   h+='</tbody></table></div>';
   body.innerHTML=h;
@@ -788,7 +909,7 @@ function render(){
 }
 function updateOutputs(){
   const hasMatch=results.some(r=>r.status==='matched');
-  $('outDoboku').disabled=!(planDoboku && planDoboku.sheetXml && results.some(r=>r.status==='matched'&&r.entry.type==='土木'));
+  $('outDoboku').disabled=!(planDoboku && planDoboku.sheetXml && (results.some(r=>r.status==='matched'&&r.entry.type==='土木') || results.some(r=>isMulti(r)&&multiOk(r))));
   $('outList').disabled=!results.length;
   $('outImport').disabled=!hasMatch;
 }
@@ -797,6 +918,16 @@ function updateOutputs(){
 $('resTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; resTab=b.dataset.t; document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
 $('deptTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; deptTab=b.dataset.dt; render(); });
 $('resBody').addEventListener('input',e=>{
+  const minp=e.target.closest('input[data-mded]');
+  if(minp){ const detail=minp.closest('tr.detail'); if(!detail)return; const r=results[+detail.dataset.detail]; if(!r||!isMulti(r))return;
+    const mc=ensureMulti(r); mc.ded=toInt(minp.value)||0;
+    const pool=entriesByEids(r.multi.poolEids||mc.combo); const onSet=new Set(mc.combo);
+    const sum=pool.filter(x=>onSet.has(_eid(x))).reduce((a,x)=>a+planAmt(x),0);
+    const gap=sum-r.d.amount, ded=gap>0?mc.ded:0, diff=r.d.amount-(sum-ded);
+    const dd=detail.querySelector('[data-mdiff]'); if(dd){ dd.textContent=(diff===0?'＝ 入金 ✓':(gap<0?'工事が足りません '+yen(-gap):'差 '+yen(Math.abs(diff)))); dd.className='mdiff'+(diff===0?'':' warn'); }
+    const go=detail.querySelector('[data-mgo]'); if(go)go.disabled=(diff!==0);
+    saveMulti(); scheduleSync(); return;
+  }
   const inp=e.target.closest('input[data-alloc]'); if(!inp)return;
   const detail=inp.closest('tr.detail'); if(!detail)return;
   const r=results[+detail.dataset.detail]; if(!r)return; const key=r.key, deposit=r.d.amount;
@@ -816,6 +947,20 @@ $('resBody').addEventListener('input',e=>{
 $('resBody').addEventListener('click',e=>{
   const tgl=e.target.closest('[data-tgl]');
   if(tgl){ const r=results[+tgl.dataset.tgl]; if(openDetails.has(r.key))openDetails.delete(r.key); else openDetails.add(r.key); render(); return; }
+  // v0.3 複数工事への充当
+  const mw=e.target.closest('[data-mw]');
+  if(mw){ const sp=mw.dataset.mw.split('|'); const r=results[+sp[0]]; const eid=sp.slice(1).join('|'); const mc=ensureMulti(r);
+    const i=mc.combo.indexOf(eid); if(i>=0)mc.combo.splice(i,1); else mc.combo.push(eid);
+    mc.ded=Math.max(0, multiSumPlan(mc.combo)-r.d.amount);   // 控除は自動に戻す
+    openDetails.add(r.key); saveMulti(); scheduleSync(); render(); return; }
+  const mgo=e.target.closest('[data-mgo]');
+  if(mgo){ const r=results[+mgo.dataset.mgo]; const mc=ensureMulti(r); if(!mc.combo.length){ alert('工事を1つ以上選んでください。'); return; }
+    const sum=multiSumPlan(mc.combo), gap=sum-r.d.amount, ded=gap>0?mc.ded:0;
+    if(sum-ded!==r.d.amount){ alert('工事の合計−控除が入金額と一致していません。'); return; }
+    mc.done=true; const w0=entriesByEids(mc.combo)[0]; if(w0) addMaster(r.d.name, w0.請求先);
+    saveMulti(); saveMasterLocal(); renderMaster(); pushMaster(); scheduleSync(); render(); return; }
+  const mundo=e.target.closest('[data-mundo]');
+  if(mundo){ const r=results[+mundo.dataset.mundo]; if(multiConfirm[r.key]){ multiConfirm[r.key].done=false; openDetails.add(r.key); saveMulti(); scheduleSync(); render(); } return; }
   const okc=e.target.closest('[data-ok]');
   if(okc){ const r=results[+okc.dataset.ok], dp=okc.dataset.okdept, key=r.key;
     splitConfirm[key]=splitConfirm[key]||{alloc:{},ok:{}};
@@ -863,6 +1008,7 @@ function collectPaid(){
   const add=(id,amt,dt)=>{ paid[id]=(paid[id]||0)+amt; if(dt && (!lastd[id]||String(dt)>String(lastd[id]))) lastd[id]=dt; };
   (results||[]).forEach(r=>{
     if(r.status==='matched' && r.entry){ add(_eid(r.entry), (r.d.amount||0)+(r.fee||0), r.d.date); }
+    else if(isMulti(r) && multiOk(r)){ const mc=multiConfirm[r.key]; entriesByEids(mc.combo).forEach(e=>add(_eid(e), planAmt(e), r.d.date)); }  // 複数工事：各工事は予定額どおり回収済み（控除込み）
     else if(isShared(r)){
       const sc=splitConfirm[r.key]||{ok:{}}; const payees=payeesOf(r);
       resultDepts(r).forEach(dp=>{ if(sc.ok && sc.ok[dp]){
@@ -1015,8 +1161,9 @@ function mergeShared(d){
   if(add.length) bankFiles.push({name:'（中央共有）入金プール',bank:'共有',deposits:add,dup:0,importedAt:''});
   confirmed=Object.assign({},(d&&d.confirmed)||{},confirmed);
   splitConfirm=Object.assign({},(d&&d.split)||{},splitConfirm);
+  multiConfirm=Object.assign({},(d&&d.multi)||{},multiConfirm);
 }
-function sharedBody(){ return JSON.stringify({master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm}); }
+function sharedBody(){ return JSON.stringify({master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm,multi:multiConfirm}); }
 function pushShared(){ if(!GAS_URL)return; setGasState('loading');
   fetch(GAS_URL,{method:'POST',mode:'no-cors',body:sharedBody()})
     .then(()=>{ setGasState('on'); if($('masterInfo')) $('masterInfo').textContent='中央へ保存：名義 '+Object.keys(master).length+' ／ 入金 '+leanDeposits().length+'件'; })
@@ -1139,6 +1286,17 @@ $('outDoboku').addEventListener('click',()=>{
     xml=setCell(xml,'N'+row, r.d.amount, true);      // 振込額
     if(r.fee>0) xml=setCell(xml,'O'+row, r.fee, true);  // 手数料/差額（残高が0になるように）
   });
+  // v0.3 複数工事への充当（各工事の行に実入金・控除を記入）
+  results.filter(r=>isMulti(r)&&multiOk(r)).forEach(r=>{
+    const mc=multiConfirm[r.key]; const dist=multiDistDed(mc);
+    entriesByEids(mc.combo).filter(e=>e.type==='土木').forEach(e=>{
+      const row=e.row, eid=_eid(e), ded=(dist[eid]||0), act=planAmt(e)-ded;
+      xml=setCell(xml,'L'+row, r.d.date, false);
+      xml=setCell(xml,'M'+row, r.d.bank, false);
+      xml=setCell(xml,'N'+row, act, true);          // 実入金
+      if(ded>0) xml=setCell(xml,'O'+row, ded, true); // 控除（残高0）
+    });
+  });
   const zip=Object.assign({},planDoboku.zip);
   zip[planDoboku.sheetPath]=fflate.strToU8(xml);
   const out=fflate.zipSync(zip);
@@ -1152,6 +1310,10 @@ $('outList').addEventListener('click',()=>{
   results.forEach(r=>{
     const imp=r.d.importedAt||'';
     if(r.status==='matched'){ const e=r.entry; const plan=planAmt(e); rows.push([isDone(r)?'消込済み':'マッチ',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,e.請求先,e.dept||(e.type==='土木'?'土木':'弥生'),e.工事名||'',e.工事番号||'',plan,plan-r.d.amount, isCross(e.請求先)?crossDepts(e.請求先).join('+'):'']); }
+    else if(isMulti(r)){
+      if(multiOk(r)){ const mc=multiConfirm[r.key]; const dist=multiDistDed(mc); entriesByEids(mc.combo).forEach(e=>{ const eid=_eid(e), plan=planAmt(e), ded=(dist[eid]||0); rows.push(['消込済み(複数工事)',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,e.請求先,deptOf(e),e.工事名||'',e.工事番号||'',plan,ded,'複数工事']); }); }
+      else rows.push(['未処理(複数工事候補)',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,(r.payeeList||[]).join('|'),'',r.reason||'','','','','複数工事']);
+    }
     else if(r.status==='review'){ rows.push([isDone(r)?'消込済み(一本)':'未処理',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,(r.payeeList||[]).join('|'),'',r.reason||'','','','','']); }
     else rows.push(['対象外',r.d.date,imp,r.d.kind||'',r.d.name,r.d.amount,r.d.bank,'','','','','','','']);
   });
@@ -1174,7 +1336,12 @@ function loadDemo(){
       {type:'土木',dept:'土木',請求先:'国土建設㈱',工事名:'県道××舗装工事',工事番号:'12377-01',amount:2000000,row:20},
       {type:'土木',dept:'土木',請求先:'山田建設㈱',工事名:'△△護岸工事',工事番号:'12360-01',amount:1200000,row:14},
       {type:'土木',dept:'土木',請求先:'丸西工業㈱',工事名:'○○下水道工事',工事番号:'12388-01',amount:880000,row:16},
-      {type:'土木',dept:'土木',請求先:'大石建設㈱',工事名:'市道補修工事',工事番号:'12410-01',amount:430000,row:18}
+      {type:'土木',dept:'土木',請求先:'大石建設㈱',工事名:'市道補修工事',工事番号:'12410-01',amount:430000,row:18},
+      {type:'土木',dept:'土木',請求先:'鹿島道路㈱',工事名:'D 舗装打換工事',工事番号:'12501-01',amount:4235000,row:22},
+      {type:'土木',dept:'土木',請求先:'鹿島道路㈱',工事名:'E 県道改良工事',工事番号:'12502-01',amount:1500000,row:24},
+      {type:'土木',dept:'土木',請求先:'鹿島道路㈱',工事名:'F 区道補修工事',工事番号:'12503-01',amount:1735000,row:26},
+      {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'B 橋梁補修工事',工事番号:'12611-01',amount:3000000,row:28},
+      {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'C 法面工事',工事番号:'12612-01',amount:800000,row:30}
     ]};
   planYayoi=[
     {name:'（サンプル）請求先別回収状況_営業7月.xlsx',dept:'営業',entries:[
@@ -1194,11 +1361,13 @@ function loadDemo(){
     {date:'2026/08/17',name:'ｵｵｲｼｹﾝｾﾂ(ｶ',amount:430000,bank:'島掛信金',src:'demo',kind:'振込',raw:''}, // 一致→済
     {date:'2026/08/09',name:'ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ',amount:660000,bank:'島掛信金',src:'demo',kind:'振込',raw:''},// 営業 一致→済
     {date:'2026/08/18',name:'ﾄｳｶｲｺｳｷﾞｮｳ(ｶ',amount:1100000,bank:'島掛信金',src:'demo',kind:'でんさい',raw:''},// 環境 一致→済
-    {date:'2026/08/16',name:'ﾃﾞﾝｼｻｲｹﾝ ｶ)ﾆｼ',amount:640000,bank:'静銀',src:'demo',kind:'振込',raw:''}     // 名義未登録
+    {date:'2026/08/16',name:'ﾃﾞﾝｼｻｲｹﾝ ｶ)ﾆｼ',amount:640000,bank:'静銀',src:'demo',kind:'振込',raw:''},     // 名義未登録
+    {date:'2026/08/20',name:'ｶｼﾞﾏﾄﾞｳﾛ(ｶ',amount:7470000,bank:'静銀',src:'demo',kind:'振込',raw:''},       // 複数工事ピタリ（D+E+F）
+    {date:'2026/08/21',name:'ｵｵｶﾜﾗｸﾞﾐ(ｶ',amount:3600000,bank:'静銀',src:'demo',kind:'振込',raw:''}        // 複数工事＋控除（B+C=380万→控除20万）
   ];
   bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps}];
   master={};
-  [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱']]
+  [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱'],['ｶｼﾞﾏﾄﾞｳﾛ(ｶ','鹿島道路㈱'],['ｵｵｶﾜﾗｸﾞﾐ(ｶ','大川原組㈱']]
     .forEach(function(pr){ master[normName(pr[0])]=[pr[1]]; });
   confirmed={};
   confirmed[depKey(dps[2])]={payee:'国土建設㈱',type:'土木',row:20,code:null,dept:'土木',工事番号:'12377-01',工事名:'県道××舗装工事',fee:0};   // 過入金
@@ -1224,6 +1393,7 @@ else {
   Object.keys(master).forEach(k=>{ if(typeof master[k]==='string') master[k]=[master[k]]; if(!Array.isArray(master[k])) master[k]=[]; });  // 旧形式(文字列)→配列に移行
   try{ confirmed=JSON.parse(localStorage.getItem(MCONF)||'{}')||{}; }catch(e){ confirmed={}; }
   try{ splitConfirm=JSON.parse(localStorage.getItem(MSPLIT)||'{}')||{}; }catch(e){ splitConfirm={}; }
+  try{ multiConfirm=JSON.parse(localStorage.getItem(MMULTI)||'{}')||{}; }catch(e){ multiConfirm={}; }
   try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
   try{ bankFiles=JSON.parse(localStorage.getItem(MBANK)||'[]')||[]; bankFiles.forEach(bf=>(bf.deposits||[]).forEach(d=>{ d.date=normDate(d.date); if(d.importedAt) d.importedAt=normDate(d.importedAt); })); }catch(e){ bankFiles=[]; }  // 先に取り込んでおいた銀行を復元（日付GMT表記を正規化）
   try{ const pj=JSON.parse(localStorage.getItem(MPLAN)||'null'); if(pj){ if(pj.doboku) planDoboku={name:pj.doboku.name, entries:pj.doboku.entries}; planYayoi=Array.isArray(pj.yayoi)?pj.yayoi:[]; } }catch(e){}  // 予定表(entries)も復元
