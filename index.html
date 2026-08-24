@@ -296,7 +296,7 @@ main{max-width:1360px;}
   <div class="toptabs" id="toptabs">
     <button data-tt="reconcile" class="on">消込（入金確認）</button>
     <button data-tt="master">名義マスタ（紐づけ）</button>
-    <button data-tt="collect">回収チェック</button>
+    <button data-tt="collect">予定⟷入金（突合）</button>
   </div>
 
   <div id="tabReconcile">
@@ -398,11 +398,34 @@ main{max-width:1360px;}
   #tabCollect tr.ck-none td{box-shadow:inset 3px 0 0 #c02626}
   #tabCollect tr.ck-part td{box-shadow:inset 3px 0 0 #b45309}
   #tabCollect td.ckzan{color:#c02626;font-weight:700}
+  /* 突合ビュー（予定⟷入金） */
+  #tabCollect .rc thead .grp th{font-size:11px;color:#fff;font-weight:800;padding:7px 14px;text-align:left;border:none}
+  #tabCollect .rc thead .grp .gp{background:linear-gradient(135deg,#6366f1,#4f46e5)}
+  #tabCollect .rc thead .grp .gm{background:#e9ebf0;color:#5b6472;text-align:center}
+  #tabCollect .rc thead .grp .gi{background:linear-gradient(135deg,#0ea5a3,#0f9d6b)}
+  #tabCollect .rc td.plan{border-right:1px dashed #e6e8ee;background:color-mix(in srgb,var(--ac,#4f46e5) 3%,#fff)}
+  #tabCollect .rc td.inp{border-left:1px dashed #e6e8ee;background:color-mix(in srgb,#0f9d6b 3%,#fff)}
+  #tabCollect .rc td.ctr{text-align:center;white-space:nowrap}
+  #tabCollect .rc .pill{display:inline-block;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:99px;white-space:nowrap}
+  #tabCollect .rc .pill.ok{background:#e9f7ee;color:#0f9d6b}
+  #tabCollect .rc .pill.fee,#tabCollect .rc .pill.part{background:#fff7ed;color:#b45309}
+  #tabCollect .rc .pill.none{background:#fdecee;color:#c02626}
+  #tabCollect .rc .pill.extra,#tabCollect .rc .pill.multi{background:#eef0ff;color:#4f46e5}
+  #tabCollect .rc .work{font-weight:600}
+  #tabCollect .rc .who{font-weight:700}
+  #tabCollect .rc .meta{font-size:11px;color:#828b9c;margin-top:2px}
+  #tabCollect .rc .meta.idate{color:#0f9d6b;font-weight:700}
+  #tabCollect .rc .brace{font-size:10.5px;color:#4f46e5;font-weight:700;margin-left:4px}
+  #tabCollect .rc .zan{color:#c02626;font-weight:800}
+  #tabCollect .rc .muted{color:#c2c8d2}
+  #tabCollect .rc tr.g-none td.plan{box-shadow:inset 4px 0 0 #c02626}
+  #tabCollect .rc tr.g-part td.plan{box-shadow:inset 4px 0 0 #b45309}
+  #tabCollect .rc tr.g-extra td.inp{box-shadow:inset -4px 0 0 #4f46e5}
   </style>
   <div id="tabCollect" style="display:none">
   <div class="step">
-    <h2>回収チェック（予定に対する入金状況）</h2>
-    <p class="desc">予定表を起点に「回収済／一部／未入金」を部門別に確認します。消込を進めると自動で更新されます。<b>まだ来ていない入金（未入金）</b>もここで見えます。</p>
+    <h2>予定 ⟷ 入金（突合ビュー）</h2>
+    <p class="desc">左＝予定（回収予定）／右＝入金（実績）を横並びで突合。<b>一致・手数料差・一部入金・未入金（取りっぱぐれ）・予定外の入金・まとめ払い</b>が一目で分かります。消込を進めると自動で更新されます。</p>
     <div class="cksummary" id="collectSum"></div>
     <div class="ckbar"><i id="collectBar"></i></div>
     <div class="cktabs" id="collectTabs">
@@ -410,9 +433,9 @@ main{max-width:1360px;}
       <button data-ck="土木">土木 <span class="cc" id="ck-土木"></span></button>
       <button data-ck="営業">営業 <span class="cc" id="ck-営業"></span></button>
       <button data-ck="環境">環境 <span class="cc" id="ck-環境"></span></button>
-      <label class="ckchk"><input type="checkbox" id="collectOnlyNG"> 未入金・一部だけ表示</label>
+      <label class="ckchk"><input type="checkbox" id="collectOnlyNG"> 要対応だけ表示（未入金・一部・予定外）</label>
     </div>
-    <div id="collectBody"><div class="empty">予定表（STEP2）を読み込むと、回収状況が出ます</div></div>
+    <div id="collectBody"><div class="empty">予定表（STEP2）を読み込むと、突合状況が出ます</div></div>
   </div>
   </div><!-- /tabCollect -->
 </main>
@@ -1022,42 +1045,84 @@ function collectPaid(){
   return {paid,lastd};
 }
 function _ckpi(l,v,sub,cls){ return '<div class="ckpi '+(cls||'')+'"><div class="l">'+l+'</div><div class="v">'+v+(sub?' <small>'+sub+'</small>':'')+'</div></div>'; }
+/* 突合グループ：1入金↔1〜複数予定（settled）／予定のみ（plan＝未入金・一部）／入金のみ（inp＝予定外・未処理） */
+function reconGroups(){
+  const {paid,lastd}=collectPaid();
+  const groups=[]; const covered={};
+  (results||[]).forEach(r=>{
+    let plans=null;
+    if(r.status==='matched' && r.entry){ plans=[r.entry]; }
+    else if(isMulti(r)&&multiOk(r)){ plans=entriesByEids(multiConfirm[r.key].combo); }
+    else if(isShared(r)&&splitOkAll(r)){ const payees=payeesOf(r); plans=[]; resultDepts(r).forEach(dp=>{ allEntries().filter(x=>deptOf(x)===dp&&payees.some(p=>normPayee(p)===normPayee(x.請求先))).forEach(x=>plans.push(x)); }); }
+    if(plans && plans.length){
+      const dep=r.d.amount, planTot=plans.reduce((a,e)=>a+planAmt(e),0), paidTot=plans.reduce((a,e)=>a+(paid[_eid(e)]||0),0);
+      let st;
+      if(plans.length>1) st='multi';
+      else { const zan=planTot-(paid[_eid(plans[0])]||0); st = zan>0?'part':(dep<planTot?'fee':'ok'); }
+      groups.push({kind:'settled', dept:deptOf(plans[0]), plans, inp:{who:r.d.name,date:r.d.date,amt:dep,bank:r.d.bank,dkind:r.d.kind}, st, planTot, paidTot, zan:planTot-paidTot});
+      plans.forEach(e=>covered[_eid(e)]=1);
+    }
+  });
+  allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id]){ const pd=paid[id]||0, plan=planAmt(e); groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||''}); } });
+  (results||[]).forEach(r=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ groups.push({kind:'inp', dept:'', plans:[], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'extra', planTot:0, paidTot:0, zan:0}); } });
+  return {groups, paid, lastd};
+}
 function renderCollect(){
   const host=$('collectBody'); if(!host) return;
-  const es=allEntries();
-  const bar=$('collectBar');
-  if(!es.length){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表（STEP2）を読み込むと、回収状況が出ます</div>'; return; }
-  const {paid,lastd}=collectPaid();
-  const rows=es.map(e=>{ const id=_eid(e), plan=planAmt(e), pd=paid[id]||0, zan=plan-pd;
-    return {e, dept:deptOf(e), plan, paid:pd, zan, st:(pd<=0?'none':(zan>0?'part':'ok')), last:lastd[id]||''}; });
-  const total=rows.reduce((a,r)=>a+r.plan,0);
-  const paidsum=rows.reduce((a,r)=>a+Math.min(r.paid,r.plan),0);
-  const zansum=rows.reduce((a,r)=>a+(r.zan>0?r.zan:0),0);
-  const ng=rows.filter(r=>r.st!=='ok').length, none=rows.filter(r=>r.st==='none').length;
-  $('collectSum').innerHTML = _ckpi('予定額 合計','¥'+yen(total),'')
-    + _ckpi('回収済','¥'+yen(paidsum), total?(Math.round(paidsum/total*100)+'%'):'')
-    + _ckpi('未回収（残）','¥'+yen(zansum),'','alert')
-    + _ckpi('要対応',''+ng,'件（内 未入金'+none+'）','part');
-  if(bar) bar.style.width=(total?Math.round(paidsum/total*100):0)+'%';
-  ['all','土木','営業','環境'].forEach(d=>{ const el=$('ck-'+d); if(!el)return; const n=(d==='all'?rows:rows.filter(r=>r.dept===d)).filter(r=>r.st!=='ok').length; el.textContent=n?('要'+n):''; });
-  let list=rows.slice();
-  if(collectDept!=='all') list=list.filter(r=>r.dept===collectDept);
-  if(collectOnlyNG) list=list.filter(r=>r.st!=='ok');
-  const ord={none:0,part:1,ok:2};
-  list.sort((a,b)=>ord[a.st]-ord[b.st] || b.zan-a.zan);
-  const lab={ok:'回収済',part:'一部入金',none:'未入金'};
-  host.innerHTML = list.length
-    ? '<div class="twrap"><table><thead><tr><th>状態</th><th>部門</th><th>請求先／工事</th><th class="num">予定額</th><th class="num">入金済</th><th class="num">残</th><th>最終入金日</th></tr></thead><tbody>'
-      + list.map(r=>{ const e=r.e; const work=e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):'';
-        return '<tr class="ck-'+r.st+'"><td><span class="ckst '+r.st+'"><i></i>'+lab[r.st]+'</span></td>'
-        +'<td><span class="dept '+deptCls(r.dept)+'">'+esc(r.dept)+'</span></td>'
-        +'<td>'+esc(e.請求先)+(work?'<span class="muted"> ／ '+esc(work)+'</span>':'')+'</td>'
-        +'<td class="num">¥'+yen(r.plan)+'</td>'
-        +'<td class="num">'+(r.paid?('¥'+yen(r.paid)):'<span class="muted">—</span>')+'</td>'
-        +'<td class="num '+(r.zan>0?'ckzan':'muted')+'">'+(r.zan>0?('¥'+yen(r.zan)):(r.zan<0?('+¥'+yen(-r.zan)):'0'))+'</td>'
-        +'<td>'+(r.last?esc(normDate(r.last)):'<span class="muted">—</span>')+'</td></tr>'; }).join('')
-      + '</tbody></table></div>'
-    : '<div class="empty">該当なし（部門タブ／絞り込みを変えてください）</div>';
+  const es=allEntries(); const bar=$('collectBar');
+  if(!es.length && !(results||[]).some(r=>r.status==='review')){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表（STEP2）を読み込むと、突合状況が出ます</div>'; return; }
+  const {groups}=reconGroups();
+  // KPI（予定側で集計）
+  const planTot=es.reduce((a,e)=>a+planAmt(e),0);
+  const inpTot=groups.filter(g=>g.inp).reduce((a,g)=>a+g.inp.amt,0);
+  const noneN=groups.filter(g=>g.st==='none').length, extraN=groups.filter(g=>g.st==='extra').length, partN=groups.filter(g=>g.st==='part').length;
+  const zansum=groups.reduce((a,g)=>a+(g.zan>0?g.zan:0),0);
+  const paidsum=Math.max(0, planTot-zansum);
+  $('collectSum').innerHTML = _ckpi('予定 合計','¥'+yen(planTot),'')
+    + _ckpi('入金 合計','¥'+yen(inpTot), planTot?(Math.round(paidsum/planTot*100)+'%'):'')
+    + _ckpi('未入金・一部',(noneN+partN)+'件','（未入金'+noneN+'）','alert')
+    + _ckpi('予定外の入金',extraN+'件','要確認','part');
+  if(bar) bar.style.width=(planTot?Math.round(paidsum/planTot*100):0)+'%';
+  const isNG=g=>(g.st==='none'||g.st==='part'||g.st==='extra');
+  ['all','土木','営業','環境'].forEach(d=>{ const el=$('ck-'+d); if(!el)return; const n=(d==='all'?groups:groups.filter(g=>g.dept===d)).filter(isNG).length; el.textContent=n?('要'+n):''; });
+  let list=groups.slice();
+  if(collectDept!=='all') list=list.filter(g=>g.dept===collectDept);
+  if(collectOnlyNG) list=list.filter(isNG);
+  const ord={none:0,part:1,extra:2,fee:3,multi:4,ok:5};
+  list.sort((a,b)=>(ord[a.st]-ord[b.st]) || (b.zan-a.zan));
+  const LAB={ok:'✓ 一致',fee:'手数料差',part:'一部入金',none:'未入金',extra:'予定外',multi:'まとめ払い'};
+  if(!list.length){ host.innerHTML='<div class="empty">該当なし（部門タブ／絞り込みを変えてください）</div>'; return; }
+  let h='<div class="twrap"><table class="rc"><thead>'
+    +'<tr class="grp"><th class="gp" colspan="2">◀ 予定（回収予定）</th><th class="gm">突合</th><th class="gi" colspan="2">入金（実績）▶</th><th class="gm">残</th></tr>'
+    +'<tr><th>部門・請求先／工事</th><th class="num">予定額</th><th class="ctr">状態</th><th>振込名義・日付</th><th class="num">入金額</th><th class="num">残</th></tr>'
+    +'</thead><tbody>';
+  list.forEach(g=>{
+    const rows=Math.max(1, g.plans.length);
+    for(let i=0;i<rows;i++){
+      const e=g.plans[i];
+      h+='<tr class="g-'+g.st+'">';
+      // 予定側
+      if(e){ const work=e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):'（'+(e.dept||'弥生')+'）';
+        const brace = g.st==='multi'?(i===0?'<span class="brace">┐ まとめ'+g.plans.length+'件':(i===rows-1?'<span class="brace">┘</span>':'<span class="brace">│</span>')):'';
+        h+='<td class="plan"><span class="dept '+deptCls(g.dept)+'">'+esc(g.dept||'—')+'</span><span class="work">'+esc(e.請求先)+' ／ '+esc(work)+'</span>'+(brace&&i===0?brace+'</span>':brace)+'</td>'
+          +'<td class="plan num">¥'+yen(planAmt(e))+'</td>';
+      } else { h+='<td class="plan muted">（予定なし）</td><td class="plan num muted">—</td>'; }
+      // 中央＋入金側（先頭行だけrowspan）
+      if(i===0){
+        h+='<td class="ctr" rowspan="'+rows+'"><span class="pill '+g.st+'">'+LAB[g.st]+'</span></td>';
+        if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
+            +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
+            +'<div class="meta idate">入金日 '+esc(normDate(g.inp.date)||'—')+'</div></td>'
+            +'<td class="inp num" rowspan="'+rows+'">¥'+yen(g.inp.amt)+'</td>'; }
+        else { h+='<td class="inp muted" rowspan="'+rows+'">（入金なし）</td><td class="inp num muted" rowspan="'+rows+'">—</td>'; }
+        const zc = g.st==='extra' ? '<span class="muted">—</span>' : (g.zan>0?'<span class="zan">¥'+yen(g.zan)+'</span>':(g.zan<0?'<span class="pill fee">+¥'+yen(-g.zan)+'</span>':'<span class="muted">0</span>'));
+        h+='<td class="num" rowspan="'+rows+'">'+zc+'</td>';
+      }
+      h+='</tr>';
+    }
+  });
+  h+='</tbody></table></div>';
+  host.innerHTML=h;
 }
 document.getElementById('collectTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; collectDept=b.dataset.ck; document.querySelectorAll('#collectTabs button').forEach(x=>x.classList.toggle('on',x===b)); renderCollect(); });
 document.getElementById('collectOnlyNG').addEventListener('change',e=>{ collectOnlyNG=e.target.checked; renderCollect(); });
