@@ -321,6 +321,7 @@ main{max-width:1560px;}
 .ibox-s{font-size:11.5px;color:var(--muted);margin:4px 0 0;}
 .ibox-n{font-size:12.5px;margin-top:7px;}
 .ibox-n:empty{display:none;}
+.lastimp{display:inline-block;font-weight:800;font-size:11.5px;color:#2563c9;background:color-mix(in srgb,#2563c9 10%,transparent);border-radius:99px;padding:2px 9px;margin-left:4px;}
 .ibox .files{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;font-size:11px;}
 .ibox .files:empty{display:none;}
 .istrip-ctl{display:flex;align-items:center;gap:8px;margin:0 0 14px;}
@@ -1395,7 +1396,9 @@ function readPlan(file){
 function renderBankFiles(){
   $('bankFiles').innerHTML=bankFiles.map((b,i)=>'<span class="fchip"><span class="t b">'+esc(b.bank)+'</span>'+esc(b.name)+' <span class="muted">('+b.deposits.length+'入金'+(b.dup?'・重複'+b.dup+'除外':'')+')</span>'+(b.importedAt?' <span class="muted">取込 '+esc(b.importedAt)+'</span>':'')+' <span class="x" data-bdel="'+i+'">×</span></span>').join('');
   const total=bankFiles.reduce((s,b)=>s+b.deposits.length,0);
-  $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金</span> <b>'+total+'</b> 件 貯まっています <span class="muted">（保存済み・重複は自動除外。予定表を入れると照合）</span>'):'';
+  const imps=bankFiles.flatMap(b=>(b.deposits||[]).map(d=>d.importedAt).concat(b.importedAt||[])).filter(Boolean);
+  const lastImp=imps.length?imps.slice().sort().slice(-1)[0]:'';  // 最終取込日（YYYY/MM/DDは辞書順=時系列）
+  $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金</span> <b>'+total+'</b> 件'+(lastImp?' <span class="lastimp">📅 最終取込 '+esc(lastImp)+'</span>':'')+' <span class="muted">（保存済み・重複は自動除外。予定表を入れると照合）</span>'):'';
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
   saveBank();
   renderLink();
@@ -1540,7 +1543,7 @@ function loadDemo(){
     {date:'2026/08/21',name:'ｵｵｶﾜﾗｸﾞﾐ(ｶ',amount:3600000,bank:'静銀',src:'demo',kind:'振込',raw:''},       // 複数工事＋控除（B+C=380万→控除20万）
     {date:'2026/08/22',name:'ｾﾞﾛﾖﾃｲ(ｶ',amount:150000,bank:'静銀',src:'demo',kind:'振込',raw:''}          // 予定額0円なのに入金あり＝過入金（一致にしない）
   ];
-  bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps}];
+  bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps,importedAt:'2026/08/22'}];
   master={};
   [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱'],['ｶｼﾞﾏﾄﾞｳﾛ(ｶ','鹿島道路㈱'],['ｵｵｶﾜﾗｸﾞﾐ(ｶ','大川原組㈱'],['ｾﾞﾛﾖﾃｲ(ｶ','ゼロ予定㈱']]
     .forEach(function(pr){ master[normName(pr[0])]=[pr[1]]; });
