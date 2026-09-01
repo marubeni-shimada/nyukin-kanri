@@ -305,6 +305,26 @@ main{max-width:1560px;}
 .drawer .dbody{padding:16px 20px;overflow:auto;flex:1;}
 .drawer .dbody .step{border:0;padding:0;margin:0;box-shadow:none;background:none;}
 @media(max-width:560px){ .drawer .dbody{padding:12px 14px;} }
+
+/* 取込＝銀行／予定表で別々の入れ口 */
+.istrip2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 8px;}
+.ibox{border:1.5px dashed color-mix(in srgb,var(--ac) 32%,var(--line));border-radius:12px;padding:13px 15px;cursor:pointer;background:var(--panel,#fff);transition:.12s;}
+.ibox:hover{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 4%,transparent);}
+.ibox.over{border-style:solid;border-color:var(--ac);background:color-mix(in srgb,var(--ac) 12%,transparent);}
+.ibox.bank{border-color:color-mix(in srgb,#2563c9 32%,var(--line));}
+.ibox.bank:hover{border-color:#2563c9;background:color-mix(in srgb,#2563c9 5%,transparent);}
+.ibox.plan{border-color:color-mix(in srgb,#0f9d6b 32%,var(--line));}
+.ibox.plan:hover{border-color:#0f9d6b;background:color-mix(in srgb,#0f9d6b 5%,transparent);}
+.ibox-h{display:flex;align-items:center;gap:8px;}
+.ibox-ic{font-size:16px;}
+.ibox-t{font-weight:800;font-size:13.5px;}
+.ibox-s{font-size:11.5px;color:var(--muted);margin:4px 0 0;}
+.ibox-n{font-size:12.5px;margin-top:7px;}
+.ibox-n:empty{display:none;}
+.ibox .files{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;font-size:11px;}
+.ibox .files:empty{display:none;}
+.istrip-ctl{display:flex;align-items:center;gap:8px;margin:0 0 14px;}
+@media(max-width:760px){ .istrip2{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
@@ -313,25 +333,36 @@ main{max-width:1560px;}
     <div class="logo">¥</div>
     <div class="title"><h1>入金確認 <span class="muted" style="font-size:11px;font-weight:600">v0.4</span></h1><p>予定（売掛）に入金が来たかを一目で確認。当たらない時だけ「要確認」で処理します。</p></div>
     <div class="sp"></div>
-    <div class="gas">
+    <div class="gas" title="名義マスタ・入金を全員で自動共有します。誰か1人が名義を登録すれば、次回から全員の画面で自動的に消し込めます。">
       <input id="gasUrl" type="hidden">
-      <span class="muted" style="font-size:12px">中央共有（名義・入金）</span>
-      <span id="gasState" class="pill off">未接続</span>
+      <span class="muted" style="font-size:12px">👥 みんなで共有</span>
+      <span id="gasState" class="pill off">⚪ 未接続</span>
+      <span class="muted" style="font-size:11px">ⓘ 名義を1回登録すれば全員に反映</span>
     </div>
   </div>
 </header>
 
 <main>
-  <!-- 取込ストリップ（常時・小さく） -->
-  <div class="istrip">
-    <span class="istrip-lab">取り込み</span>
-    <div class="drop idrop" id="dropBank">＋ 銀行CSV<span class="isum" id="bankSum"></span></div>
+  <!-- 取込：銀行と予定表で入れ口を分ける -->
+  <div class="istrip2">
+    <div class="ibox bank" id="dropBank">
+      <div class="ibox-h"><span class="ibox-ic">🏦</span><span class="ibox-t">① 銀行の入金明細（CSV）</span></div>
+      <div class="ibox-s">静銀・島掛など複数OK・重複は自動除外。ここにドラッグ、またはクリックで選択。</div>
+      <div class="ibox-n" id="bankSum"></div>
+      <div class="files" id="bankFiles"></div>
+    </div>
+    <div class="ibox plan" id="dropPlan">
+      <div class="ibox-h"><span class="ibox-ic">📄</span><span class="ibox-t">② 予定表（Excel）</span></div>
+      <div class="ibox-s">土木＝どっと原価／営業・環境＝弥生。ここにドラッグ、またはクリックで選択。</div>
+      <div class="ibox-n" id="planSum"></div>
+      <div class="files" id="planFiles"></div>
+    </div>
     <input type="file" id="fileBank" accept=".csv" multiple hidden>
-    <div class="drop idrop" id="dropPlan">＋ 予定表(xlsx)<span class="isum" id="planSum"></span></div>
     <input type="file" id="filePlan" accept=".xlsx" multiple hidden>
-    <div class="ifiles"><span class="files" id="bankFiles"></span><span class="files" id="planFiles"></span></div>
-    <button class="btn sub mini" id="clearPlan" style="margin-left:auto">予定表クリア</button>
+  </div>
+  <div class="istrip-ctl">
     <button class="btn sub mini" id="runMatch" disabled>再照合</button>
+    <button class="btn sub mini" id="clearPlan">予定表クリア</button>
     <span class="muted" id="matchInfo" style="font-size:11.5px"></span>
   </div>
 
@@ -1276,7 +1307,7 @@ $('masterReload').addEventListener('click',()=>loadMaster(true));
 $('masterSave').addEventListener('click',pushMaster);
 
 /* ===== GAS 同期（任意）===== */
-function setGasState(s){ const el=$('gasState'); el.className='pill '+(s==='on'?'on':'off'); el.textContent={on:'接続',off:'未接続',loading:'同期中…',err:'エラー'}[s]||s; }
+function setGasState(s){ const el=$('gasState'); el.className='pill '+(s==='on'?'on':'off'); el.textContent={on:'🟢 共有中（全員に反映）',off:'⚪ 未接続',loading:'同期中…',err:'⚠ エラー'}[s]||s; }
 function jsonp(params){ return new Promise((res,rej)=>{ if(!GAS_URL){rej(new Error('no url'));return;} const cb='__nm'+Math.random().toString(36).slice(2); const s=document.createElement('script'); const to=setTimeout(()=>{cl();rej(new Error('timeout'));},12000); function cl(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);} window[cb]=d=>{cl();res(d);}; s.onerror=()=>{cl();rej(new Error('net'));}; s.src=GAS_URL+'?'+params+'&callback='+cb; document.body.appendChild(s); }); }
 /* 初接続はローカルを消さないよう「マージ（統合）」してから保存・アップ */
 function mergeMaster(remote){
