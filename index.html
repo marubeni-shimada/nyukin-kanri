@@ -332,7 +332,7 @@ main{max-width:1560px;}
 <header>
   <div class="head">
     <div class="logo">¥</div>
-    <div class="title"><h1>入金確認 <span class="muted" style="font-size:11px;font-weight:600">v0.4</span></h1><p>予定（売掛）に入金が来たかを一目で確認。当たらない時だけ「要確認」で処理します。</p></div>
+    <div class="title"><h1>入金確認 <span class="muted" style="font-size:11px;font-weight:600">v0.6</span></h1><p>予定（売掛）に入金が来たかを一目で確認。当たらない時だけ「要確認」で処理します。</p></div>
     <div class="sp"></div>
     <div class="gas" title="名義マスタ・入金を全員で自動共有します。誰か1人が名義を登録すれば、次回から全員の画面で自動的に消し込めます。">
       <input id="gasUrl" type="hidden">
@@ -431,6 +431,7 @@ main{max-width:1560px;}
   #tabCollect .ckpi .v small{font-size:12px;font-weight:600;color:#6b7280;margin-left:2px}
   #tabCollect .ckpi.alert .v{color:#c02626}
   #tabCollect .ckpi.part .v{color:#b45309}
+  #tabCollect .ckpi.ok .v{color:#0f9d6b}
   #tabCollect .ckbar{height:8px;border-radius:99px;background:#eceef3;overflow:hidden;margin:2px 0 14px}
   #tabCollect .ckbar>i{display:block;height:100%;background:#0f9d6b;width:0;transition:width .3s}
   #tabCollect .cktabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
@@ -474,6 +475,11 @@ main{max-width:1560px;}
   #tabCollect .ckstatus button{border:1px solid var(--line,#e7e9ee);background:#fff;border-radius:99px;padding:6px 15px;font-size:12.5px;font-weight:700;cursor:pointer;color:inherit}
   #tabCollect .ckstatus button.on{background:var(--grad);border-color:transparent;color:#fff}
   #tabCollect .ckstatus .cs-n{opacity:.85;font-size:11px;margin-left:3px}
+  #tabCollect .scopetabs{display:flex;gap:8px;align-items:center;margin:0 0 14px;flex-wrap:wrap}
+  #tabCollect .scope-l{font-weight:800;font-size:13.5px;color:var(--ink2,#3b4150)}
+  #tabCollect .scope-sub{font-weight:700;font-size:12px;color:var(--muted,#7b8296);margin-left:6px}
+  #tabCollect .planselect{font:inherit;font-weight:700;font-size:13.5px;padding:10px 13px;border:1.5px solid var(--ac,#4b56c9);border-radius:11px;background:#fff;color:var(--ink,#191c26);cursor:pointer;min-width:120px;max-width:100%}
+  #tabCollect .planselect:focus{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--ac,#4b56c9) 20%,transparent)}
   #tabCollect .rc .work{font-weight:600}
   #tabCollect .rc .who{font-weight:700}
   #tabCollect .rc .meta{font-size:11px;color:#828b9c;margin-top:2px}
@@ -487,11 +493,17 @@ main{max-width:1560px;}
   </style>
   <div id="tabCollect">
   <div class="step">
-    <h2>予定 ⟷ 入金</h2>
-    <p class="desc">左＝予定（回収予定）／右＝入金（実績）を横並びで突合。<b>一致・手数料差・一部入金・未入金（取りっぱぐれ）・予定外の入金・まとめ払い</b>が一目で分かります。消込を進めると自動で更新されます。</p>
+    <h2>入金状況</h2>
+    <p class="desc">取り込んだ予定表の1件ごとに、入金が来たかを表示。<b>一致／合算で一致／要確認／一本の振込／未入金</b>。銀行入金は裏で累積し、予定表の各行に突き合わせます。</p>
+    <div class="scopetabs" id="scopeWrap">
+      <label class="scope-l">📄 表示：</label>
+      <select id="viewMode" class="planselect"><option value="予定表">予定表（1枚）</option><option value="累積">累積（その部門の全部）</option></select>
+      <span class="scope-sub">部門</span> <select id="selDept" class="planselect"></select>
+      <span id="dateWrap"><span class="scope-sub">取込日</span> <select id="selDate" class="planselect"></select></span>
+    </div>
     <div class="cksummary" id="collectSum"></div>
     <div class="ckbar"><i id="collectBar"></i></div>
-    <div class="cktabs" id="collectTabs">
+    <div class="cktabs" id="collectTabs" style="display:none">
       <button data-ck="all" class="on">全部 <span class="cc" id="ck-all"></span></button>
       <button data-ck="土木">土木 <span class="cc" id="ck-土木"></span></button>
       <button data-ck="営業">営業 <span class="cc" id="ck-営業"></span></button>
@@ -1110,8 +1122,47 @@ setHeadH(); window.addEventListener('resize',setHeadH); window.addEventListener(
 
 /* ===== 回収チェック（予定ベース：予定に対して回収できたか・未入金を見える化） ===== */
 let collectDept='all', collectOnlyNG=false, collectMonth='all', collectStatus='all';
+/* ===== 予定表を貯める（部門×取込日）＋2軸セレクタ ===== */
+let planSnaps=[];        // 取り込んだ予定表を貯める（上書きせず履歴を残す）
+let _sidSeq=0;
+let viewMode='予定表';   // '予定表'=1つの予定表（部門×取込日）／'累積'=その部門の全部
+let selDept='土木';      // 部門（土木/営業/環境）
+let selDate='latest';    // 取込日（予定表モードのみ）：'latest' | 'YYYY/MM/DD'
+function newSid(){ return 'S'+(++_sidSeq); }
+function addSnap(snap){ snap.sid=newSid(); (snap.entries||[]).forEach(e=>e.snapId=snap.sid); planSnaps.push(snap); }
+function deptsPresent(){ return ['土木','営業','環境','弥生'].filter(d=>planSnaps.some(s=>s.dept===d)); }
+function datesFor(dept){ const ds=[...new Set(planSnaps.filter(s=>s.dept===dept).map(s=>s.importedAt).filter(Boolean))]; ds.sort().reverse(); return ds; }
+// ①予定表/累積 → ②部門 → ③取込日(予定表のみ)。表示は選んだ部門だが、突合は全部門を読む（同じ振込元の一本振込を検出するため）。
+function pickSnaps(dept){
+  let u=planSnaps.filter(s=>s.dept===dept);
+  if(dept===selDept){
+    if(viewMode==='予定表'){ if(selDate==='latest'){ if(u.length)u=[u[u.length-1]]; } else { const f=u.filter(s=>s.importedAt===selDate); u=f.length?f:u.slice(-1); } }
+    // 累積＝その部門の全部（uそのまま）
+  } else { if(u.length)u=[u[u.length-1]]; }   // 他部門は最新（一本振込の突合用）
+  return u;
+}
+function applyPlanSel(){
+  const dp=deptsPresent(); if(dp.length && !dp.includes(selDept)) selDept=dp[0];
+  const dob=pickSnaps('土木');
+  if(dob.length){ const latest=dob[dob.length-1]; let ent=[]; dob.forEach(s=>ent=ent.concat(s.entries)); planDoboku={name:(selDept==='土木'&&viewMode==='累積')?('土木 累積（'+dob.length+'表）'):latest.name, zip:latest.zip, sheetPath:latest.sheetPath, sheetXml:latest.sheetXml, entries:ent, importedAt:latest.importedAt}; } else planDoboku=null;
+  const yy=[];
+  ['営業','環境','弥生'].forEach(dep=>{ const u=pickSnaps(dep); if(u.length){ let ent=[]; u.forEach(s=>ent=ent.concat(s.entries)); const last=u[u.length-1]; yy.push({name:(dep===selDept&&viewMode==='累積')?(dep+' 累積（'+u.length+'表）'):last.name,dept:dep,entries:ent,importedAt:last.importedAt}); } });
+  planYayoi=yy;
+}
+function renderPlanSelector(){
+  const msel=$('viewMode'), dsel=$('selDept'), tsel=$('selDate'), dw=$('dateWrap'); if(!msel||!dsel||!tsel)return;
+  const dp=deptsPresent(); if(dp.length && !dp.includes(selDept)) selDept=dp[0];
+  msel.value=viewMode;
+  dsel.innerHTML=(dp.length?dp:['土木','営業','環境']).map(d=>'<option value="'+d+'"'+(d===selDept?' selected':'')+'>'+d+'</option>').join('');
+  dsel.value=selDept;
+  const dates=datesFor(selDept);
+  let h='<option value="latest"'+(selDate==='latest'?' selected':'')+'>最新</option>';
+  dates.forEach(d=>{ h+='<option value="'+esc(d)+'"'+(selDate===d?' selected':'')+'>'+esc(d)+' 取込</option>'; });
+  tsel.innerHTML=h; tsel.value=(selDate==='latest'||dates.includes(selDate))?selDate:'latest';
+  if(dw) dw.style.display = viewMode==='予定表' ? '' : 'none';   // 取込日は「予定表」のときだけ出す
+}
 function ymOf(d){ const s=normDate(d); const m=s.match(/^(\d{4})\/(\d{2})/); return m?m[1]+'/'+m[2]:''; }  // 入金日→YYYY/MM
-function _eid(e){ return (e.type==='土木'?'D':'Y')+'|'+(e.dept||'')+'|'+(e.row!=null?e.row:(e.請求先+'|'+(e.工事番号||e.code||''))); }
+function _eid(e){ return (e.type==='土木'?'D':'Y')+'|'+(e.dept||'')+'|'+(e.snapId||'')+'|'+(e.row!=null?e.row:(e.請求先+'|'+(e.工事番号||e.code||''))); }
 function collectPaid(){
   const paid={}, lastd={};
   const add=(id,amt,dt)=>{ paid[id]=(paid[id]||0)+amt; if(dt && (!lastd[id]||String(dt)>String(lastd[id]))) lastd[id]=dt; };
@@ -1153,25 +1204,23 @@ function reconGroups(){
 }
 function renderCollect(){
   const host=$('collectBody'); if(!host) return;
-  const es=allEntries(); const bar=$('collectBar');
-  if(!es.length && !(results||[]).some(r=>r.status==='review')){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表（STEP2）を読み込むと、突合状況が出ます</div>'; return; }
-  const {groups}=reconGroups();
-  // 月セレクタ（入金日の月）
-  const monthSel=$('collectMonth');
-  if(monthSel){ const ms=[...new Set(groups.filter(g=>g.inp).map(g=>ymOf(g.inp.date)).filter(Boolean))].sort().reverse();
-    if(collectMonth!=='all' && !ms.includes(collectMonth)) collectMonth='all';
-    monthSel.innerHTML='<option value="all">全期間</option>'+ms.map(m=>'<option value="'+m+'"'+(m===collectMonth?' selected':'')+'>'+m.split('/')[0]+'年'+(+m.split('/')[1])+'月</option>').join('');
-  }
-  // KPI（予定側で集計）
+  const bar=$('collectBar');
+  renderPlanSelector();
+  // 表示は選んだ部門のみ（突合は全部門で実施済み＝一本振込を検出）。selDeptに関わる行だけ出す（一本振込は関与部門に表示）
+  const inSel=g=> g.plans && g.plans.some(e=>deptOf(e)===selDept);
+  const es=allEntries().filter(e=>deptOf(e)===selDept);
+  if(!allEntries().length && !(results||[]).some(r=>r.status==='review')){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表を取り込むと、ここに入金状況が出ます</div>'; return; }
+  let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && inSel(g));   // 選んだ部門に関わる行だけ（一本振込は土木/営業 両方の画面に自分の分が出る）
+  // KPI（選んだ部門の予定側で集計）
   const planTot=es.reduce((a,e)=>a+planAmt(e),0);
-  const inpTot=groups.filter(g=>g.inp).reduce((a,g)=>a+g.inp.amt,0);
-  const noneN=groups.filter(g=>g.st==='none').length, extraN=groups.filter(g=>g.st==='extra').length, partN=groups.filter(g=>g.st==='part').length;
+  const noneN=groups.filter(g=>g.st==='none').length, partN=groups.filter(g=>g.st==='part').length;
+  const okN=groups.filter(g=>g.st==='ok'||g.st==='fee'||g.st==='multi'||g.st==='over').length;
   const zansum=groups.reduce((a,g)=>a+(g.zan>0?g.zan:0),0);
   const paidsum=Math.max(0, planTot-zansum);
   $('collectSum').innerHTML = _ckpi('予定 合計','¥'+yen(planTot),'')
-    + _ckpi('入金 合計','¥'+yen(inpTot), planTot?(Math.round(paidsum/planTot*100)+'%'):'')
+    + _ckpi('入金（回収）','¥'+yen(paidsum), planTot?(Math.round(paidsum/planTot*100)+'%'):'', 'ok')
     + _ckpi('未入金・一部',(noneN+partN)+'件','（未入金'+noneN+'）','alert')
-    + _ckpi('予定外の入金',extraN+'件','要確認','part');
+    + _ckpi('回収済',okN+'件','','');
   if(bar) bar.style.width=(planTot?Math.round(paidsum/planTot*100):0)+'%';
   const isNG=g=>(g.st==='none'||g.st==='part'||g.st==='extra');
   ['all','土木','営業','環境'].forEach(d=>{ const el=$('ck-'+d); if(!el)return; const n=(d==='all'?groups:groups.filter(g=>g.dept===d)).filter(isNG).length; el.textContent=n?('要'+n):''; });
@@ -1186,7 +1235,7 @@ function renderCollect(){
   if(collectStatus!=='all') list=list.filter(g=>csBucket(g)===collectStatus);
   const ord={none:0,part:1,over:2,extra:3,fee:4,multi:5,ok:6};
   list.sort((a,b)=>(ord[a.st]-ord[b.st]) || (b.zan-a.zan));
-  const LAB={ok:'✓ 一致',fee:'手数料差',part:'一部入金',none:'未入金',extra:'予定外',multi:'まとめ払い',over:'過入金'};
+  const LAB={ok:'✓ 一致',fee:'手数料差',part:'一部入金',none:'未入金',extra:'予定外',multi:'✓ 合算で一致',over:'過入金'};
   if(!list.length){ host.innerHTML='<div class="empty">該当なし（部門タブ／絞り込みを変えてください）</div>'; return; }
   let h='<div class="twrap"><table class="rc"><thead>'
     +'<tr class="grp"><th class="gp" colspan="2">◀ 予定（回収予定）</th><th class="gm">突合</th><th class="gi" colspan="2">入金（実績）▶</th><th class="gm">残</th></tr>'
@@ -1225,6 +1274,9 @@ function renderCollect(){
 }
 document.getElementById('collectTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; collectDept=b.dataset.ck; document.querySelectorAll('#collectTabs button').forEach(x=>x.classList.toggle('on',x===b)); renderCollect(); });
 document.getElementById('collectStatus').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; collectStatus=b.dataset.cs; document.querySelectorAll('#collectStatus button').forEach(x=>x.classList.toggle('on',x===b)); renderCollect(); });
+document.getElementById('viewMode').addEventListener('change',e=>{ viewMode=e.target.value; applyPlanSel(); runMatch(); });   // 予定表／累積を切替
+document.getElementById('selDept').addEventListener('change',e=>{ selDept=e.target.value; selDate='latest'; applyPlanSel(); runMatch(); });   // 部門を選ぶ
+document.getElementById('selDate').addEventListener('change',e=>{ selDate=e.target.value; applyPlanSel(); runMatch(); });   // 取込日を選ぶ（予定表モードのみ）
 document.getElementById('collectMonth').addEventListener('change',e=>{ collectMonth=e.target.value; renderCollect(); });
 
 /* ===== マスタ ===== */
@@ -1233,9 +1285,8 @@ function saveIgnore(){ localStorage.setItem(MIGN,JSON.stringify([...ignoreSet]))
 /* 取込データの保存（銀行・予定表）：順不同・別日でも残す。予定表はentriesのみ保存（xlsx本体は保存しない＝記入済み出力はセッション内で有効） */
 function saveBank(){ if(!allowPersist)return; try{ localStorage.setItem(MBANK,JSON.stringify(bankFiles)); }catch(e){} }
 function savePlan(){ if(!allowPersist)return; try{
-  const pd=planDoboku?{name:planDoboku.name,entries:planDoboku.entries}:null;
-  const py=planYayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries}));
-  localStorage.setItem(MPLAN,JSON.stringify({doboku:pd,yayoi:py}));
+  const snaps=planSnaps.map(s=>({sid:s.sid,dept:s.dept,name:s.name,entries:s.entries,importedAt:s.importedAt}));  // zip/sheetXmlは保存しない（容量のため。記入済み予定表の出力は取り込んだセッション内で有効）
+  localStorage.setItem(MPLAN,JSON.stringify({snaps:snaps, viewMode:viewMode, selDept:selDept, selDate:selDate, seq:_sidSeq}));
 }catch(e){} }
 function renderMaster(){
   const tb=$('masterTbl').querySelector('tbody');
@@ -1329,10 +1380,11 @@ function mergeShared(d){
   confirmed=Object.assign({},(d&&d.confirmed)||{},confirmed);
   splitConfirm=Object.assign({},(d&&d.split)||{},splitConfirm);
   multiConfirm=Object.assign({},(d&&d.multi)||{},multiConfirm);
-  // 予定表：ローカルに無ければ中央共有から取り込む（別PCでも照合できるように）
-  if(d && d.plan){
-    if(!planDoboku && d.plan.doboku && d.plan.doboku.entries && d.plan.doboku.entries.length) planDoboku={name:d.plan.doboku.name||'（中央共有）予定表', entries:d.plan.doboku.entries};
-    if((!planYayoi||!planYayoi.length) && Array.isArray(d.plan.yayoi) && d.plan.yayoi.length) planYayoi=d.plan.yayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries}));
+  // 予定表：ローカルに無ければ中央共有から取り込む（別PCでも照合できるように）＝スナップショットとして受け入れ
+  if(d && d.plan && !planSnaps.length){
+    if(d.plan.doboku && d.plan.doboku.entries && d.plan.doboku.entries.length) addSnap({dept:'土木', name:d.plan.doboku.name||'（中央共有）予定表', entries:d.plan.doboku.entries, importedAt:''});
+    if(Array.isArray(d.plan.yayoi)) d.plan.yayoi.forEach(p=>{ if(p.entries&&p.entries.length) addSnap({dept:p.dept, name:p.name||('（中央共有）'+p.dept), entries:p.entries, importedAt:''}); });
+    if(planSnaps.length) applyPlanSel();
   }
 }
 function planShare(){ return {doboku: planDoboku?{name:planDoboku.name,entries:planDoboku.entries}:null, yayoi: planYayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries}))}; }
@@ -1388,9 +1440,11 @@ function readBank(file){
 function readPlan(file){
   return file.arrayBuffer().then(buf=>{
     const x=readXlsx(buf); const cls=classifyPlan(x.grid);
-    if(cls==='土木'){ planDoboku={name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, entries:parseDoboku(x.grid)}; }
-    else if(cls==='弥生'){ const dept=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; planYayoi=planYayoi.filter(p=>p.dept!==dept); planYayoi.push({name:file.name, dept, entries:parseYayoi(x.grid,dept)}); }
-    else { alert('予定表の種類を判別できませんでした：'+file.name); }
+    let dep;
+    if(cls==='土木'){ addSnap({dept:'土木', name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, entries:parseDoboku(x.grid), importedAt:stampDate()}); dep='土木'; }
+    else if(cls==='弥生'){ dep=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; addSnap({dept:dep, name:file.name, entries:parseYayoi(x.grid,dep), importedAt:stampDate()}); }
+    else { alert('予定表の種類を判別できませんでした：'+file.name); return; }
+    viewMode='予定表'; selDept=dep; selDate='latest'; applyPlanSel();   // 取り込んだ部門の予定表(最新)を表示（過去は貯まる・予定表/累積→部門→取込日で選べる）
   });
 }
 function renderBankFiles(){
@@ -1404,19 +1458,18 @@ function renderBankFiles(){
   renderLink();
 }
 function renderPlanFiles(){
-  const chips=[];
-  if(planDoboku) chips.push('<span class="fchip"><span class="t">土木</span>'+esc(planDoboku.name)+' <span class="muted">('+planDoboku.entries.length+'工事)</span> <span class="x" data-pdel="doboku">×</span></span>');
-  planYayoi.forEach((p,i)=>chips.push('<span class="fchip"><span class="t y">'+esc(p.dept)+'</span>'+esc(p.name)+' <span class="muted">('+p.entries.length+'件)</span> <span class="x" data-pdel="y'+i+'">×</span></span>'));
+  const chips=planSnaps.map(s=>'<span class="fchip"><span class="t'+(s.dept==='土木'?'':' y')+'">'+esc(s.dept)+'</span>'+esc(s.name)+' <span class="muted">('+s.entries.length+'件'+(s.importedAt?'・取込'+esc(s.importedAt):'')+')</span> <span class="x" data-pdel="'+s.sid+'">×</span></span>');
   $('planFiles').innerHTML=chips.join('');
-  const de=planDoboku?planDoboku.entries.length:0, ye=planYayoi.reduce((s,p)=>s+p.entries.length,0);
-  $('planSum').innerHTML=(planDoboku||planYayoi.length)?('<span class="k">土木</span> <b>'+de+'</b> 工事　<span class="k">弥生</span> <b>'+ye+'</b> 件 <span class="muted">（保存済み）</span>'):'';
+  const de=planSnaps.filter(s=>s.dept==='土木').reduce((a,s)=>a+s.entries.length,0), ye=planSnaps.filter(s=>s.dept!=='土木').reduce((a,s)=>a+s.entries.length,0);
+  $('planSum').innerHTML=planSnaps.length?('<span class="k">予定表</span> <b>'+planSnaps.length+'</b> 表 <span class="muted">（土木 '+de+'工事／弥生 '+ye+'件・取込日で選べます）</span>'):'';
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
   savePlan();
   renderLink();
+  renderPlanSelector();
 }
 $('bankFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-bdel]'); if(d){ bankFiles.splice(+d.dataset.bdel,1); renderBankFiles(); results=[]; render(); scheduleSync(); } });
-$('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pdel]'); if(d){ const k=d.dataset.pdel; if(k==='doboku')planDoboku=null; else planYayoi.splice(+k.slice(1),1); renderPlanFiles(); results=[]; render(); } });
-$('clearPlan').addEventListener('click',()=>{ if((planDoboku||planYayoi.length) && !confirm('取り込んだ予定表を全部消しますか？'))return; planDoboku=null; planYayoi=[]; results=[]; renderPlanFiles(); render(); });
+$('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pdel]'); if(d){ const sid=d.dataset.pdel; planSnaps=planSnaps.filter(s=>s.sid!==sid); selDate='latest'; applyPlanSel(); renderPlanFiles(); results=[]; render(); scheduleSync(); } });
+$('clearPlan').addEventListener('click',()=>{ if(planSnaps.length && !confirm('取り込んだ予定表を全部消しますか？'))return; planSnaps=[]; selDate='latest'; applyPlanSel(); results=[]; renderPlanFiles(); render(); scheduleSync(); });
 
 /* ドロップ＆選択 */
 function wire(dropId,inputId,handler,after){
@@ -1505,7 +1558,7 @@ function today(){ const d=new Date(); return d.getFullYear()+('0'+(d.getMonth()+
 /* ===== サンプルデータ（このリッチUI版のみ・UI確認用／localStorage・GASには保存しない） ===== */
 function loadDemo(){
   allowPersist=false;  // サンプルはこのPCに保存しない
-  planDoboku={name:'（サンプル）入金予定表 R8.7.xlsx', zip:{}, sheetPath:'xl/worksheets/sheet1.xml', sheetXml:'<worksheet></worksheet>',
+  addSnap({dept:'土木', importedAt:'2026/08/22', name:'（サンプル）入金予定表 R8.7.xlsx', zip:{}, sheetPath:'xl/worksheets/sheet1.xml', sheetXml:'<worksheet></worksheet>',
     entries:[
       {type:'土木',dept:'土木',請求先:'丸二建設㈱',工事名:'◇◇河川改修工事',工事番号:'12433-01',amount:1800000,row:10},
       {type:'土木',dept:'土木',請求先:'あすか道路㈱',工事名:'市道○○改良工事',工事番号:'12345-01',amount:1320000,row:12},
@@ -1519,16 +1572,14 @@ function loadDemo(){
       {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'B 橋梁補修工事',工事番号:'12611-01',amount:3000000,row:28},
       {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'C 法面工事',工事番号:'12612-01',amount:800000,row:30},
       {type:'土木',dept:'土木',請求先:'ゼロ予定㈱',工事名:'追加変更 未確定工事',工事番号:'12700-01',amount:0,row:32}
-    ]};
-  planYayoi=[
-    {name:'（サンプル）請求先別回収状況_営業7月.xlsx',dept:'営業',entries:[
+    ]});
+  addSnap({dept:'営業', importedAt:'2026/08/10', name:'（サンプル）請求先別回収状況_営業7月.xlsx', entries:[
       {type:'弥生',dept:'営業',請求先:'丸二建設㈱',code:'E001',amount:1100000,altAmount:1100000,row:5},
       {type:'弥生',dept:'営業',請求先:'石本土木㈱',code:'E002',amount:660000,altAmount:660000,row:6}
-    ]},
-    {name:'（サンプル）請求先別回収状況_環境7月.xlsx',dept:'環境',entries:[
+    ]});
+  addSnap({dept:'環境', importedAt:'2026/08/10', name:'（サンプル）請求先別回収状況_環境7月.xlsx', entries:[
       {type:'弥生',dept:'環境',請求先:'東海工業㈱',code:'K001',amount:1100000,altAmount:1100000,row:5}
-    ]}
-  ];
+    ]});
   const dps=[
     {date:'2026/08/11',name:'ﾏﾙﾆｹﾝｾﾂ(ｶ',amount:3000000,bank:'静銀',src:'demo',kind:'振込',raw:''},   // 一本振込（土木+営業+協力費）
     {date:'2026/08/10',name:'ｱｽｶﾄﾞｳﾛ(ｶ',amount:1320000,bank:'静銀',src:'demo',kind:'振込',raw:''},    // 一致→済
@@ -1544,6 +1595,7 @@ function loadDemo(){
     {date:'2026/08/22',name:'ｾﾞﾛﾖﾃｲ(ｶ',amount:150000,bank:'静銀',src:'demo',kind:'振込',raw:''}          // 予定額0円なのに入金あり＝過入金（一致にしない）
   ];
   bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps,importedAt:'2026/08/22'}];
+  viewMode='予定表'; selDept='土木'; selDate='latest'; applyPlanSel();   // サンプル＝土木の予定表(最新)を表示
   master={};
   [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱'],['ｶｼﾞﾏﾄﾞｳﾛ(ｶ','鹿島道路㈱'],['ｵｵｶﾜﾗｸﾞﾐ(ｶ','大川原組㈱'],['ｾﾞﾛﾖﾃｲ(ｶ','ゼロ予定㈱']]
     .forEach(function(pr){ master[normName(pr[0])]=[pr[1]]; });
@@ -1575,7 +1627,11 @@ else {
   try{ multiConfirm=JSON.parse(localStorage.getItem(MMULTI)||'{}')||{}; }catch(e){ multiConfirm={}; }
   try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
   try{ bankFiles=JSON.parse(localStorage.getItem(MBANK)||'[]')||[]; bankFiles.forEach(bf=>(bf.deposits||[]).forEach(d=>{ d.date=normDate(d.date); if(d.importedAt) d.importedAt=normDate(d.importedAt); })); }catch(e){ bankFiles=[]; }  // 先に取り込んでおいた銀行を復元（日付GMT表記を正規化）
-  try{ const pj=JSON.parse(localStorage.getItem(MPLAN)||'null'); if(pj){ if(pj.doboku) planDoboku={name:pj.doboku.name, entries:pj.doboku.entries}; planYayoi=Array.isArray(pj.yayoi)?pj.yayoi:[]; } }catch(e){}  // 予定表(entries)も復元
+  try{ const pj=JSON.parse(localStorage.getItem(MPLAN)||'null'); if(pj){
+    if(Array.isArray(pj.snaps)){ planSnaps=pj.snaps; _sidSeq=pj.seq||planSnaps.length; viewMode=pj.viewMode||'予定表'; selDept=pj.selDept||'土木'; selDate=pj.selDate||'latest'; planSnaps.forEach(s=>(s.entries||[]).forEach(e=>{ if(!e.snapId)e.snapId=s.sid; })); }
+    else { if(pj.doboku) addSnap({dept:'土木',name:pj.doboku.name||'土木 予定表',entries:pj.doboku.entries||[],importedAt:''}); (Array.isArray(pj.yayoi)?pj.yayoi:[]).forEach(p=>addSnap({dept:p.dept,name:p.name||(p.dept+' 予定表'),entries:p.entries||[],importedAt:''})); }  // 旧形式→スナップショットへ移行
+    applyPlanSel();
+  } }catch(e){}  // 予定表(スナップショット)を復元
   $('gasUrl').value=GAS_URL;
   renderMaster(); renderBankFiles(); renderPlanFiles(); render();
   autoMatch();  // 両方そろっていれば開いた時点で照合
