@@ -276,13 +276,42 @@ main{max-width:1560px;}
 .ded3.show{display:flex}
 .ded3 input{width:130px;text-align:right;font:inherit;font-size:13.5px;font-weight:700;padding:7px 9px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums}
 .ded3 .mauto{font-size:10px;background:var(--grad-soft);color:var(--ac2);border-radius:99px;padding:2px 8px;font-weight:700}
+
+/* ===== v0.4 引き算：取込ストリップ／アクションバー／引き出し ===== */
+.istrip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;background:var(--panel,#fff);border:1px solid var(--line);border-radius:12px;}
+.istrip .istrip-lab{font-size:12.5px;font-weight:800;color:var(--muted);}
+.istrip .idrop{font-size:12.5px;font-weight:700;color:var(--ac2);border:1px dashed color-mix(in srgb,var(--ac) 45%,var(--line));border-radius:9px;padding:8px 13px;cursor:pointer;transition:.12s;background:color-mix(in srgb,var(--ac) 4%,transparent);}
+.istrip .idrop:hover{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 9%,transparent);}
+.istrip .idrop.drag{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent);}
+.istrip .isum{font-weight:800;color:var(--ac);margin-left:6px;}
+.istrip .ifiles{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;}
+.istrip .ifiles .files{display:inline-flex;gap:6px;flex-wrap:wrap;}
+
+.actbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
+.actbar .sp{flex:1;}
+.rvbtn{display:inline-flex;align-items:center;gap:9px;border:1px solid #f0d9b5;background:var(--warn-bg,#fdf3e6);color:var(--warn,#b45309);font:inherit;font-weight:800;font-size:13.5px;padding:10px 16px;border-radius:11px;cursor:pointer;transition:.12s;}
+.rvbtn:hover{transform:translateY(-1px);box-shadow:0 4px 14px -6px rgba(180,83,9,.5);}
+.rvbtn b{font-size:15px;}
+.rvbtn.clear{border-color:#bfe8d6;background:var(--ok-bg,#e8f7f0);color:var(--ok,#0f9d6b);cursor:default;}
+.rvbtn.clear:hover{transform:none;box-shadow:none;}
+
+.scrim{position:fixed;inset:0;background:rgba(20,22,35,.36);opacity:0;pointer-events:none;transition:.18s;z-index:60;}
+.scrim.open{opacity:1;pointer-events:auto;}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(680px,96vw);background:var(--panel,#fff);border-left:1px solid var(--line);box-shadow:-16px 0 44px rgba(20,22,35,.18);transform:translateX(102%);transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:70;display:flex;flex-direction:column;}
+.drawer.open{transform:none;}
+.drawer .dhead{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);}
+.drawer .dhead h3{margin:0;font-size:16px;font-weight:800;}
+.drawer .dhead .sp{flex:1;}
+.drawer .dbody{padding:16px 20px;overflow:auto;flex:1;}
+.drawer .dbody .step{border:0;padding:0;margin:0;box-shadow:none;background:none;}
+@media(max-width:560px){ .drawer .dbody{padding:12px 14px;} }
 </style>
 </head>
 <body>
 <header>
   <div class="head">
     <div class="logo">¥</div>
-    <div class="title"><h1>入金消込ツール <span class="muted" style="font-size:11px;font-weight:600">v0.3</span></h1><p>銀行入金を予定表に自動で紐づけ（土木＝どっと原価／営業・環境＝弥生）。部門タブ＋一本振込の内訳＋複数工事への充当。</p></div>
+    <div class="title"><h1>入金確認 <span class="muted" style="font-size:11px;font-weight:600">v0.4</span></h1><p>予定（売掛）に入金が来たかを一目で確認。当たらない時だけ「要確認」で処理します。</p></div>
     <div class="sp"></div>
     <div class="gas">
       <input id="gasUrl" type="hidden">
@@ -293,42 +322,36 @@ main{max-width:1560px;}
 </header>
 
 <main>
-  <div class="toptabs" id="toptabs">
-    <button data-tt="reconcile" class="on">消込（入金確認）</button>
-    <button data-tt="master">名義マスタ（紐づけ）</button>
-    <button data-tt="collect">予定⟷入金（突合）</button>
-  </div>
-
-  <div id="tabReconcile">
-  <div class="importrow">
-  <!-- STEP1 銀行明細 -->
-  <div class="step">
-    <h2><span class="n">1</span>銀行の入金明細CSVを読み込む</h2>
-    <p class="desc">静銀・島掛など複数OK。フォーマット自動判別。<b>取り込むほど貯まっていきます</b>（保存され次回も残る・重複は自動除外）。予定表は別のタイミングでOK。</p>
-    <div class="drop" id="dropBank">ここにCSVをドラッグ、またはクリックして選択（複数可）</div>
+  <!-- 取込ストリップ（常時・小さく） -->
+  <div class="istrip">
+    <span class="istrip-lab">取り込み</span>
+    <div class="drop idrop" id="dropBank">＋ 銀行CSV<span class="isum" id="bankSum"></span></div>
     <input type="file" id="fileBank" accept=".csv" multiple hidden>
-    <div class="files" id="bankFiles"></div>
-    <div class="sum" id="bankSum"></div>
-  </div>
-
-  <!-- STEP2 予定表 -->
-  <div class="step">
-    <h2><span class="n">2</span>予定表を読み込む</h2>
-    <p class="desc">土木＝どっと原価／営業・環境＝弥生。種類は自動判別。<b>予定表を入れた時点で自動照合</b>。銀行と別のタイミングでOK。</p>
-    <div class="drop" id="dropPlan">ここにExcel(.xlsx)をドラッグ、またはクリックして選択（複数可）</div>
+    <div class="drop idrop" id="dropPlan">＋ 予定表(xlsx)<span class="isum" id="planSum"></span></div>
     <input type="file" id="filePlan" accept=".xlsx" multiple hidden>
-    <div class="files" id="planFiles"></div>
-    <div class="sum" id="planSum"></div>
-    <div class="row" style="margin-top:10px"><button class="btn sub mini" id="clearPlan">予定表をクリア</button></div>
+    <div class="ifiles"><span class="files" id="bankFiles"></span><span class="files" id="planFiles"></span></div>
+    <button class="btn sub mini" id="clearPlan" style="margin-left:auto">予定表クリア</button>
+    <button class="btn sub mini" id="runMatch" disabled>再照合</button>
+    <span class="muted" id="matchInfo" style="font-size:11.5px"></span>
   </div>
 
-  </div><!-- /importrow -->
+  <!-- アクションバー：要確認＋出力＋名義マスタ -->
+  <div class="actbar">
+    <button class="rvbtn clear" id="openReview"><span id="reviewLabel">✓ 要確認はありません</span></button>
+    <span class="sp"></span>
+    <button class="btn g" id="outDoboku" disabled>③ 記入済み予定表</button>
+    <button class="btn sub" id="outList" disabled>消込リストCSV</button>
+    <button class="btn sub" id="outImport" disabled>④ 会計取込CSV（暫定）</button>
+    <button class="btn sub" id="openMaster">⚙ 名義マスタ</button>
+  </div>
 
-  <!-- STEP3 照合結果 -->
+  <!-- ===== 引き出し：要確認（消込） ===== -->
+  <div class="scrim" id="scrim"></div>
+  <div class="drawer" id="drawerReview">
+    <div class="dhead"><h3>要確認（消込）</h3><span class="sp"></span><button class="btn sub mini dclose">✕ 閉じる</button></div>
+    <div class="dbody">
   <div class="step" id="stepMatch">
-    <h2><span class="n">3</span>照合結果（一覧）</h2>
-    <p class="desc">名義×金額で自動照合。<b>入金額と請求額が食い違う入金は黄色で強調</b>。部門タブで土木／営業を分けて確認。<b>一本の振込（部門またぎ）は🔗付き</b>で両部署の内訳確認ができます。</p>
-    <div class="row" style="margin-bottom:10px"><button class="btn" id="runMatch" disabled>照合する</button><span class="muted" id="matchInfo"></span></div>
+    <p class="desc">自動で当たらなかった入金だけ。候補は選択済み。基本は<b>そのまま確定</b>、差が出た時だけ控除を入れます。<b>一本の振込（部門またぎ）は🔗付き</b>。</p>
     <div class="depttabs" id="deptTabs"></div>
     <div class="tabs" id="resTabs">
       <button data-t="review" class="on">未処理 <span id="cReview"></span></button>
@@ -340,20 +363,13 @@ main{max-width:1560px;}
     <datalist id="planList"></datalist>
   </div>
 
-  <!-- STEP4 出力 -->
-  <div class="step">
-    <h2><span class="n">4</span>出力</h2>
-    <p class="desc">記入済み予定表（土木＝元レイアウトのまま入金日・振込額を記入）／消込リスト／会計取込用CSV（暫定フォーマット）。</p>
-    <div class="row">
-      <button class="btn g" id="outDoboku" disabled>記入済み予定表（土木）をダウンロード</button>
-      <button class="btn sub" id="outList" disabled>消込リストCSV</button>
-      <button class="btn sub" id="outImport" disabled>会計取込用CSV（暫定）</button>
-    </div>
-    <div class="note">※ 取込CSVは暫定フォーマット（請求先・工事番号・入金日・入金額・銀行名・摘要）。どっと原価の正式レイアウトが分かれば合わせます。</div>
-  </div>
-  </div><!-- /tabReconcile -->
+    </div><!-- /dbody -->
+  </div><!-- /drawerReview -->
 
-  <div id="tabMaster" style="display:none">
+  <!-- ===== 引き出し：名義マスタ ===== -->
+  <div class="drawer" id="drawerMaster">
+    <div class="dhead"><h3>⚙ 名義マスタ（紐づけ）</h3><span class="sp"></span><button class="btn sub mini dclose">✕ 閉じる</button></div>
+    <div class="dbody" id="tabMaster">
   <!-- 名義の紐づけ -->
   <div class="step">
     <h2>名義の紐づけ（銀行の振込名義 → 請求先）</h2>
@@ -372,7 +388,8 @@ main{max-width:1560px;}
       <div class="twrap"><table id="masterTbl"><thead><tr><th>銀行の振込名義</th><th>請求先</th><th></th></tr></thead><tbody></tbody></table></div>
     </details>
   </div>
-  </div><!-- /tabMaster -->
+    </div><!-- /tabMaster dbody -->
+  </div><!-- /drawerMaster -->
 
   <style>
   #tabCollect .cksummary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
@@ -430,9 +447,9 @@ main{max-width:1560px;}
   #tabCollect .rc tr.g-part td.plan{box-shadow:inset 4px 0 0 #b45309}
   #tabCollect .rc tr.g-extra td.inp{box-shadow:inset -4px 0 0 #4f46e5}
   </style>
-  <div id="tabCollect" style="display:none">
+  <div id="tabCollect">
   <div class="step">
-    <h2>予定 ⟷ 入金（突合ビュー）</h2>
+    <h2>予定 ⟷ 入金</h2>
     <p class="desc">左＝予定（回収予定）／右＝入金（実績）を横並びで突合。<b>一致・手数料差・一部入金・未入金（取りっぱぐれ）・予定外の入金・まとめ払い</b>が一目で分かります。消込を進めると自動で更新されます。</p>
     <div class="cksummary" id="collectSum"></div>
     <div class="ckbar"><i id="collectBar"></i></div>
@@ -871,6 +888,10 @@ function render(){
   $('cReview').textContent=pending.length?('('+pending.length+')'):'';
   $('cMatched').textContent=done.length?('('+done.length+')'):'';
   $('cIgnored').textContent=ign.length?('('+ign.length+')'):'';
+  // アクションバーの「要確認 N件」＝全部門の未処理を集計（見る画面から片付けへ誘導）
+  const totalReview=results.filter(r=>r.status==='review' && !isDone(r)).length;
+  const _rvb=$('openReview'), _rvl=$('reviewLabel');
+  if(_rvb&&_rvl){ if(totalReview){ _rvb.classList.remove('clear'); _rvl.innerHTML='⚠️ 要確認 <b>'+totalReview+'</b> 件 → 処理する'; } else { _rvb.classList.add('clear'); _rvl.textContent='✓ 要確認はありません'; } }
   const depLabel = deptTab==='all'?'全部':deptTab==='share'?'一本の振込':deptTab==='nodept'?'未分類':deptTab;
   $('matchInfo').textContent=depLabel+'：未処理 '+pending.length+'／消込済み '+done.length+(ign.length?('／対象外 '+ign.length):'')+'　（全体 '+results.length+'件）';
   const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
@@ -1025,14 +1046,21 @@ function manualFix(r){
   confirmMatch(r,e,near);   // 選んだ予定に紐づけ＋名義を学習（差額は手数料へ）
 }
 $('runMatch').addEventListener('click',runMatch);
-document.getElementById('toptabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; const t=b.dataset.tt;
-  document.querySelectorAll('#toptabs button').forEach(x=>x.classList.toggle('on',x===b));
-  document.getElementById('tabReconcile').style.display = t==='reconcile'?'':'none';
-  document.getElementById('tabMaster').style.display = t==='master'?'':'none';
-  document.getElementById('tabCollect').style.display = t==='collect'?'':'none';
-  if(t==='master') renderLink();
-  if(t==='collect') renderCollect();
-});
+/* 引き出し（消込・名義マスタ）の開閉。見る画面（突合）は常時表示 */
+function openDrawer(k){
+  document.getElementById('scrim').classList.add('open');
+  document.getElementById(k==='master'?'drawerMaster':'drawerReview').classList.add('open');
+  if(k==='master') renderLink(); else render();
+}
+function closeDrawer(){
+  document.getElementById('scrim').classList.remove('open');
+  document.querySelectorAll('.drawer').forEach(d=>d.classList.remove('open'));
+}
+document.getElementById('openReview').addEventListener('click',()=>openDrawer('review'));
+document.getElementById('openMaster').addEventListener('click',()=>openDrawer('master'));
+document.getElementById('scrim').addEventListener('click',closeDrawer);
+document.querySelectorAll('.dclose').forEach(b=>b.addEventListener('click',closeDrawer));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
 /* ページ上部ヘッダー(固定)の高さを測り、突合ビューの固定ヘッダー位置に反映 */
 function setHeadH(){ const hd=document.querySelector('header'); if(hd) document.documentElement.style.setProperty('--headh', hd.offsetHeight+'px'); }
 setHeadH(); window.addEventListener('resize',setHeadH); window.addEventListener('load',setHeadH);
@@ -1129,7 +1157,9 @@ function renderCollect(){
       } else { h+='<td class="plan muted">（予定なし）</td><td class="plan num muted">—</td>'; }
       // 中央＋入金側（先頭行だけrowspan）
       if(i===0){
-        h+='<td class="ctr" rowspan="'+rows+'"><span class="pill '+g.st+'">'+LAB[g.st]+'</span></td>';
+        let pillLab=LAB[g.st];
+        if(g.st==='fee'){ const fe=Math.max(0,(g.planTot||0)-(g.inp?g.inp.amt:0)); pillLab='手数料差 ¥'+yen(fe); }  // 差額（＝手数料/協力費で埋めた分）を見せる
+        h+='<td class="ctr" rowspan="'+rows+'"><span class="pill '+g.st+'">'+pillLab+'</span></td>';
         if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
             +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
             +'<div class="meta idate">入金日 '+esc(normDate(g.inp.date)||'—')+'</div></td>'
@@ -1471,11 +1501,11 @@ function loadDemo(){
   splitConfirm={}; ignoreSet=new Set();
   setGasState('off'); const gs=$('gasState'); if(gs) gs.textContent='サンプル';
   renderBankFiles(); renderPlanFiles(); renderMaster(); runMatch();
-  const host=document.getElementById('tabReconcile');
+  const host=document.querySelector('main');
   if(host && !document.getElementById('demoBanner')){
     const b=document.createElement('div'); b.id='demoBanner';
     b.style.cssText='margin:0 0 14px;padding:11px 14px;border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:var(--r2);background:var(--grad-soft);color:var(--ac2);font-size:12.5px;font-weight:700;';
-    b.textContent='● サンプルデータ表示中（UI確認用）。実運用は落ち着いた版、または STEP1・2 に本物のファイルを入れてください。保存はされません。';
+    b.textContent='● サンプルデータ表示中（UI確認用）。実運用は取込ストリップに本物のファイルを入れてください。保存はされません。';
     host.insertBefore(b, host.firstChild);
   }
 }
