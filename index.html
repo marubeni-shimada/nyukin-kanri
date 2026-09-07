@@ -1147,10 +1147,10 @@ function deptsPresent(){ return ['土木','営業','環境','弥生'].filter(d=>
 function snapKey(s){ return s.periodKey ? ('P'+s.periodKey) : ('I'+(s.importedAt||'')); }
 function snapLabel(s){ return s.periodLabel ? s.periodLabel : ((s.importedAt||'')+' 取込'); }
 function snapSort(s){ return s.periodKey ? s.periodKey : normDate(s.importedAt||''); }
-// 部門ごとの「対象月」候補（重複キーはまとめ・新しい順）
+// 部門ごとの「対象月」候補＝対象月が判定できた予定表だけ（○月分のみ・新しい順）。期間なし(共有/旧形式)はプルダウンに出さない
 function periodsFor(dept){
   const m={};
-  planSnaps.filter(s=>s.dept===dept).forEach(s=>{ const k=snapKey(s); if(!m[k]) m[k]={key:k,label:snapLabel(s),sort:snapSort(s)}; });
+  planSnaps.filter(s=>s.dept===dept && s.periodKey).forEach(s=>{ const k=snapKey(s); if(!m[k]) m[k]={key:k,label:s.periodLabel,sort:s.periodKey}; });
   return Object.values(m).sort((a,b)=> a.sort<b.sort?1:(a.sort>b.sort?-1:0));
 }
 // ①予定表/累積 → ②部門 → ③取込日(予定表のみ)。表示は選んだ部門だが、突合は全部門を読む（同じ振込元の一本振込を検出するため）。
@@ -1164,6 +1164,7 @@ function pickSnaps(dept){
 }
 function applyPlanSel(){
   const dp=deptsPresent(); if(dp.length && !dp.includes(selDept)) selDept=dp[0];
+  const per=periodsFor(selDept); if(selDate==='latest' || !per.some(p=>p.key===selDate)) selDate = per.length?per[0].key:'latest';   // 「最新」は使わず＝一番新しい対象月に寄せる
   const dob=pickSnaps('土木');
   if(dob.length){ const latest=dob[dob.length-1]; let ent=[]; dob.forEach(s=>ent=ent.concat(s.entries)); planDoboku={name:(selDept==='土木'&&viewMode==='累積')?('土木 累積（'+dob.length+'表）'):latest.name, zip:latest.zip, sheetPath:latest.sheetPath, sheetXml:latest.sheetXml, entries:ent, importedAt:latest.importedAt}; } else planDoboku=null;
   const yy=[];
@@ -1177,9 +1178,11 @@ function renderPlanSelector(){
   dsel.innerHTML=(dp.length?dp:['土木','営業','環境']).map(d=>'<option value="'+d+'"'+(d===selDept?' selected':'')+'>'+d+'</option>').join('');
   dsel.value=selDept;
   const periods=periodsFor(selDept);
-  let h='<option value="latest"'+(selDate==='latest'?' selected':'')+'>最新</option>';
-  periods.forEach(p=>{ h+='<option value="'+esc(p.key)+'"'+(selDate===p.key?' selected':'')+'>'+esc(p.label)+'</option>'; });
-  tsel.innerHTML=h; tsel.value=(selDate==='latest'||periods.some(p=>p.key===selDate))?selDate:'latest';
+  if(selDate==='latest' || !periods.some(p=>p.key===selDate)) selDate = periods.length?periods[0].key:'latest';   // 「最新」廃止＝一番新しい対象月を選ぶ
+  const hasSnap=planSnaps.some(s=>s.dept===selDept);
+  let h = periods.length ? periods.map(p=>'<option value="'+esc(p.key)+'"'+(selDate===p.key?' selected':'')+'>'+esc(p.label)+'</option>').join('')
+                         : '<option value="latest">'+(hasSnap?'（現在の予定表）':'（予定表なし）')+'</option>';
+  tsel.innerHTML=h; tsel.value=selDate;
   if(dw) dw.style.display = viewMode==='予定表' ? '' : 'none';   // 対象月は「予定表」のときだけ出す
 }
 function ymOf(d){ const s=normDate(d); const m=s.match(/^(\d{4})\/(\d{2})/); return m?m[1]+'/'+m[2]:''; }  // 入金日→YYYY/MM
