@@ -490,6 +490,9 @@ main{max-width:1560px;}
   #tabCollect .rc tr.g-none td.plan{box-shadow:inset 4px 0 0 #c02626}
   #tabCollect .rc tr.g-part td.plan{box-shadow:inset 4px 0 0 #b45309}
   #tabCollect .rc tr.g-extra td.inp{box-shadow:inset -4px 0 0 #4f46e5}
+  #tabCollect .rc .pill.share{background:linear-gradient(90deg,#eef2ff,#faf0ff);color:#6d28d9;border:1px solid #d9d0ff}
+  #tabCollect .rc tr.g-share td.plan{box-shadow:inset 4px 0 0 #7c3aed;background:color-mix(in srgb,#7c3aed 5%,#fff)}
+  #tabCollect .rc .sharehint{font-size:10.5px;color:#6d28d9;font-weight:700;margin-top:4px;line-height:1.4}
   </style>
   <div id="tabCollect">
   <div class="step">
@@ -1159,7 +1162,11 @@ function pickSnaps(dept){
   if(dept===selDept){
     if(viewMode==='予定表'){ if(selDate==='latest'){ if(u.length)u=[u[u.length-1]]; } else { const f=u.filter(s=>snapKey(s)===selDate); u=f.length?f:u.slice(-1); } }
     // 累積＝その部門の全部（uそのまま）
-  } else { if(u.length)u=[u[u.length-1]]; }   // 他部門は最新（一本振込の突合用）
+  } else {
+    // 他部門は「選んだ対象月と同じ月」を優先＝同じ月の予定表どうしで一本振込を突合。同じ月が無ければ最新にフォールバック
+    if(viewMode==='予定表' && selDate && selDate!=='latest'){ const f=u.filter(s=>snapKey(s)===selDate); u=f.length?f:(u.length?[u[u.length-1]]:u); }
+    else if(u.length){ u=[u[u.length-1]]; }
+  }
   return u;
 }
 function applyPlanSel(){
@@ -1208,6 +1215,9 @@ function _ckpi(l,v,sub,cls){ return '<div class="ckpi '+(cls||'')+'"><div class=
 function reconGroups(){
   const {paid,lastd}=collectPaid();
   const groups=[]; const covered={};
+  // 未確定の一本振込（部門またぎ）の請求先→入金情報。予定表一覧に「一本振込あり」の注意を出すため
+  const pendShare={};
+  (results||[]).forEach(r=>{ if(r.status!=='ignored' && isShared(r) && !splitOkAll(r)){ payeesOf(r).forEach(p=>{ const k=normPayee(p); if(!pendShare[k]) pendShare[k]={amt:r.d.amount,who:r.d.name,date:r.d.date,depts:resultDepts(r)}; }); } });
   (results||[]).forEach(r=>{
     let plans=null;
     if(r.status==='matched' && r.entry){ plans=[r.entry]; }
@@ -1222,7 +1232,7 @@ function reconGroups(){
       plans.forEach(e=>covered[_eid(e)]=1);
     }
   });
-  allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id]){ const pd=paid[id]||0, plan=planAmt(e); groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||''}); } });
+  allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id]){ const pd=paid[id]||0, plan=planAmt(e); const sp=pendShare[normPayee(e.請求先)]||null; groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||'', sharePend:sp}); } });
   (results||[]).forEach(r=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ groups.push({kind:'inp', dept:'', plans:[], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'extra', planTot:0, paidTot:0, zan:0}); } });
   return {groups, paid, lastd};
 }
@@ -1237,7 +1247,7 @@ function renderCollect(){
   let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && inSel(g));   // 選んだ部門に関わる行だけ（一本振込は土木/営業 両方の画面に自分の分が出る）
   // KPI（選んだ部門の予定側で集計）
   const planTot=es.reduce((a,e)=>a+planAmt(e),0);
-  const noneN=groups.filter(g=>g.st==='none').length, partN=groups.filter(g=>g.st==='part').length;
+  const noneN=groups.filter(g=>g.st==='none'&&!g.sharePend).length, partN=groups.filter(g=>g.st==='part'&&!g.sharePend).length;   // 一本振込ありは未入金に数えない（入金は来ている＝要確認側）
   const okN=groups.filter(g=>g.st==='ok'||g.st==='fee'||g.st==='multi'||g.st==='over').length;
   const zansum=groups.reduce((a,g)=>a+(g.zan>0?g.zan:0),0);
   const paidsum=Math.max(0, planTot-zansum);
@@ -1251,14 +1261,14 @@ function renderCollect(){
   let list=groups.slice();
   if(collectDept!=='all') list=list.filter(g=>g.dept===collectDept);
   if(collectMonth!=='all') list=list.filter(g=> g.inp ? (ymOf(g.inp.date)===collectMonth) : (g.st==='none'||g.st==='part'));  // 入金月で絞る。未入金・一部（入金なし）は常に表示＝取りっぱぐれを見逃さない
-  // 状態タブ：未入金／要確認（一部・過入金・予定外）／一致・回収済（一致・手数料差・まとめ払い）
-  const csBucket=g=> g.st==='none' ? 'none' : (g.st==='part'||g.st==='over'||g.st==='extra') ? 'check' : 'ok';
+  // 状態タブ：未入金／要確認（一部・過入金・予定外・一本振込あり）／一致・回収済（一致・手数料差・まとめ払い）
+  const csBucket=g=> g.sharePend ? 'check' : (g.st==='none' ? 'none' : (g.st==='part'||g.st==='over'||g.st==='extra') ? 'check' : 'ok');
   const scnt={none:0,check:0,ok:0}; list.forEach(g=>scnt[csBucket(g)]++);
   const setcs=(id,n)=>{const el=$(id);if(el)el.textContent=n?('('+n+')'):'';};
   setcs('cs-all',list.length); setcs('cs-none',scnt.none); setcs('cs-check',scnt.check); setcs('cs-ok',scnt.ok);
   if(collectStatus!=='all') list=list.filter(g=>csBucket(g)===collectStatus);
   const ord={none:0,part:1,over:2,extra:3,fee:4,multi:5,ok:6};
-  list.sort((a,b)=>(ord[a.st]-ord[b.st]) || (b.zan-a.zan));
+  list.sort((a,b)=>((b.sharePend?1:0)-(a.sharePend?1:0)) || (ord[a.st]-ord[b.st]) || (b.zan-a.zan));   // 一本振込ありを最上部へ
   const LAB={ok:'✓ 一致',fee:'手数料差',part:'一部入金',none:'未入金',extra:'予定外',multi:'✓ 合算で一致',over:'過入金'};
   if(!list.length){ host.innerHTML='<div class="empty">該当なし（部門タブ／絞り込みを変えてください）</div>'; return; }
   let h='<div class="twrap"><table class="rc"><thead>'
@@ -1269,7 +1279,7 @@ function renderCollect(){
     const rows=Math.max(1, g.plans.length);
     for(let i=0;i<rows;i++){
       const e=g.plans[i];
-      h+='<tr class="g-'+g.st+'">';
+      h+='<tr class="g-'+g.st+(g.sharePend?' g-share':'')+'">';
       // 予定側
       if(e){ const work=e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):'（'+(e.dept||'弥生')+'）';
         const brace = g.st==='multi'?(i===0?'<span class="brace">┐ まとめ'+g.plans.length+'件':(i===rows-1?'<span class="brace">┘</span>':'<span class="brace">│</span>')):'';
@@ -1278,10 +1288,11 @@ function renderCollect(){
       } else { h+='<td class="plan muted">（予定なし）</td><td class="plan num muted">—</td>'; }
       // 中央＋入金側（先頭行だけrowspan）
       if(i===0){
-        let pillLab=LAB[g.st];
-        if(g.st==='fee'){ const fe=Math.max(0,(g.planTot||0)-(g.inp?g.inp.amt:0)); pillLab='手数料差 ¥'+yen(fe); }  // 差額（＝手数料/協力費で埋めた分）を見せる
+        let pillLab=LAB[g.st], pillCls=g.st;
+        if(g.sharePend){ pillLab='🔗 一本振込あり ¥'+yen(g.sharePend.amt); pillCls='share'; }  // 部門またぎの1本が来ている→内訳を確認して確定
+        else if(g.st==='fee'){ const fe=Math.max(0,(g.planTot||0)-(g.inp?g.inp.amt:0)); pillLab='手数料差 ¥'+yen(fe); }  // 差額（＝手数料/協力費で埋めた分）を見せる
         else if(g.st==='over'){ const ov=Math.max(0,(g.inp?g.inp.amt:0)-(g.planTot||0)); pillLab='過入金 ＋¥'+yen(ov); }  // 予定より多い分
-        h+='<td class="ctr" rowspan="'+rows+'"><span class="pill '+g.st+'">'+pillLab+'</span></td>';
+        h+='<td class="ctr" rowspan="'+rows+'"><span class="pill '+pillCls+'">'+pillLab+'</span>'+(g.sharePend?'<div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。「一本の振込」タブで内訳を確認</div>':'')+'</td>';
         if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
             +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
             +'<div class="meta idate">入金日 '+esc(normDate(g.inp.date)||'—')+'</div></td>'
