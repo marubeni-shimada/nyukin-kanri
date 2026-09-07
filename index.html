@@ -499,7 +499,7 @@ main{max-width:1560px;}
       <label class="scope-l">📄 表示：</label>
       <select id="viewMode" class="planselect"><option value="予定表">予定表（1枚）</option><option value="累積">累積（その部門の全部）</option></select>
       <span class="scope-sub">部門</span> <select id="selDept" class="planselect"></select>
-      <span id="dateWrap"><span class="scope-sub">取込日</span> <select id="selDate" class="planselect"></select></span>
+      <span id="dateWrap"><span class="scope-sub">対象月</span> <select id="selDate" class="planselect"></select></span>
     </div>
     <div class="cksummary" id="collectSum"></div>
     <div class="ckbar"><i id="collectBar"></i></div>
@@ -668,6 +668,16 @@ function classifyPlan(grid){
   if(/請求一覧|工事別/.test(txt)) return '土木';
   if(/請求先別回収状況|請求先コード/.test(txt)) return '弥生';
   return '不明';
+}
+/* 予定表の中の「期間」から対象月を判定（土木＝期間:26/06/01～／弥生＝期間:令和08年07月度）。読めなければnull→取込日にフォールバック */
+function mkPeriod(y,mo){ y=parseInt(y,10); mo=parseInt(mo,10); if(!(mo>=1&&mo<=12)||!(y>=2000&&y<=2100))return null; return {key:''+y+('0'+mo).slice(-2), label:String(y).slice(2)+'年'+mo+'月分'}; }
+function detectPeriod(grid){
+  let txt=''; for(const r in grid){ const row=grid[r]; for(const c in row){ if(row[c]!=null) txt+=String(row[c])+'\n'; } if(txt.length>4000)break; }
+  let m;
+  if(m=txt.match(/期間[:：]\s*令和\s*0*(\d{1,2})\s*年\s*0*(\d{1,2})\s*月/)) return mkPeriod(2018+parseInt(m[1],10), m[2]);     // 弥生：令和NN年MM月度
+  if(m=txt.match(/期間[:：]\s*(\d{4})[\/\-年]\s*0*(\d{1,2})/)) return mkPeriod(m[1], m[2]);                                    // 期間:西暦4桁/MM
+  if(m=txt.match(/期間[:：]\s*(\d{2})\/\s*0*(\d{1,2})\//)) return mkPeriod(2000+parseInt(m[1],10), m[2]);                      // 土木：期間:YY/MM/DD～
+  return null;
 }
 function parseDoboku(grid){
   const rows=Object.keys(grid).map(Number).sort((a,b)=>a-b);
@@ -1130,13 +1140,24 @@ let selDept='土木';      // 部門（土木/営業/環境）
 let selDate='latest';    // 取込日（予定表モードのみ）：'latest' | 'YYYY/MM/DD'
 function newSid(){ return 'S'+(++_sidSeq); }
 function addSnap(snap){ snap.sid=newSid(); (snap.entries||[]).forEach(e=>e.snapId=snap.sid); planSnaps.push(snap); }
+// 同じ部門・同じ対象月を再取込したら旧スナップを外す（最新で上書き＝1つの月は1枚）。対象月が読めない(pkなし)ときは残す
+function dropSameMonth(dept,pk){ if(!pk)return; for(let i=planSnaps.length-1;i>=0;i--){ if(planSnaps[i].dept===dept && planSnaps[i].periodKey===pk) planSnaps.splice(i,1); } }
 function deptsPresent(){ return ['土木','営業','環境','弥生'].filter(d=>planSnaps.some(s=>s.dept===d)); }
-function datesFor(dept){ const ds=[...new Set(planSnaps.filter(s=>s.dept===dept).map(s=>s.importedAt).filter(Boolean))]; ds.sort().reverse(); return ds; }
+// スナップショットの識別＝対象月(periodKey)優先。読めない古い書式は取込日でフォールバック
+function snapKey(s){ return s.periodKey ? ('P'+s.periodKey) : ('I'+(s.importedAt||'')); }
+function snapLabel(s){ return s.periodLabel ? s.periodLabel : ((s.importedAt||'')+' 取込'); }
+function snapSort(s){ return s.periodKey ? s.periodKey : normDate(s.importedAt||''); }
+// 部門ごとの「対象月」候補（重複キーはまとめ・新しい順）
+function periodsFor(dept){
+  const m={};
+  planSnaps.filter(s=>s.dept===dept).forEach(s=>{ const k=snapKey(s); if(!m[k]) m[k]={key:k,label:snapLabel(s),sort:snapSort(s)}; });
+  return Object.values(m).sort((a,b)=> a.sort<b.sort?1:(a.sort>b.sort?-1:0));
+}
 // ①予定表/累積 → ②部門 → ③取込日(予定表のみ)。表示は選んだ部門だが、突合は全部門を読む（同じ振込元の一本振込を検出するため）。
 function pickSnaps(dept){
   let u=planSnaps.filter(s=>s.dept===dept);
   if(dept===selDept){
-    if(viewMode==='予定表'){ if(selDate==='latest'){ if(u.length)u=[u[u.length-1]]; } else { const f=u.filter(s=>s.importedAt===selDate); u=f.length?f:u.slice(-1); } }
+    if(viewMode==='予定表'){ if(selDate==='latest'){ if(u.length)u=[u[u.length-1]]; } else { const f=u.filter(s=>snapKey(s)===selDate); u=f.length?f:u.slice(-1); } }
     // 累積＝その部門の全部（uそのまま）
   } else { if(u.length)u=[u[u.length-1]]; }   // 他部門は最新（一本振込の突合用）
   return u;
@@ -1155,11 +1176,11 @@ function renderPlanSelector(){
   msel.value=viewMode;
   dsel.innerHTML=(dp.length?dp:['土木','営業','環境']).map(d=>'<option value="'+d+'"'+(d===selDept?' selected':'')+'>'+d+'</option>').join('');
   dsel.value=selDept;
-  const dates=datesFor(selDept);
+  const periods=periodsFor(selDept);
   let h='<option value="latest"'+(selDate==='latest'?' selected':'')+'>最新</option>';
-  dates.forEach(d=>{ h+='<option value="'+esc(d)+'"'+(selDate===d?' selected':'')+'>'+esc(d)+' 取込</option>'; });
-  tsel.innerHTML=h; tsel.value=(selDate==='latest'||dates.includes(selDate))?selDate:'latest';
-  if(dw) dw.style.display = viewMode==='予定表' ? '' : 'none';   // 取込日は「予定表」のときだけ出す
+  periods.forEach(p=>{ h+='<option value="'+esc(p.key)+'"'+(selDate===p.key?' selected':'')+'>'+esc(p.label)+'</option>'; });
+  tsel.innerHTML=h; tsel.value=(selDate==='latest'||periods.some(p=>p.key===selDate))?selDate:'latest';
+  if(dw) dw.style.display = viewMode==='予定表' ? '' : 'none';   // 対象月は「予定表」のときだけ出す
 }
 function ymOf(d){ const s=normDate(d); const m=s.match(/^(\d{4})\/(\d{2})/); return m?m[1]+'/'+m[2]:''; }  // 入金日→YYYY/MM
 function _eid(e){ return (e.type==='土木'?'D':'Y')+'|'+(e.dept||'')+'|'+(e.snapId||'')+'|'+(e.row!=null?e.row:(e.請求先+'|'+(e.工事番号||e.code||''))); }
@@ -1285,7 +1306,7 @@ function saveIgnore(){ localStorage.setItem(MIGN,JSON.stringify([...ignoreSet]))
 /* 取込データの保存（銀行・予定表）：順不同・別日でも残す。予定表はentriesのみ保存（xlsx本体は保存しない＝記入済み出力はセッション内で有効） */
 function saveBank(){ if(!allowPersist)return; try{ localStorage.setItem(MBANK,JSON.stringify(bankFiles)); }catch(e){} }
 function savePlan(){ if(!allowPersist)return; try{
-  const snaps=planSnaps.map(s=>({sid:s.sid,dept:s.dept,name:s.name,entries:s.entries,importedAt:s.importedAt}));  // zip/sheetXmlは保存しない（容量のため。記入済み予定表の出力は取り込んだセッション内で有効）
+  const snaps=planSnaps.map(s=>({sid:s.sid,dept:s.dept,name:s.name,entries:s.entries,importedAt:s.importedAt,periodKey:s.periodKey||'',periodLabel:s.periodLabel||''}));  // zip/sheetXmlは保存しない（容量のため。記入済み予定表の出力は取り込んだセッション内で有効）
   localStorage.setItem(MPLAN,JSON.stringify({snaps:snaps, viewMode:viewMode, selDept:selDept, selDate:selDate, seq:_sidSeq}));
 }catch(e){} }
 function renderMaster(){
@@ -1440,11 +1461,13 @@ function readBank(file){
 function readPlan(file){
   return file.arrayBuffer().then(buf=>{
     const x=readXlsx(buf); const cls=classifyPlan(x.grid);
+    const per=detectPeriod(x.grid);   // 中の期間→対象月
+    const pk=per?per.key:'', pl=per?per.label:'';
     let dep;
-    if(cls==='土木'){ addSnap({dept:'土木', name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, entries:parseDoboku(x.grid), importedAt:stampDate()}); dep='土木'; }
-    else if(cls==='弥生'){ dep=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; addSnap({dept:dep, name:file.name, entries:parseYayoi(x.grid,dep), importedAt:stampDate()}); }
+    if(cls==='土木'){ dep='土木'; dropSameMonth('土木',pk); addSnap({dept:'土木', name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, entries:parseDoboku(x.grid), importedAt:stampDate(), periodKey:pk, periodLabel:pl}); }
+    else if(cls==='弥生'){ dep=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; dropSameMonth(dep,pk); addSnap({dept:dep, name:file.name, entries:parseYayoi(x.grid,dep), importedAt:stampDate(), periodKey:pk, periodLabel:pl}); }
     else { alert('予定表の種類を判別できませんでした：'+file.name); return; }
-    viewMode='予定表'; selDept=dep; selDate='latest'; applyPlanSel();   // 取り込んだ部門の予定表(最新)を表示（過去は貯まる・予定表/累積→部門→取込日で選べる）
+    viewMode='予定表'; selDept=dep; selDate=pk?('P'+pk):'latest'; applyPlanSel();   // 取り込んだ部門・対象月を表示（過去は貯まる・予定表/累積→部門→対象月で選べる）
   });
 }
 function renderBankFiles(){
@@ -1458,10 +1481,10 @@ function renderBankFiles(){
   renderLink();
 }
 function renderPlanFiles(){
-  const chips=planSnaps.map(s=>'<span class="fchip"><span class="t'+(s.dept==='土木'?'':' y')+'">'+esc(s.dept)+'</span>'+esc(s.name)+' <span class="muted">('+s.entries.length+'件'+(s.importedAt?'・取込'+esc(s.importedAt):'')+')</span> <span class="x" data-pdel="'+s.sid+'">×</span></span>');
+  const chips=planSnaps.map(s=>'<span class="fchip"><span class="t'+(s.dept==='土木'?'':' y')+'">'+esc(s.dept)+'</span>'+(s.periodLabel?'<b>'+esc(s.periodLabel)+'</b> ':'')+esc(s.name)+' <span class="muted">('+s.entries.length+'件'+(s.importedAt?'・取込'+esc(s.importedAt):'')+')</span> <span class="x" data-pdel="'+s.sid+'">×</span></span>');
   $('planFiles').innerHTML=chips.join('');
   const de=planSnaps.filter(s=>s.dept==='土木').reduce((a,s)=>a+s.entries.length,0), ye=planSnaps.filter(s=>s.dept!=='土木').reduce((a,s)=>a+s.entries.length,0);
-  $('planSum').innerHTML=planSnaps.length?('<span class="k">予定表</span> <b>'+planSnaps.length+'</b> 表 <span class="muted">（土木 '+de+'工事／弥生 '+ye+'件・取込日で選べます）</span>'):'';
+  $('planSum').innerHTML=planSnaps.length?('<span class="k">予定表</span> <b>'+planSnaps.length+'</b> 表 <span class="muted">（土木 '+de+'工事／弥生 '+ye+'件・対象月で選べます）</span>'):'';
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
   savePlan();
   renderLink();
@@ -1558,7 +1581,7 @@ function today(){ const d=new Date(); return d.getFullYear()+('0'+(d.getMonth()+
 /* ===== サンプルデータ（このリッチUI版のみ・UI確認用／localStorage・GASには保存しない） ===== */
 function loadDemo(){
   allowPersist=false;  // サンプルはこのPCに保存しない
-  addSnap({dept:'土木', importedAt:'2026/08/22', name:'（サンプル）入金予定表 R8.7.xlsx', zip:{}, sheetPath:'xl/worksheets/sheet1.xml', sheetXml:'<worksheet></worksheet>',
+  addSnap({dept:'土木', importedAt:'2026/08/22', periodKey:'202607', periodLabel:'26年7月分', name:'（サンプル）入金予定表 R8.7.xlsx', zip:{}, sheetPath:'xl/worksheets/sheet1.xml', sheetXml:'<worksheet></worksheet>',
     entries:[
       {type:'土木',dept:'土木',請求先:'丸二建設㈱',工事名:'◇◇河川改修工事',工事番号:'12433-01',amount:1800000,row:10},
       {type:'土木',dept:'土木',請求先:'あすか道路㈱',工事名:'市道○○改良工事',工事番号:'12345-01',amount:1320000,row:12},
@@ -1573,11 +1596,11 @@ function loadDemo(){
       {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'C 法面工事',工事番号:'12612-01',amount:800000,row:30},
       {type:'土木',dept:'土木',請求先:'ゼロ予定㈱',工事名:'追加変更 未確定工事',工事番号:'12700-01',amount:0,row:32}
     ]});
-  addSnap({dept:'営業', importedAt:'2026/08/10', name:'（サンプル）請求先別回収状況_営業7月.xlsx', entries:[
+  addSnap({dept:'営業', importedAt:'2026/08/10', periodKey:'202607', periodLabel:'26年7月分', name:'（サンプル）請求先別回収状況_営業7月.xlsx', entries:[
       {type:'弥生',dept:'営業',請求先:'丸二建設㈱',code:'E001',amount:1100000,altAmount:1100000,row:5},
       {type:'弥生',dept:'営業',請求先:'石本土木㈱',code:'E002',amount:660000,altAmount:660000,row:6}
     ]});
-  addSnap({dept:'環境', importedAt:'2026/08/10', name:'（サンプル）請求先別回収状況_環境7月.xlsx', entries:[
+  addSnap({dept:'環境', importedAt:'2026/08/10', periodKey:'202607', periodLabel:'26年7月分', name:'（サンプル）請求先別回収状況_環境7月.xlsx', entries:[
       {type:'弥生',dept:'環境',請求先:'東海工業㈱',code:'K001',amount:1100000,altAmount:1100000,row:5}
     ]});
   const dps=[
