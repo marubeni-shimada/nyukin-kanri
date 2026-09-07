@@ -688,7 +688,7 @@ function parseDoboku(grid){
     if(isKoji(B)){ cur={no:String(B).trim(), name:(C||'').toString().trim()}; continue; }
     if(cur && (String(B).trim()==='31' || /^\d{1,2}$/.test(String(B).trim())) && C){
       const amt=toInt(row.J);
-      if(amt!=null){ entries.push({type:'土木', dept:'土木', 請求先:String(C).trim(), 工事名:cur.name, 工事番号:cur.no, amount:amt, row:r}); }
+      if(amt!=null && amt>0){ entries.push({type:'土木', dept:'土木', 請求先:String(C).trim(), 工事名:cur.name, 工事番号:cur.no, amount:amt, row:r}); }   // 予定額0円（今月回収予定なし）・マイナス（相殺）は取り込まない＝突合対象外。入金が来れば「予定外」で拾う
     }
   }
   return entries;
@@ -1596,8 +1596,7 @@ function loadDemo(){
       {type:'土木',dept:'土木',請求先:'鹿島道路㈱',工事名:'E 県道改良工事',工事番号:'12502-01',amount:1500000,row:24},
       {type:'土木',dept:'土木',請求先:'鹿島道路㈱',工事名:'F 区道補修工事',工事番号:'12503-01',amount:1735000,row:26},
       {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'B 橋梁補修工事',工事番号:'12611-01',amount:3000000,row:28},
-      {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'C 法面工事',工事番号:'12612-01',amount:800000,row:30},
-      {type:'土木',dept:'土木',請求先:'ゼロ予定㈱',工事名:'追加変更 未確定工事',工事番号:'12700-01',amount:0,row:32}
+      {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'C 法面工事',工事番号:'12612-01',amount:800000,row:30}
     ]});
   addSnap({dept:'営業', importedAt:'2026/08/10', periodKey:'202607', periodLabel:'26年7月分', name:'（サンプル）請求先別回収状況_営業7月.xlsx', entries:[
       {type:'弥生',dept:'営業',請求先:'丸二建設㈱',code:'E001',amount:1100000,altAmount:1100000,row:5},
