@@ -326,6 +326,15 @@ main{max-width:1560px;}
 .ibox .files:empty{display:none;}
 .istrip-ctl{display:flex;align-items:center;gap:8px;margin:0 0 14px;}
 @media(max-width:760px){ .istrip2{grid-template-columns:1fr;} }
+/* 🅑 一本振込あり→クリックで内訳へジャンプ */
+button.pill.goshare{font:inherit;line-height:1.2;cursor:pointer;transition:filter .12s,transform .12s}
+button.pill.goshare:hover{filter:brightness(.97);transform:translateY(-1px)}
+button.pill.goshare:active{transform:translateY(0)}
+#resBody tr.flash>td{animation:rowflash 1.4s ease}
+@keyframes rowflash{0%{background:color-mix(in srgb,#7c3aed 22%,transparent)}100%{background:transparent}}
+/* 🅐 自動採用バッジ */
+.tag.auto{background:color-mix(in srgb,#0a8a5f 14%,#fff);color:#0a8a5f;border:1px solid color-mix(in srgb,#0a8a5f 34%,#fff);border-radius:6px;padding:0 6px;font-size:10.5px;font-weight:700}
+@media (prefers-color-scheme:dark){.tag.auto{background:color-mix(in srgb,#3ecf9a 18%,#161c25);color:#3ecf9a;border-color:color-mix(in srgb,#3ecf9a 40%,#161c25)}}
 </style>
 </head>
 <body>
@@ -739,17 +748,37 @@ function runMatch(){
   const entries=allEntries();
   buildDeptMap();
   results=[];
+  let autoLearned=false; const FEEMAX=1100;   // 🅐 少額手数料差の自動採用は絶対額でこの範囲まで（銀行手数料/少額協力費）
   const seen=new Set();
   bankFiles.forEach(bf=>bf.deposits.forEach(d=>{
     const key=depKey(d);
     if(seen.has(key)) return; seen.add(key);
     if(ignoreSet.has(key)){ results.push({d,key,status:'ignored'}); return; }
     const cf=confirmed[key];
-    if(cf){ const e=findEntry(cf); if(e){ results.push({d,key,status:'matched',entry:e,fee:cf.fee||0}); return; } }
+    if(cf){ const e=findEntry(cf); if(e){ results.push({d,key,status:'matched',entry:e,fee:cf.fee||0,auto:!!cf.auto}); return; } }
     const payeeList=master[normName(d.name)]||[];
     const pool = payeeList.length ? entries.filter(e=>payeeList.some(p=>normPayee(p)===normPayee(e.請求先))) : [];
     const exact = pool.filter(e=>amtMatch(e,d.amount));   // マスタ有り＆金額ピタリ＝残高0＝自動
     if(payeeList.length && exact.length===1){ results.push({d,key,status:'matched',entry:exact[0],fee:0}); return; }
+    // 🅐 名義未登録でも、金額で相手が一意に決まるなら自動採用＋名義を自動学習（初回から消込・以降はマスタが育つ）
+    if(!payeeList.length){
+      const exAll = entries.filter(e=>amtMatch(e,d.amount));               // 金額ピタリの予定（全部門）
+      if(exAll.length===1){                                                // ＝相手は一意（安全）
+        const e0=exAll[0];
+        confirmed[key]={payee:e0.請求先,type:e0.type,row:e0.row||null,code:e0.code||null,dept:e0.dept||null,工事番号:e0.工事番号||null,工事名:e0.工事名||null,fee:0,auto:true};
+        addMaster(d.name, e0.請求先); autoLearned=true;
+        results.push({d,key,status:'matched',entry:e0,fee:0,auto:true}); return;
+      }
+      if(exAll.length===0){
+        const nearAll = entries.filter(e=>tolOK(d.amount, planAmt(e)) && (planAmt(e)-d.amount)<=FEEMAX);   // 少額の手数料/協力費差のみ
+        if(nearAll.length===1){                                            // ＝相手は一意
+          const e1=nearAll[0], fee1=Math.max(0, planAmt(e1)-d.amount);
+          confirmed[key]={payee:e1.請求先,type:e1.type,row:e1.row||null,code:e1.code||null,dept:e1.dept||null,工事番号:e1.工事番号||null,工事名:e1.工事名||null,fee:fee1,auto:true};
+          addMaster(d.name, e1.請求先); autoLearned=true;
+          results.push({d,key,status:'matched',entry:e1,fee:fee1,auto:true}); return;
+        }
+      }
+    }
     // 要確認：候補（金額ピタリ→残0／近い→手数料差）
     const exactCands = entries.filter(e=>amtMatch(e,d.amount));
     const nearCands  = (payeeList.length?pool:entries).filter(e=>tolOK(d.amount,planAmt(e)));
@@ -768,6 +797,7 @@ function runMatch(){
     if(multi) reason='複数工事に充当'+(multi.kind==='deduct'?'（控除あり）':(multi.combos.length>1?'（候補'+multi.combos.length+'通り）':'（候補確定）'));
     results.push({d,key,status:'review',payeeList,reason,exactCands,nearCands,multi});
   }));
+  if(autoLearned){ try{ saveConfirmed(); renderMaster(); }catch(e){} }   // 🅐 自動採用分を保存＋名義マスタ表示を更新
   render();
 }
 
@@ -999,7 +1029,7 @@ function render(){
         + stateTd('ok','')
         + whoTd(r)
         + amtTd(r,diffHtml)
-        + '<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+'</td>'
+        + '<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+(r.auto?' <span class="tag auto" title="金額が一意に一致したので自動で消込し、名義→請求先を学習しました。誤りなら「戻す」で取消せます">自動</span>':'')+'</td>'
         + '<td class="act"><button class="btn sub mini" data-un="'+di+'">戻す</button></td></tr>';
     } else if(r.status==='review'){
       const b=bestCand(r); let diffHtml='';
@@ -1217,7 +1247,7 @@ function reconGroups(){
   const groups=[]; const covered={};
   // 未確定の一本振込（部門またぎ）の請求先→入金情報。予定表一覧に「一本振込あり」の注意を出すため
   const pendShare={};
-  (results||[]).forEach(r=>{ if(r.status!=='ignored' && isShared(r) && !splitOkAll(r)){ payeesOf(r).forEach(p=>{ const k=normPayee(p); if(!pendShare[k]) pendShare[k]={amt:r.d.amount,who:r.d.name,date:r.d.date,depts:resultDepts(r)}; }); } });
+  (results||[]).forEach((r,ri)=>{ if(r.status!=='ignored' && isShared(r) && !splitOkAll(r)){ payeesOf(r).forEach(p=>{ const k=normPayee(p); if(!pendShare[k]) pendShare[k]={amt:r.d.amount,who:r.d.name,date:r.d.date,depts:resultDepts(r),ri:ri,key:r.key}; }); } });
   (results||[]).forEach(r=>{
     let plans=null;
     if(r.status==='matched' && r.entry){ plans=[r.entry]; }
@@ -1292,7 +1322,7 @@ function renderCollect(){
         if(g.sharePend){ pillLab='🔗 一本振込あり ¥'+yen(g.sharePend.amt); pillCls='share'; }  // 部門またぎの1本が来ている→内訳を確認して確定
         else if(g.st==='fee'){ const fe=Math.max(0,(g.planTot||0)-(g.inp?g.inp.amt:0)); pillLab='手数料差 ¥'+yen(fe); }  // 差額（＝手数料/協力費で埋めた分）を見せる
         else if(g.st==='over'){ const ov=Math.max(0,(g.inp?g.inp.amt:0)-(g.planTot||0)); pillLab='過入金 ＋¥'+yen(ov); }  // 予定より多い分
-        h+='<td class="ctr" rowspan="'+rows+'"><span class="pill '+pillCls+'">'+pillLab+'</span>'+(g.sharePend?'<div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。「一本の振込」タブで内訳を確認</div>':'')+'</td>';
+        h+='<td class="ctr" rowspan="'+rows+'">'+(g.sharePend?'<button type="button" class="pill '+pillCls+' goshare" data-goshare="'+g.sharePend.ri+'" title="クリックで内訳へジャンプ">'+pillLab+'</button>':'<span class="pill '+pillCls+'">'+pillLab+'</span>')+(g.sharePend?'<div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。<u>クリックで内訳へ</u></div>':'')+'</td>';
         if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
             +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
             +'<div class="meta idate">入金日 '+esc(normDate(g.inp.date)||'—')+'</div></td>'
@@ -1309,6 +1339,16 @@ function renderCollect(){
 }
 document.getElementById('collectTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; collectDept=b.dataset.ck; document.querySelectorAll('#collectTabs button').forEach(x=>x.classList.toggle('on',x===b)); renderCollect(); });
 document.getElementById('collectStatus').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; collectStatus=b.dataset.cs; document.querySelectorAll('#collectStatus button').forEach(x=>x.classList.toggle('on',x===b)); renderCollect(); });
+/* 🅑 一覧の「🔗一本振込あり」→クリックで一本の振込タブの内訳へジャンプ */
+document.getElementById('collectBody').addEventListener('click',e=>{
+  const b=e.target.closest('[data-goshare]'); if(!b)return;
+  const ri=+b.dataset.goshare; const r=results[ri]; if(!r)return;
+  deptTab='share'; resTab='review';
+  document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x.dataset.t==='review'));
+  openDetails.add(r.key);
+  openDrawer('review'); render();
+  setTimeout(()=>{ const hit=document.querySelector('#resBody [data-tgl="'+ri+'"]'); if(hit){ const tr=hit.closest('tr'); if(tr){ tr.scrollIntoView({behavior:'smooth',block:'center'}); tr.classList.add('flash'); setTimeout(()=>tr.classList.remove('flash'),1500); } } },80);
+});
 document.getElementById('viewMode').addEventListener('change',e=>{ viewMode=e.target.value; applyPlanSel(); runMatch(); });   // 予定表／累積を切替
 document.getElementById('selDept').addEventListener('change',e=>{ selDept=e.target.value; selDate='latest'; applyPlanSel(); runMatch(); });   // 部門を選ぶ
 document.getElementById('selDate').addEventListener('change',e=>{ selDate=e.target.value; applyPlanSel(); runMatch(); });   // 取込日を選ぶ（予定表モードのみ）
