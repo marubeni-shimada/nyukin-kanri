@@ -1345,9 +1345,14 @@ document.getElementById('collectBody').addEventListener('click',e=>{
   const ri=+b.dataset.goshare; const r=results[ri]; if(!r)return;
   deptTab='share'; resTab='review';
   document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x.dataset.t==='review'));
-  openDetails.add(r.key);
+  openDetails.clear(); openDetails.add(r.key);   // 前回開いた内訳を引き継がない＝クリックしたものだけ開く
   openDrawer('review'); render();
-  setTimeout(()=>{ const hit=document.querySelector('#resBody [data-tgl="'+ri+'"]'); if(hit){ const tr=hit.closest('tr'); if(tr){ tr.scrollIntoView({behavior:'smooth',block:'center'}); tr.classList.add('flash'); setTimeout(()=>tr.classList.remove('flash'),1500); } } },80);
+  // レイアウト確定後（render直後のスクロール復元より後）に、クリックした行へ確実にジャンプ
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#resBody tr.flash').forEach(x=>x.classList.remove('flash'));   // 前回のハイライトを消す
+    const hit=document.querySelector('#resBody [data-tgl="'+ri+'"]');
+    if(hit){ const tr=hit.closest('tr'); if(tr){ tr.scrollIntoView({behavior:'smooth',block:'center'}); tr.classList.add('flash'); setTimeout(()=>{ tr.classList.remove('flash'); },1500); } }
+  }));
 });
 document.getElementById('viewMode').addEventListener('change',e=>{ viewMode=e.target.value; applyPlanSel(); runMatch(); });   // 予定表／累積を切替
 document.getElementById('selDept').addEventListener('change',e=>{ selDept=e.target.value; selDate='latest'; applyPlanSel(); runMatch(); });   // 部門を選ぶ
