@@ -74,6 +74,7 @@
   .cand{display:inline-block;font-size:12px;font-weight:600;cursor:pointer;padding:2px 0;text-decoration:none;color:var(--ac2);}
   .cand.near{color:var(--warn);} .cand:hover{text-decoration:underline;}
   .pick{display:flex;gap:5px;margin-top:5px;} .pick .selp{min-width:150px;}
+  .pick-multi{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);} .pick-multi select.selp{max-width:230px;}
   tr.dim{opacity:.5;}
   .btn.plink{background:var(--panel);color:var(--ac2);border:1px solid var(--line);} .btn.plink:hover{background:var(--ac-soft);filter:none;}
   .selp{border:1px solid var(--line);border-radius:var(--r2);padding:6px 9px;font-size:12px;font-family:inherit;background:var(--paper);color:var(--ink);min-width:180px;}
@@ -973,7 +974,7 @@ function multiRowHtml(r,di){
     + whoTd(r)
     + amtTd(r,'')
     + '<td><span class="lk multi">🧩 複数工事</span> '+esc(works.map(e=>trunc(e.工事名||e.請求先,10)).join('＋')||r.d.name)+'</td>'
-    + '<td class="act">'+(done?'<button class="btn sub mini" data-mundo="'+di+'">戻す</button>':'<button class="btn primary mini" data-tgl="'+di+'">'+(open?'閉じる':'内訳を見る')+'</button>')+'</td></tr>';
+    + '<td class="act">'+(done?'<button class="btn sub mini" data-mundo="'+di+'">戻す</button>':('<button class="btn primary mini" data-tgl="'+di+'">'+(open?'閉じる':'内訳を見る')+'</button>'+(r.multi&&r.multi.manual?' <button class="btn sub mini" data-mclr="'+di+'" title="まとめ払いをやめて請求先を選び直す">選び直す</button>':'')))+'</td></tr>';
   h+='<tr class="detail" data-detail="'+di+'" style="display:'+(open?'':'none')+'"><td colspan="5">'+multiPanelHtml(r,di)+'</td></tr>';
   return h;
 }
@@ -1038,6 +1039,7 @@ function render(){
         if(b.near) diffHtml='<span class="diff"><span class="diffS">予定'+yen(plan)+'／差'+yen(diff)+'</span></span>';
         cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
       cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
+      cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（一本振込／まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 まとめ払い（工事を合算）</button></div>';
       h+='<tr class="'+rowCls+'">'
         + stateTd('need', r.reason||'要確認')
         + whoTd(r)
@@ -1114,6 +1116,23 @@ $('resBody').addEventListener('click',e=>{
     saveMulti(); saveMasterLocal(); renderMaster(); pushMaster(); scheduleSync(); render(); return; }
   const mundo=e.target.closest('[data-mundo]');
   if(mundo){ const r=results[+mundo.dataset.mundo]; if(multiConfirm[r.key]){ multiConfirm[r.key].done=false; openDetails.add(r.key); saveMulti(); scheduleSync(); render(); } return; }
+  // 🅒 まとめ払い：請求先を選んで、その工事を合算充当（名義が未登録でも、人が特定した相手だけ合算＝安全）
+  const mset=e.target.closest('[data-mset]');
+  if(mset){ const di=+mset.dataset.mset; const r=results[di];
+    const sel=document.querySelector('[data-mp="'+di+'"]'); const P=sel?sel.value.trim():'';
+    if(!P){ alert('まとめ払いにする請求先を選んでください。'); return; }
+    const pool=allEntries().filter(x=>normPayee(x.請求先)===normPayee(P));
+    if(!pool.length){ alert('「'+P+'」の工事が予定表に見つかりません。'); return; }
+    if(new Set(pool.map(deptOf)).size>1){ alert('「'+P+'」は複数部門にまたがるため、上の「一本の振込」タブで内訳を確認してください。'); return; }
+    let combos=subsetCombos(pool,r.d.amount,{exact:true}).slice(0,6).map(x=>x.items);   // まず合計＝入金（残0）
+    let kind='exact';
+    if(!combos.length){ const dm=subsetCombos(pool,r.d.amount,{exact:false}); if(dm.length){ combos=[dm[0].items]; kind='deduct'; } }   // 次に合計>入金（控除）
+    if(!combos.length){ combos=[pool]; kind='deduct'; }   // 候補が出なくても全工事を初期選択にして手で調整
+    r.multi={kind:kind,combos:combos,poolEids:pool.map(_eid),manual:true};
+    delete multiConfirm[r.key];   // 新しい候補で作り直す
+    openDetails.add(r.key); render(); return; }
+  const mclr=e.target.closest('[data-mclr]');
+  if(mclr){ const r=results[+mclr.dataset.mclr]; delete r.multi; delete multiConfirm[r.key]; openDetails.delete(r.key); render(); return; }
   const okc=e.target.closest('[data-ok]');
   if(okc){ const r=results[+okc.dataset.ok], dp=okc.dataset.okdept, key=r.key;
     splitConfirm[key]=splitConfirm[key]||{alloc:{},ok:{}};
