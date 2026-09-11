@@ -277,6 +277,31 @@ main{max-width:1560px;}
 .ded3.show{display:flex}
 .ded3 input{width:130px;text-align:right;font:inherit;font-size:13.5px;font-weight:700;padding:7px 9px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums}
 .ded3 .mauto{font-size:10px;background:var(--grad-soft);color:var(--ac2);border-radius:99px;padding:2px 8px;font-weight:700}
+/* v0.6 まとめ払い 式ビュー */
+.eqwrap{max-width:600px}
+.eqcard{border:1px solid var(--ok);border-radius:12px;padding:13px 15px;background:var(--ok-bg)}
+.eqcard.bad{border-color:var(--warn-line);background:var(--warn-bg)}
+.eqhd{font-size:12px;color:var(--muted);font-weight:700;margin:0 0 9px}
+.eqhd b{color:var(--ink)}
+.eq .r,.eq .sum{display:grid;grid-template-columns:22px 128px 1fr;align-items:baseline;gap:9px;padding:3px 0}
+.eq .op{font-weight:800;color:var(--muted);text-align:center}
+.eq .v{text-align:right;font-weight:700;font-size:14.5px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.eq .lb{color:var(--muted);font-size:12.5px}
+.eq .lb .mauto{font-size:10px;background:var(--grad-soft);color:var(--ac2);border-radius:99px;padding:2px 7px;font-weight:700;margin-left:6px}
+.eq hr{border:none;border-top:1px solid var(--line);margin:7px 0}
+.eq .sum .v{font-size:16.5px;font-weight:800}
+.eq .sum .lb{font-weight:800;color:var(--ok)}
+.eq .sum.bad .lb{color:var(--warn)}
+.eqacts{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.adj3{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.adj3 .note{margin:0 0 4px}
+/* 改善①：要確認セルの予想＋誘導 */
+.predA{margin-bottom:8px;font-size:13px}
+.predA .who2{color:var(--ok);font-weight:800}
+.predA .mut{color:var(--muted);font-size:12px}
+.acts{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.acts .selp{max-width:220px}
+.single{margin-top:9px;border-top:1px dashed var(--line);padding-top:9px}
 
 /* ===== v0.4 引き算：取込ストリップ／アクションバー／引き出し ===== */
 .istrip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;background:var(--panel,#fff);border:1px solid var(--line);border-radius:12px;}
@@ -556,6 +581,8 @@ let resTab='review';  // 既定＝未処理（確定したものは自動で消�
 let deptTab='all';   // v0.2 部門タブ（all/土木/営業/環境/share）
 let splitConfirm={}; // v0.2 一本振込の内訳＋両部署確認：key -> {alloc:{dept:額}, resid:額, ok:{dept:bool}}
 let multiConfirm={}; // v0.3 複数工事への充当：depKey -> {combo:[eid...], ded:{eid:控除額}, done:bool}
+let adjMode=new Set();    // v0.6 まとめ払い：式ビューで「工事を直す」を開いている行（r.key）
+let singleMode=new Set(); // v0.6 要確認：「1工事として選ぶ」を開いている行（r.key）
 const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan', MMULTI='nyukin_multi';
 let allowPersist=true;  // 銀行・予定表の取込をこのPCに保存（サンプル表示中はfalse）。順不同・別日でも残す
 // マスタ保存GAS：URLをここに固定（大石さんは触らなくても最初から共有される）
@@ -943,19 +970,37 @@ function multiPanelHtml(r,di){
   const gap=sum-deposit;                     // 控除が要る額
   const ded=gap>0?mc.ded:0;
   const jitsu=sum-ded, diff=deposit-jitsu;   // diff=0 で成立
-  let h='<div class="bd"><h4>この入金 '+yen(deposit)+' を下の工事へ充当（チェックで調整）</h4>';
-  h+='<div class="mworks">';
-  pool.forEach(e=>{ const eid=_eid(e), on=onSet.has(eid);
-    h+='<div class="mw'+(on?' on':'')+'" data-mw="'+di+'|'+esc(eid)+'"><span class="mck">'+(on?'✓':'')+'</span>'
-      +'<span class="mnm">'+esc(fmtEntry(e))+'</span><span class="mam">'+yen(planAmt(e))+'</span></div>';
-  });
-  h+='</div>';
-  h+='<div class="ded3'+(gap>0?' show':'')+'"><label>控除（手数料・安全協力費など）</label>'
-    +'<input type="text" inputmode="numeric" data-mded="'+di+'" value="'+yen(ded)+'"><span class="mauto">自動</span></div>';
-  h+='<div class="mbal"><span>工事の合計 <b>'+yen(sum)+'</b></span>'
-    +'<span class="mdiff'+(diff===0?'':' warn')+'" data-mdiff>'+(diff===0?'＝ 入金 ✓':(gap<0?'工事が足りません '+yen(-gap):'差 '+yen(Math.abs(diff))))+'</span>'
-    +'<span style="flex:1"></span><button class="btn primary" data-mgo="'+di+'"'+(diff!==0?' disabled':'')+'>この工事を消込</button></div>';
-  h+='<div class="note">チェックした工事に充当します。控除がある時だけ差額が自動で入ります（違う時だけ直す）。各工事は予定額どおり回収済みに。</div></div>';
+  const works=pool.filter(e=>onSet.has(_eid(e)));   // 選択中の工事＝式に出す
+  const payee=(works[0]&&works[0].請求先)||r.d.name;
+  const adj=adjMode.has(r.key);
+  const lbTxt = d => (d===0?'✅ 入金とピッタリ（残0）':(d>0?'差 '+yen(d)+'（工事が足りません）':'差 '+yen(-d)+'（多すぎます）'));
+  let h='<div class="bd eqwrap">';
+  // ── 式ビュー：入金 ＝ 工事＋工事 − 控除 ──
+  h+='<div class="eqcard'+(diff===0?'':' bad')+'">';
+  h+='<p class="eqhd"><b>'+esc(payee)+'</b> からの入金 <b>'+yen(deposit)+'</b> を、下の工事へまとめて充当</p>';
+  h+='<div class="eq">';
+  if(!works.length){ h+='<div class="r"><span class="op"></span><span class="v">¥0</span><span class="lb">工事が未選択（「工事を直す」で選んでください）</span></div>'; }
+  works.forEach((e,i)=>{ h+='<div class="r"><span class="op">'+(i===0?'':'＋')+'</span><span class="v">'+yen(planAmt(e))+'</span><span class="lb">'+esc(fmtEntry(e))+'</span></div>'; });
+  if(ded>0||gap>0){ h+='<div class="r"><span class="op">−</span><span class="v" data-eqded>'+yen(ded)+'</span><span class="lb">控除（手数料・安全協力費など）<span class="mauto">自動</span></span></div>'; }
+  h+='<hr><div class="sum'+(diff===0?'':' bad')+'" data-eqsumrow><span class="op">＝</span><span class="v" data-eqsum>'+yen(jitsu)+'</span><span class="lb" data-eqlb>'+lbTxt(diff)+'</span></div>';
+  h+='</div>';   // .eq
+  h+='<div class="eqacts"><button class="btn primary" data-mgo="'+di+'"'+(diff!==0?' disabled':'')+'>この内容で消込</button>'
+    +'<button class="btn sub mini" data-adj="'+di+'">'+(adj?'調整を閉じる ▾':'工事を直す ▸')+'</button></div>';
+  // ── 調整（隠し：直したい人だけ）＝従来のチェック表＋控除 ──
+  if(adj){
+    h+='<div class="adj3"><div class="note">チェックした工事に充当します。控除がある時だけ差額が自動で入ります（違う時だけ直す）。各工事は予定額どおり回収済みに。</div>';
+    h+='<div class="mworks">';
+    pool.forEach(e=>{ const eid=_eid(e), on=onSet.has(eid);
+      h+='<div class="mw'+(on?' on':'')+'" data-mw="'+di+'|'+esc(eid)+'"><span class="mck">'+(on?'✓':'')+'</span>'
+        +'<span class="mnm">'+esc(fmtEntry(e))+'</span><span class="mam">'+yen(planAmt(e))+'</span></div>';
+    });
+    h+='</div>';
+    h+='<div class="ded3 show"><label>控除（手数料・安全協力費など）</label>'
+      +'<input type="text" inputmode="numeric" data-mded="'+di+'" value="'+yen(ded)+'"><span class="mauto">自動</span></div>';
+    h+='<div class="mbal"><span>工事の合計 <b>'+yen(sum)+'</b></span></div>';
+    h+='</div>';
+  }
+  h+='</div></div>';   // .eqcard .bd
   return h;
 }
 /* v0.3 シンプル一覧：状態セル・入金(誰から)セル */
@@ -1035,11 +1080,28 @@ function render(){
     } else if(r.status==='review'){
       const b=bestCand(r); let diffHtml='';
       let cell='';
-      if(b){ const e=b.e,plan=planAmt(e),diff=plan-r.d.amount;
-        if(b.near) diffHtml='<span class="diff"><span class="diffS">予定'+yen(plan)+'／差'+yen(diff)+'</span></span>';
-        cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
-      cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
-      cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（一本振込／まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 まとめ払い（工事を合算）</button></div>';
+      if(b && b.near){ const plan=planAmt(b.e),diff=plan-r.d.amount; diffHtml='<span class="diff"><span class="diffS">予定'+yen(plan)+'／差'+yen(diff)+'</span></span>'; }
+      const guess = b ? b.e.請求先 : '';
+      const sOpen = singleMode.has(r.key);
+      if(guess){
+        // 改善①：単一工事推しをやめ、相手名で見せて「まとめ払い」へ誘導
+        cell+='<div class="predA">→ <span class="who2">'+esc(guess)+'</span> の入金かも <span class="mut">（まとめ払い？）</span></div>';
+        cell+='<div class="acts"><button class="btn mini" data-msetp="'+esc(guess)+'" data-mpi="'+di+'" title="この相手の複数工事を合算して充当します">🧩 まとめて充当</button>'
+          +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1工事として選ぶ')+'</button></div>';
+      } else {
+        // 候補が出せない（予定に無い等）：相手を選んでまとめ払い／検索
+        cell+='<div class="acts"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select>'
+          +'<button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 まとめ払い（相手を選ぶ）</button>'
+          +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1工事として選ぶ')+'</button></div>';
+      }
+      if(sOpen){
+        // 「1工事として選ぶ」＝従来の候補確定＋検索（直したい人だけ）
+        cell+='<div class="single">';
+        if(b){ const e=b.e,diff=planAmt(e)-r.d.amount; cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
+        cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
+        if(guess){ cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="別の相手でまとめ払いにする">🧩 まとめ払い（別の相手で）</button></div>'; }
+        cell+='</div>';
+      }
       h+='<tr class="'+rowCls+'">'
         + stateTd('need', r.reason||'要確認')
         + whoTd(r)
@@ -1081,6 +1143,12 @@ $('resBody').addEventListener('input',e=>{
     const gap=sum-r.d.amount, ded=gap>0?mc.ded:0, diff=r.d.amount-(sum-ded);
     const dd=detail.querySelector('[data-mdiff]'); if(dd){ dd.textContent=(diff===0?'＝ 入金 ✓':(gap<0?'工事が足りません '+yen(-gap):'差 '+yen(Math.abs(diff)))); dd.className='mdiff'+(diff===0?'':' warn'); }
     const go=detail.querySelector('[data-mgo]'); if(go)go.disabled=(diff!==0);
+    // 式ビューも即更新
+    const ed=detail.querySelector('[data-eqded]'); if(ed) ed.textContent=yen(ded);
+    const es=detail.querySelector('[data-eqsum]'); if(es) es.textContent=yen(sum-ded);
+    const el=detail.querySelector('[data-eqlb]'); if(el) el.textContent=(diff===0?'✅ 入金とピッタリ（残0）':(diff>0?'差 '+yen(diff)+'（工事が足りません）':'差 '+yen(-diff)+'（多すぎます）'));
+    const sr=detail.querySelector('[data-eqsumrow]'); if(sr) sr.classList.toggle('bad', diff!==0);
+    const card=detail.querySelector('.eqcard'); if(card) card.classList.toggle('bad', diff!==0);
     saveMulti(); scheduleSync(); return;
   }
   const inp=e.target.closest('input[data-alloc]'); if(!inp)return;
@@ -1099,6 +1167,22 @@ $('resBody').addEventListener('input',e=>{
   const bal=detail.querySelector('[data-bal]'); if(bal)bal.textContent='合計 '+yen(sub+resid)+' ＝ 入金額 残0 ✓';
   splitConfirm[key].resid=resid; saveSplit(); scheduleSync();
 });
+function startMatome(r, P){   // 名義で特定できた相手だけ合算＝安全（金額だけの自動合算はしない）
+  P=(P||'').trim();
+  if(!r) return;
+  if(!P){ alert('まとめ払いにする請求先を選んでください。'); return; }
+  const pool=allEntries().filter(x=>normPayee(x.請求先)===normPayee(P));
+  if(!pool.length){ alert('「'+P+'」の工事が予定表に見つかりません。'); return; }
+  if(new Set(pool.map(deptOf)).size>1){ alert('「'+P+'」は複数部門にまたがるため、上の「一本の振込」タブで内訳を確認してください。'); return; }
+  let combos=subsetCombos(pool,r.d.amount,{exact:true}).slice(0,6).map(x=>x.items);   // まず合計＝入金（残0）
+  let kind='exact';
+  if(!combos.length){ const dm=subsetCombos(pool,r.d.amount,{exact:false}); if(dm.length){ combos=[dm[0].items]; kind='deduct'; } }   // 次に合計>入金（控除）
+  if(!combos.length){ combos=[pool]; kind='deduct'; }   // 候補が出なくても全工事を初期選択にして手で調整
+  r.multi={kind:kind,combos:combos,poolEids:pool.map(_eid),manual:true};
+  delete multiConfirm[r.key];   // 新しい候補で作り直す
+  adjMode.delete(r.key); singleMode.delete(r.key);   // 式ビューを既定表示に
+  openDetails.add(r.key); render();
+}
 $('resBody').addEventListener('click',e=>{
   const tgl=e.target.closest('[data-tgl]');
   if(tgl){ const r=results[+tgl.dataset.tgl]; if(openDetails.has(r.key))openDetails.delete(r.key); else openDetails.add(r.key); render(); return; }
@@ -1118,19 +1202,13 @@ $('resBody').addEventListener('click',e=>{
   if(mundo){ const r=results[+mundo.dataset.mundo]; if(multiConfirm[r.key]){ multiConfirm[r.key].done=false; openDetails.add(r.key); saveMulti(); scheduleSync(); render(); } return; }
   // 🅒 まとめ払い：請求先を選んで、その工事を合算充当（名義が未登録でも、人が特定した相手だけ合算＝安全）
   const mset=e.target.closest('[data-mset]');
-  if(mset){ const di=+mset.dataset.mset; const r=results[di];
-    const sel=document.querySelector('[data-mp="'+di+'"]'); const P=sel?sel.value.trim():'';
-    if(!P){ alert('まとめ払いにする請求先を選んでください。'); return; }
-    const pool=allEntries().filter(x=>normPayee(x.請求先)===normPayee(P));
-    if(!pool.length){ alert('「'+P+'」の工事が予定表に見つかりません。'); return; }
-    if(new Set(pool.map(deptOf)).size>1){ alert('「'+P+'」は複数部門にまたがるため、上の「一本の振込」タブで内訳を確認してください。'); return; }
-    let combos=subsetCombos(pool,r.d.amount,{exact:true}).slice(0,6).map(x=>x.items);   // まず合計＝入金（残0）
-    let kind='exact';
-    if(!combos.length){ const dm=subsetCombos(pool,r.d.amount,{exact:false}); if(dm.length){ combos=[dm[0].items]; kind='deduct'; } }   // 次に合計>入金（控除）
-    if(!combos.length){ combos=[pool]; kind='deduct'; }   // 候補が出なくても全工事を初期選択にして手で調整
-    r.multi={kind:kind,combos:combos,poolEids:pool.map(_eid),manual:true};
-    delete multiConfirm[r.key];   // 新しい候補で作り直す
-    openDetails.add(r.key); render(); return; }
+  if(mset){ const di=+mset.dataset.mset; const sel=document.querySelector('[data-mp="'+di+'"]'); startMatome(results[di], sel?sel.value:''); return; }
+  const msetp=e.target.closest('[data-msetp]');   // 改善①：推測した相手名でそのまままとめ払い
+  if(msetp){ startMatome(results[+msetp.dataset.mpi], msetp.dataset.msetp); return; }
+  const madj=e.target.closest('[data-adj]');       // 式ビュー：「工事を直す」（調整の開閉）
+  if(madj){ const r=results[+madj.dataset.adj]; if(adjMode.has(r.key))adjMode.delete(r.key); else adjMode.add(r.key); openDetails.add(r.key); render(); return; }
+  const sgl=e.target.closest('[data-single]');      // 要確認：「1工事として選ぶ」（開閉）
+  if(sgl){ const r=results[+sgl.dataset.single]; if(singleMode.has(r.key))singleMode.delete(r.key); else singleMode.add(r.key); render(); return; }
   const mclr=e.target.closest('[data-mclr]');
   if(mclr){ const r=results[+mclr.dataset.mclr]; delete r.multi; delete multiConfirm[r.key]; openDetails.delete(r.key); render(); return; }
   const okc=e.target.closest('[data-ok]');
