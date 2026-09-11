@@ -181,9 +181,11 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .btn.sub:hover{transform:translateY(-2px);box-shadow:var(--shadow);background:var(--panel);}
 .btn.g{background:linear-gradient(135deg,#34d399,#10b981 60%,#059669);box-shadow:0 10px 26px -8px rgba(16,185,129,.5);}
 .btn.mini{box-shadow:none;} .btn.mini:hover{box-shadow:0 8px 18px -6px rgba(91,91,245,.45);}
-/* 操作列のボタンを見やすく（除外・内訳を見る） */
-td.act{white-space:nowrap;}
-td.act .btn{padding:8px 13px;font-size:12.5px;font-weight:800;margin:2px 0;}
+/* 操作列のボタンを見やすく＆見切れ防止（表を固定幅・中身は折り返し・ボタンは縦積み） */
+#stepMatch table{table-layout:fixed;width:100%;}
+#stepMatch td{word-break:break-word;overflow-wrap:anywhere;}
+td.act{white-space:normal;text-align:left;}
+td.act .btn{display:block;width:100%;padding:8px 6px;font-size:11.5px;font-weight:800;margin:0 0 5px 0;text-align:center;}
 td.act .btn.sub{background:var(--panel);color:var(--ink);border:1.5px solid var(--muted2,#a7afbc);}
 td.act .btn.sub:hover{background:var(--line2);border-color:var(--ac);}
 td.act .btn.primary{background:var(--ac);color:#fff;}
@@ -338,7 +340,7 @@ main{max-width:1560px;}
 
 .scrim{position:fixed;inset:0;background:rgba(20,22,35,.36);opacity:0;pointer-events:none;transition:.18s;z-index:60;}
 .scrim.open{opacity:1;pointer-events:auto;}
-.drawer{position:fixed;top:0;right:0;height:100%;width:min(680px,96vw);background:var(--panel,#fff);border-left:1px solid var(--line);box-shadow:-16px 0 44px rgba(20,22,35,.18);transform:translateX(102%);transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:70;display:flex;flex-direction:column;}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(1120px,97vw);background:var(--panel,#fff);border-left:1px solid var(--line);box-shadow:-16px 0 44px rgba(20,22,35,.18);transform:translateX(102%);transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:70;display:flex;flex-direction:column;}
 .drawer.open{transform:none;}
 .drawer .dhead{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);}
 .drawer .dhead h3{margin:0;font-size:16px;font-weight:800;}
@@ -1166,7 +1168,7 @@ function render(){
     else msg='該当なし（部門タブ／絞り込みを変えてください）';
     body.innerHTML='<div class="empty">'+msg+'</div>'; updateOutputs(); renderLink(); renderCollect(); return;
   }
-  let h='<div class="twrap"><table><thead><tr><th style="width:170px">状態</th><th>入金（誰から）</th><th class="num" style="width:150px">金額</th><th>充当先（どの工事）</th><th style="width:150px">操作</th></tr></thead><tbody>';
+  let h='<div class="twrap"><table><thead><tr><th style="width:140px">状態</th><th style="width:160px">入金（誰から）</th><th class="num" style="width:112px">金額</th><th>充当先（どの工事）</th><th style="width:140px">操作</th></tr></thead><tbody>';
   list.forEach(r=>{
     const di=results.indexOf(r);
     if(isShared(r)){
