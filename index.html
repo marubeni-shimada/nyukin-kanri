@@ -181,6 +181,12 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .btn.sub:hover{transform:translateY(-2px);box-shadow:var(--shadow);background:var(--panel);}
 .btn.g{background:linear-gradient(135deg,#34d399,#10b981 60%,#059669);box-shadow:0 10px 26px -8px rgba(16,185,129,.5);}
 .btn.mini{box-shadow:none;} .btn.mini:hover{box-shadow:0 8px 18px -6px rgba(91,91,245,.45);}
+/* 操作列のボタンを見やすく（除外・内訳を見る） */
+td.act{white-space:nowrap;}
+td.act .btn{padding:8px 13px;font-size:12.5px;font-weight:800;margin:2px 0;}
+td.act .btn.sub{background:var(--panel);color:var(--ink);border:1.5px solid var(--muted2,#a7afbc);}
+td.act .btn.sub:hover{background:var(--line2);border-color:var(--ac);}
+td.act .btn.primary{background:var(--ac);color:#fff;}
 .btn.plink{background:var(--panel);color:var(--ac2);box-shadow:none;}
 
 /* 上部タブ：アクティブに下線グラデ */
@@ -1160,7 +1166,7 @@ function render(){
     else msg='該当なし（部門タブ／絞り込みを変えてください）';
     body.innerHTML='<div class="empty">'+msg+'</div>'; updateOutputs(); renderLink(); renderCollect(); return;
   }
-  let h='<div class="twrap"><table><thead><tr><th style="width:170px">状態</th><th>入金（誰から）</th><th class="num" style="width:150px">金額</th><th>充当先（どの工事）</th><th style="width:120px"></th></tr></thead><tbody>';
+  let h='<div class="twrap"><table><thead><tr><th style="width:170px">状態</th><th>入金（誰から）</th><th class="num" style="width:150px">金額</th><th>充当先（どの工事）</th><th style="width:150px">操作</th></tr></thead><tbody>';
   list.forEach(r=>{
     const di=results.indexOf(r);
     if(isShared(r)){
@@ -1230,7 +1236,7 @@ function render(){
         + whoTd(r)
         + amtTd(r,diffHtml)
         + '<td>'+cell+'</td>'
-        + '<td class="act"><button class="btn sub mini" data-ign="'+di+'">除外</button></td></tr>';
+        + '<td class="act"><button class="btn sub mini" data-ign="'+di+'" title="この入金を消込対象外にします（後で戻せます）">✕ 除外</button></td></tr>';
     } else {
       h+='<tr class="'+rowCls+'">'
         + stateTd('ign','')
@@ -1612,7 +1618,7 @@ function proposalsFor(amtsSet){
 }
 function renderLink(){
   const host=$('linkBody'); if(!host) return;
-  const dl=$('payeeList'); if(dl) dl.innerHTML=uniquePayees().map(p=>'<option value="'+esc(p)+'">').join('');
+  const dl=$('payeeList'); if(dl){ const all=[...new Set(uniquePayees().concat(tokuiMaster.map(m=>m.kanji)))].sort(); dl.innerHTML=all.map(p=>'<option value="'+esc(p)+'">').join(''); }   // 検索候補＝予定表＋得意先マスタ（総合）
   if(!bankFiles.length || !(planDoboku||planYayoi.length)){ host.innerHTML='<div class="empty">銀行CSVと予定表を読み込むと、ここに名義一覧が出ます</div>'; $('bulkLink').disabled=true; $('linkInfo').textContent=''; return; }
   const onlyUn = $('onlyUnlinked') ? $('onlyUnlinked').checked : true;
   const names=uniqueBankNames();
