@@ -302,6 +302,15 @@ main{max-width:1560px;}
 .acts{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 .acts .selp{max-width:220px}
 .single{margin-top:9px;border-top:1px dashed var(--line);padding-top:9px}
+/* v0.6 まとめ払い 自動候補チップ */
+.cchips{display:flex;flex-direction:column;gap:4px;margin:2px 0 4px;max-width:560px}
+.cchip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ok);border-radius:9px;padding:6px 10px;margin:3px 6px 2px 0;background:color-mix(in srgb,var(--ok) 6%,transparent);cursor:pointer;font:inherit;color:var(--ink);text-align:left}
+.cchip:hover{background:color-mix(in srgb,var(--ok) 13%,transparent)}
+.cchip.warn{border-color:var(--warn-line);background:var(--warn-bg)}
+.cchip .r0{font-size:10.5px;font-weight:800;color:var(--ok);white-space:nowrap}
+.cchip.warn .r0{color:var(--warn)}
+.cchip .brk{font-size:12px;color:var(--ink2)}
+.warnline{font-size:12px;color:var(--warn);font-weight:800;margin:2px 0 4px}
 
 /* ===== v0.4 引き算：取込ストリップ／アクションバー／引き出し ===== */
 .istrip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;background:var(--panel,#fff);border:1px solid var(--line);border-radius:12px;}
@@ -891,6 +900,36 @@ function subsetCombos(pool,target,opt){   // 予定額の部分集合（size>=2�
   return out;
 }
 function entriesByEids(eids){ if(!eids||!eids.length) return []; const s=new Set(eids); return allEntries().filter(e=>s.has(_eid(e))); }
+let _mcandCache=null, _payeeIdx=null;
+function _resetMcand(){ _mcandCache=null; _payeeIdx=null; }   // renderのたびにクリア
+function matomeCandidates(dep){   // 入金額を「複数工事の合算(残0)」or「合算−控除(手数料/協力費)」で説明できる請求先を提示
+  if(!dep||dep<=0) return [];
+  if(!_mcandCache) _mcandCache={};
+  if(_mcandCache[dep]) return _mcandCache[dep];
+  if(!_payeeIdx){ _payeeIdx={}; allEntries().forEach(e=>{ (_payeeIdx[e.請求先]=_payeeIdx[e.請求先]||[]).push(e); }); }
+  const res=[];
+  Object.keys(_payeeIdx).forEach(p=>{
+    const ents=_payeeIdx[p];
+    if(ents.length<2) return;                        // 単一工事はbestCandで既出
+    if(new Set(ents.map(deptOf)).size>1) return;     // 部門またぎは「一本の振込」タブで
+    const em=subsetCombos(ents,dep,{exact:true});
+    if(em.length){ const it=em[0].items; res.push({kind:'exact', payee:p, combo:it.map(_eid), sum:dep, ded:0, n:it.length}); return; }
+    const dm=subsetCombos(ents,dep,{exact:false});
+    if(dm.length){ const it=dm[0].items; const s=it.reduce((a,e)=>a+planAmt(e),0); res.push({kind:'deduct', payee:p, combo:it.map(_eid), sum:s, ded:s-dep, n:it.length}); }
+  });
+  res.sort((a,b)=> (a.kind==='exact'?0:1)-(b.kind==='exact'?0:1) || a.ded-b.ded || a.n-b.n);   // 残0優先→控除少→工事数少
+  _mcandCache[dep]=res; return res;
+}
+function candChipBtn(c,di){   // まとめ払い候補チップ（クリックでその相手のまとめ払い開始＝startMatome）
+  const brk=entriesByEids(c.combo).map(e=>trunc(e.工事名||e.請求先,10)).join('＋');
+  const tail=(c.kind==='exact')?('＝'+yen(c.sum)):('＝'+yen(c.sum)+' −控除'+yen(c.ded));
+  return '<button class="cchip'+(c.kind==='exact'?'':' warn')+'" data-msetp="'+esc(c.payee)+'" data-mpi="'+di+'" title="この相手の工事を合算して充当します">'
+    +'<span class="r0">'+(c.kind==='exact'?'残0':'控除')+'</span><span class="brk"><b>'+esc(c.payee)+'</b>：'+esc(brk)+' '+tail+'</span>🧩</button>';
+}
+function singleChipBtn(c,di){   // 単一工事候補チップ（クリックで1工事として確定＝data-best）
+  return '<button class="cchip" data-best="1" data-di="'+di+'" title="1工事として確定">'
+    +'<span class="r0">'+(c.near?'手数料差':'残0')+'</span><span class="brk"><b>'+esc(c.payee)+'</b>：'+esc(trunc(c.e.工事名||'',12))+'（1工事）</span></button>';
+}
 function isMulti(r){ return r.status==='review' && !!r.multi; }
 function multiOk(r){ const mc=multiConfirm[r.key]; return !!(mc&&mc.done); }
 function multiSumPlan(combo){ return entriesByEids(combo).reduce((a,e)=>a+planAmt(e),0); }
@@ -1024,6 +1063,7 @@ function multiRowHtml(r,di){
   return h;
 }
 function render(){
+  _resetMcand();   // まとめ払い候補キャッシュを最新の予定で作り直す
   const _rb=$('resBody'); const _twOld=_rb?_rb.querySelector('.twrap'):null; const _scTop=_twOld?_twOld.scrollTop:0; const _winY=window.scrollY;   // 内訳の開閉等で画面が飛ばないようスクロール保持
   const scoped=results.filter(inDept);   // 選択中の部門タブに絞って数える
   const done=scoped.filter(isDone);
@@ -1081,25 +1121,38 @@ function render(){
       const b=bestCand(r); let diffHtml='';
       let cell='';
       if(b && b.near){ const plan=planAmt(b.e),diff=plan-r.d.amount; diffHtml='<span class="diff"><span class="diffS">予定'+yen(plan)+'／差'+yen(diff)+'</span></span>'; }
-      const guess = b ? b.e.請求先 : '';
       const sOpen = singleMode.has(r.key);
-      if(guess){
-        // 改善①：単一工事推しをやめ、相手名で見せて「まとめ払い」へ誘導
-        cell+='<div class="predA">→ <span class="who2">'+esc(guess)+'</span> の入金かも <span class="mut">（まとめ払い？）</span></div>';
-        cell+='<div class="acts"><button class="btn mini" data-msetp="'+esc(guess)+'" data-mpi="'+di+'" title="この相手の複数工事を合算して充当します">🧩 まとめて充当</button>'
-          +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1工事として選ぶ')+'</button></div>';
-      } else {
-        // 候補が出せない（予定に無い等）：相手を選んでまとめ払い／検索
+      // 候補を集約：単一工事(bestCand)＋まとめ払い(合算/合算−控除)を自動提示
+      const chips=[];
+      if(b) chips.push({kind:'single', payee:b.e.請求先, e:b.e, near:b.near});
+      matomeCandidates(r.d.amount).slice(0,4).forEach(m=>chips.push(m));
+      if(chips.length===0){
+        // 候補ゼロ：従来どおり手で選ぶ／検索
         cell+='<div class="acts"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select>'
           +'<button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 まとめ払い（相手を選ぶ）</button>'
           +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1工事として選ぶ')+'</button></div>';
+      } else if(chips.length===1){
+        const c=chips[0];
+        if(c.kind==='single'){
+          cell+='<div class="predA">→ <span class="who2">'+esc(c.payee)+'</span> の入金かも <span class="mut">（まとめ払い？）</span></div>';
+          cell+='<div class="acts"><button class="btn mini" data-msetp="'+esc(c.payee)+'" data-mpi="'+di+'" title="この相手の複数工事を合算して充当します">🧩 まとめて充当</button>'
+            +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1工事として選ぶ')+'</button></div>';
+        } else {
+          cell+='<div class="predA">→ <span class="who2">'+esc(c.payee)+'</span> のまとめ払いかも</div>';
+          cell+='<div class="acts">'+candChipBtn(c,di)+'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'手で選ぶ')+'</button></div>';
+        }
+      } else {
+        // 候補が複数：金額だけの偶然一致があるので勝手に確定せず選ばせる
+        cell+='<div class="warnline">⚠️ 候補が'+chips.length+'件あります。相手を選んでください</div><div class="cchips">';
+        chips.forEach(c=>{ cell+=(c.kind==='single')?singleChipBtn(c,di):candChipBtn(c,di); });
+        cell+='</div><div class="acts" style="margin-top:2px"><button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'手で選ぶ／検索')+'</button></div>';
       }
       if(sOpen){
-        // 「1工事として選ぶ」＝従来の候補確定＋検索（直したい人だけ）
+        // 「1工事として選ぶ／手で選ぶ」＝従来の候補確定＋検索＋別相手まとめ払い（直したい人だけ）
         cell+='<div class="single">';
         if(b){ const e=b.e,diff=planAmt(e)-r.d.amount; cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
         cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
-        if(guess){ cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="別の相手でまとめ払いにする">🧩 まとめ払い（別の相手で）</button></div>'; }
+        cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="相手を選んでまとめ払いにする">🧩 まとめ払い（相手を選ぶ）</button></div>';
         cell+='</div>';
       }
       h+='<tr class="'+rowCls+'">'
