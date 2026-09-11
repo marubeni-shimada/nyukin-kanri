@@ -854,7 +854,8 @@ function runMatch(){
     const exact = pool.filter(e=>amtMatch(e,d.amount));   // マスタ有り＆金額ピタリ＝残高0＝自動
     if(payeeList.length && exact.length===1){ results.push({d,key,status:'matched',entry:exact[0],fee:0}); return; }
     // 🅐 名義未登録でも、金額で相手が一意に決まるなら自動採用＋名義を自動学習（初回から消込・以降はマスタが育つ）
-    if(!payeeList.length){
+    // ※得意先マスタで名前解決(byTokui)しても、名義マスタ自体は空なので🅐を回す（回さないと従来の自動が減る）
+    if(byTokui || !payeeList.length){
       const exAll = entries.filter(e=>amtMatch(e,d.amount));               // 金額ピタリの予定（全部門）
       if(exAll.length===1){                                                // ＝相手は一意（安全）
         const e0=exAll[0];
@@ -890,9 +891,20 @@ function runMatch(){
       else if(!(nearCands&&nearCands.length)){ const dm=subsetCombos(pool,d.amount,{exact:false}); if(dm.length){ multi={kind:'deduct', combos:[dm[0].items], poolEids:pool.map(_eid)}; } }
     }
     if(multi) reason='複数工事に充当'+(multi.kind==='deduct'?'（控除あり）':(multi.combos.length>1?'（候補'+multi.combos.length+'通り）':'（候補確定）'));
+    // ② 自動確定（リスク許容）：名前が特定できた相手で、まとめ払いの組合せが一つに決まるなら自動で消込（誤りは「戻す」で取消せる）
+    if(multi && !multiConfirm[key]){
+      const poolPayees=new Set(pool.map(e=>normPayee(e.請求先)));
+      const decisive=(multi.kind==='exact' && multi.combos.length===1) || multi.kind==='deduct';   // 残0が一意 or 控除が一つに決まる
+      if(poolPayees.size===1 && decisive){
+        const comboEids=(multi.combos[0]||[]).map(_eid);
+        const ded=Math.max(0, multiSumPlan(comboEids)-d.amount);
+        multiConfirm[key]={combo:comboEids, ded:ded, done:true, auto:true};
+        autoLearned=true;
+      }
+    }
     results.push({d,key,status:'review',payeeList,reason,exactCands,nearCands,multi});
   }));
-  if(autoLearned){ try{ saveConfirmed(); renderMaster(); }catch(e){} }   // 🅐 自動採用分を保存＋名義マスタ表示を更新
+  if(autoLearned){ try{ saveConfirmed(); saveMulti(); renderMaster(); }catch(e){} }   // 🅐/② 自動採用分（単一・まとめ払い）を保存＋名義マスタ表示を更新
   render();
 }
 
@@ -1115,7 +1127,7 @@ function multiRowHtml(r,di){
     + stateTd(done?'ok':'need', done?'':(r.reason||'複数工事に充当'))
     + whoTd(r)
     + amtTd(r,'')
-    + '<td><span class="lk multi">🧩 複数工事</span> '+esc(works.map(e=>trunc(e.工事名||e.請求先,10)).join('＋')||r.d.name)+'</td>'
+    + '<td><span class="lk multi">🧩 複数工事</span> '+esc(works.map(e=>trunc(e.工事名||e.請求先,10)).join('＋')||r.d.name)+(done&&mc&&mc.auto?' <span class="tag auto" title="名前が特定できた相手のまとめ払いを自動で消込しました。内訳は「内訳を見る」で確認、違えば「戻す」で取消せます">自動</span>':'')+'</td>'
     + '<td class="act">'+(done?'<button class="btn sub mini" data-mundo="'+di+'">戻す</button>':('<button class="btn primary mini" data-tgl="'+di+'">'+(open?'閉じる':'内訳を見る')+'</button>'+(r.multi&&r.multi.manual?' <button class="btn sub mini" data-mclr="'+di+'" title="まとめ払いをやめて請求先を選び直す">選び直す</button>':'')))+'</td></tr>';
   h+='<tr class="detail" data-detail="'+di+'" style="display:'+(open?'':'none')+'"><td colspan="5">'+multiPanelHtml(r,di)+'</td></tr>';
   return h;
@@ -1607,7 +1619,8 @@ function renderLink(){
   const keys=Object.keys(names).sort((a,b)=>names[b].count-names[a].count);
   _linkRows=[]; let linked=0, proposable=0;
   keys.forEach(nk=>{ const it=names[nk]; const cur=(master[nk]||[]).slice();
-    const props=proposalsFor(it.amts).filter(p=>!cur.some(c=>normPayee(c)===normPayee(p.payee)));
+    let props=proposalsFor(it.amts).filter(p=>!cur.some(c=>normPayee(c)===normPayee(p.payee)));
+    resolveByTokui(it.name).forEach(py=>{ if(!cur.some(c=>normPayee(c)===normPayee(py)) && !props.some(pp=>normPayee(pp.payee)===normPayee(py))) props.push({payee:py, plan:0, near:false, tokui:true}); });   // 得意先マスタ由来の提案（金額で出なくても、フリガナで特定した相手を提案）
     if(cur.length)linked++; if(!cur.length&&props.length)proposable++;
     _linkRows.push({nk,name:it.name,amts:[...it.amts].sort((a,b)=>b-a),count:it.count,cur,props}); });
   const view=_linkRows.map((r,i)=>({r,i})).filter(x=>onlyUn? x.r.cur.length===0 : true);
@@ -1621,7 +1634,7 @@ function renderLink(){
       let c=''; r.cur.forEach((p,ci)=>c+='<span class="fchip">'+esc(p)+' <span class="x" data-uli="'+i+'" data-uci="'+ci+'">×</span></span> ');
       if(!r.cur.length) c='<span class="tag d">未紐づけ</span>';
       h+='<td>'+c+'</td>';
-      let p=''; r.props.slice(0,4).forEach((pp,pi)=>p+='<button class="'+(pp.near?'btn sub mini':'btn mini plink')+'" data-li="'+i+'" data-pi="'+pi+'" style="margin:0 5px 4px 0">＋ '+esc(pp.payee)+'（¥'+yen(pp.plan)+(pp.near?'/手数料差':'')+'）</button>');
+      let p=''; r.props.slice(0,4).forEach((pp,pi)=>p+='<button class="'+(pp.tokui?'btn mini plink':(pp.near?'btn sub mini':'btn mini plink'))+'" data-li="'+i+'" data-pi="'+pi+'" style="margin:0 5px 4px 0" title="'+(pp.tokui?'得意先マスタ（フリガナ）で特定した相手':'金額から提案')+'">＋ '+esc(pp.payee)+(pp.tokui?'（得意先マスタ）':'（¥'+yen(pp.plan)+(pp.near?'/手数料差':'')+'）')+'</button>');
       if(!r.props.length) p+='<span class="muted" style="font-size:11px">提案なし　</span>';
       p+='<span style="display:inline-flex;gap:4px"><input class="selp" list="payeeList" data-add="'+i+'" placeholder="請求先を検索" style="min-width:150px"><button class="btn mini" data-addi="'+i+'">追加</button></span>';
       h+='<td>'+p+'</td></tr>';
