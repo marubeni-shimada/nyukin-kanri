@@ -1012,7 +1012,12 @@ function candChip(di,ci,e,near,dep){
 function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+trunc(e.工事名||'',18)+' ¥'+yen(planAmt(e)); }
 function bestCand(r){ if(r.exactCands&&r.exactCands.length) return {e:r.exactCands[0],near:false}; if(r.nearCands&&r.nearCands.length) return {e:r.nearCands[0],near:true}; return null; }
 /* 予定にどこにも当たらない入金＝「予定表にない」（候補も無く・名前で相手も特定できない）＝無関係の可能性 */
-function isOrphan(r){ if(!r||r.status!=='review') return false; if(bestCand(r)) return false; try{ const cs=matomeCandidates(r.d.amount); if(cs.some(c=>_resolvesTo(r.d.name,c.payee))) return false; }catch(e){} return true; }
+function isOrphan(r){ if(!r||r.status!=='review') return false; if(bestCand(r)) return false;
+  if(r.exactCands && r.exactCands.length) return false;   // 金額がどれかの予定と一致＝予定表にある（要確認）
+  try{ const ips=inPlanSet(); if(r.payeeList && r.payeeList.some(p=>ips.has(normPayee(p)))) return false; }catch(e){}   // 名義が予定表の請求先に結びつく＝予定表にある（金額違いでも要確認）
+  try{ const cs=matomeCandidates(r.d.amount); if(cs.some(c=>_resolvesTo(r.d.name,c.payee))) return false; }catch(e){}
+  return true;
+}
 /* ===== v0.2 部門・一本振込 ヘルパー ===== */
 let openDetails=new Set();        // 内訳を開いている入金（r.keyで保持）
 function saveSplit(){ try{ localStorage.setItem(MSPLIT,JSON.stringify(splitConfirm)); }catch(e){} }
