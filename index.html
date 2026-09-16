@@ -564,6 +564,9 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .rc .pill.share{background:linear-gradient(90deg,#eef2ff,#faf0ff);color:#6d28d9;border:1px solid #d9d0ff}
   #tabCollect .rc tr.g-share td.plan{box-shadow:inset 4px 0 0 #7c3aed;background:color-mix(in srgb,#7c3aed 5%,#fff)}
   #tabCollect .rc .sharehint{font-size:10.5px;color:#6d28d9;font-weight:700;margin-top:4px;line-height:1.4}
+  #tabCollect .rc .undohint{margin-top:4px}
+  #tabCollect .rc .lk-undo{border:1px solid var(--line,#e7e9ee);background:#fff;color:#6b7280;border-radius:7px;padding:3px 8px;font-size:10.5px;font-weight:700;cursor:pointer}
+  #tabCollect .rc .lk-undo:hover{border-color:#c02626;color:#c02626;background:#fdecee}
   #tabCollect .rc .pill.need{background:#fdf3e2;color:#a8600a;border:1px solid #f0dcb8}
   #tabCollect .rc button.pill.goreview{font:inherit;line-height:1.2;cursor:pointer;transition:filter .12s,transform .12s}
   #tabCollect .rc button.pill.goreview:hover{filter:brightness(.97);transform:translateY(-1px)}
@@ -1529,7 +1532,7 @@ function reconGroups(){
     const cands=matomeCandidates(r.d.amount);
     for(const c of cands){ if(_resolvesTo(r.d.name,c.payee)){ c.combo.forEach(id=>{ if(!reviewByEid[id]) reviewByEid[id]={ri:ri,amt:r.d.amount,who:r.d.name,matome:true,payee:c.payee}; }); break; } }
   } });
-  (results||[]).forEach(r=>{
+  (results||[]).forEach((r,ri)=>{
     let plans=null;
     if(r.status==='matched' && r.entry){ plans=[r.entry]; }
     else if(isMulti(r)&&multiOk(r)){ plans=entriesByEids(multiConfirm[r.key].combo); }
@@ -1539,7 +1542,7 @@ function reconGroups(){
       let st;
       if(plans.length>1) st='multi';
       else { const zan=planTot-(paid[_eid(plans[0])]||0); st = zan>0?'part':(dep>planTot?'over':(dep<planTot?'fee':'ok')); }  // dep>planTot＝過入金（予定0円で入金あり等）を一致にしない
-      groups.push({kind:'settled', dept:deptOf(plans[0]), plans, inp:{who:r.d.name,date:r.d.date,amt:dep,bank:r.d.bank,dkind:r.d.kind}, st, planTot, paidTot, zan:planTot-paidTot});
+      groups.push({kind:'settled', ri:ri, dept:deptOf(plans[0]), plans, inp:{who:r.d.name,date:r.d.date,amt:dep,bank:r.d.bank,dkind:r.d.kind}, st, planTot, paidTot, zan:planTot-paidTot});
       plans.forEach(e=>covered[_eid(e)]=1);
     }
   });
@@ -1607,7 +1610,7 @@ function renderCollect(){
         let ctrHtml;
         if(g.sharePend){ ctrHtml='<button type="button" class="pill '+pillCls+' goshare" data-goshare="'+g.sharePend.ri+'" title="クリックで内訳へジャンプ">'+pillLab+'</button><div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。<u>クリックで内訳へ</u></div>'; }
         else if(g.needReview){ const nlab=g.needReview.matome?'🟡 まとめ入金かも':'🟡 入金あり・未確認'; ctrHtml='<button type="button" class="pill need goreview" data-goreview="'+g.needReview.ri+'" title="この入金の処理へ移動">'+nlab+'</button><div class="sharehint">'+esc(g.needReview.who)+' から入金。<u>→ ここで処理</u></div>'; }
-        else { ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'; }
+        else { ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'+(g.kind==='settled'&&g.ri!=null?'<div class="undohint"><button type="button" class="lk-undo" data-goundo="'+g.ri+'" title="この消込を取り消して要確認に戻す">↩ 取り消し</button></div>':''); }
         h+='<td class="ctr" rowspan="'+rows+'">'+ctrHtml+'</td>';
         if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
             +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
@@ -1642,6 +1645,20 @@ document.getElementById('collectBody').addEventListener('click',e=>{
     if(hit){ const tr=hit.closest('tr'); if(tr){ tr.scrollIntoView({behavior:'smooth',block:'center'}); tr.classList.add('flash'); setTimeout(()=>{ tr.classList.remove('flash'); },1500); } }
   }));
 });
+/* ホームの突合一覧から、消込済みをその場で取り消して要確認へ戻す（単一/まとめ払い/一本振込すべて対応） */
+function undoFromCollect(ri){
+  const r=results[ri]; if(!r) return;
+  if(!confirm('この消込を取り消して「要確認」に戻します。よろしいですか？')) return;
+  if(r.status==='matched' && confirmed[r.key]){
+    delete confirmed[r.key];
+    const nk=normName(r.d.name); if(master[nk]&&r.entry){ master[nk]=master[nk].filter(p=>normPayee(p)!==normPayee(r.entry.請求先)); if(!master[nk].length)delete master[nk]; }
+    saveMasterLocal(); saveConfirmed(); renderMaster(); pushMaster();
+  } else if(multiConfirm[r.key]){ multiConfirm[r.key].done=false; saveMulti(); scheduleSync(); }
+  else if(splitConfirm[r.key]){ splitConfirm[r.key].ok={}; saveSplit(); scheduleSync(); }
+  else if(confirmed[r.key]){ delete confirmed[r.key]; saveConfirmed(); }
+  runMatch(); toast('消込を取り消しました（要確認に戻しました）');
+}
+document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.target.closest('[data-goundo]'); if(b){ undoFromCollect(+b.dataset.goundo); } });
 /* 予定表一覧の「🟡 入金あり・未確認 → ここで処理」→ 要確認ドロワーの該当入金へジャンプ＆ハイライト */
 document.getElementById('collectBody').addEventListener('click',e=>{
   const b=e.target.closest('[data-goreview]'); if(!b)return;
