@@ -286,7 +286,14 @@ main{max-width:1560px;}
 .ded3 input{width:130px;text-align:right;font:inherit;font-size:13.5px;font-weight:700;padding:7px 9px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums}
 .ded3 .mauto{font-size:10px;background:var(--grad-soft);color:var(--ac2);border-radius:99px;padding:2px 8px;font-weight:700}
 /* v0.6 まとめ払い 工事ごと控除テーブル */
-.mtbl{width:100%;border-collapse:collapse;margin:10px 0 4px;font-size:12.5px}
+.mtbl{width:100%;table-layout:fixed;border-collapse:collapse;margin:10px 0 4px;font-size:12.5px}
+.bd .mtbl{min-width:0}
+.mtbl col.cnum{width:118px}
+.mtbl col.cded{width:330px}
+.mtbl col.cdept{width:64px}
+.mtbl col.cok{width:112px}
+.mtbl td,.mtbl th{overflow:hidden}
+.mtbl td.mwk,.mtbl td.lblcell{white-space:normal;word-break:break-word}
 .mtbl th{background:#f6f7f9;color:#6b7280;font-size:10px;font-weight:800;text-align:left;padding:6px 8px;border-bottom:1px solid #e6e8ec}
 .mtbl th.num,.mtbl td.num{text-align:right}
 .mtbl td{padding:6px 8px;border-bottom:1px solid #eef0f2;vertical-align:middle}
@@ -295,16 +302,22 @@ main{max-width:1560px;}
 .mtbl .mnone{color:#9aa2b1;text-align:center;padding:12px}
 .mtbl tfoot td{font-weight:800;border-top:2px solid #e6e8ec}
 select.mkind{border:1px solid #d3d9e2;border-radius:7px;padding:5px 6px;font:inherit;font-size:11.5px;background:#fff}
-input.mdedin{width:110px;text-align:right;font:inherit;font-size:12.5px;font-weight:700;padding:6px 8px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums}
+input.mdedin{width:110px;text-align:right;font:inherit;font-size:12.5px;font-weight:700;padding:6px 8px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums;background:#fff;color:inherit;cursor:text;-moz-appearance:textfield}
 input.mdedin:focus{outline:none;border-color:#4f46e5}
-.dedlines{display:flex;flex-direction:column;gap:6px;min-width:250px}
-.dedline{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap}
-.dedline select.mkind{flex:0 0 auto}
-.dedline input.mdedin{flex:0 0 auto;width:100px}
-.dedx{flex:0 0 auto;border:1px solid #e3b7b1;background:#fff;color:#c02626;border-radius:6px;width:24px;height:28px;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0}
+input.mdedin::-webkit-outer-spin-button,input.mdedin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.mtblwrap{overflow-x:auto;max-width:100%}
+.mtbl th.num,.mtbl td.num{min-width:92px;white-space:nowrap}
+.mtbl td.dedtd{min-width:260px;white-space:nowrap;padding-right:20px}
+.dedlines{display:flex;flex-direction:column;gap:6px;width:max-content}
+.dedline{display:grid;grid-template-columns:120px 96px 28px;gap:8px;align-items:center}
+.dedline select.mkind{width:100%;max-width:none}
+.dedline input.mdedin{width:100%}
+.dedx{width:100%;border:1px solid #e3b7b1;background:#fff;color:#c02626;border-radius:6px;height:30px;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0}
 .dedx:hover{background:#fdecee}
 .dedadd{align-self:flex-start;border:1px dashed #c9cfdb;background:#fff;color:#4f46e5;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit}
 .dedadd:hover{background:#f2f4ff;border-color:#4f46e5}
+.dedsub{font-size:11px;color:#6b7280;margin-top:2px}
+.dedsub b{color:#1f2937;font-variant-numeric:tabular-nums}
 .meqsum{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;margin:6px 0 2px;padding:9px 12px;background:#f6f7f9;border-radius:9px;font-size:12.5px}
 .meqsum b{font-variant-numeric:tabular-nums;font-size:14px}
 .meqsum .mdifflb{margin-left:auto;font-weight:800;color:#0f9d6b}
@@ -659,6 +672,7 @@ let ignoreSet=new Set(); // depositのkey(対象外)
 let noAutoSet=new Set(); // depositのkey：手動で取り消した入金＝自動消込(🅐/②)を再適用せず要確認に留める
 let denbaiSet=new Set(); // 突合ビュー：残が大きい一部入金を「電債で確認済＝消込済み」にした印（denbaiKey）
 let whyStore=[];     // 突合ビュー：未入金/一部の「なぜ？」理由（renderCollectごとに再生成）
+let _ndSeq=0;        // 控除入力欄のname一意化（ブラウザ入力履歴サジェストを抑止）
 let results=[];      // 照合結果
 let resTab='review';  // 既定＝未処理（確定したものは自動で消込済みへ移る）
 let deptTab='all';   // v0.2 部門タブ（all/土木/営業/環境/share）
@@ -1177,24 +1191,23 @@ function breakdownHtml(r,di){
     const lines=sc.sded[x.dept]||[]; const dsub=showDed?_linesSum(lines):0, asg=x.plan-dsub, on=(sc.ok&&sc.ok[x.dept])?' on':'';
     sumPlan+=x.plan; sumDed+=dsub; sumAssign+=asg;
     rows+='<tr data-srow="'+esc(x.dept)+'"><td><span class="dept '+deptCls(x.dept)+'">'+esc(x.dept)+'</span></td>'
-      +'<td>'+esc(x.label)+'</td>'
+      +'<td class="lblcell">'+esc(x.label)+'</td>'
       +'<td class="num">'+yen(x.plan)+'</td>';
     if(showDed){ let cell='<div class="dedlines">';
       (lines.length?lines:[{kind:'手数料',amt:0}]).forEach((l,li)=>{
         cell+='<div class="dedline"><select class="mkind" data-skind="'+di+'|'+esc(x.dept)+'|'+li+'">'+DED_KINDS.map(k=>'<option'+(k===l.kind?' selected':'')+'>'+k+'</option>').join('')+'</select>'
-          +'<input type="text" inputmode="numeric" autocomplete="off" class="mdedin" data-sded="'+di+'|'+esc(x.dept)+'|'+li+'" value="'+yen(l.amt||0)+'">'
+          +'<input type="number" min="0" step="1" inputmode="numeric" autocomplete="off" class="mdedin" data-sded="'+di+'|'+esc(x.dept)+'|'+li+'" value="'+(l.amt||0)+'">'
           +(lines.length>1?'<button type="button" class="dedx" data-sdeddel="'+di+'|'+esc(x.dept)+'|'+li+'" title="この控除を削除">×</button>':'')+'</div>';
       });
-      cell+='<button type="button" class="dedadd" data-sdedadd="'+di+'|'+esc(x.dept)+'">＋ 控除を追加</button></div>';
-      rows+='<td>'+cell+'</td><td class="num" data-dsub>'+yen(dsub)+'</td>';
+      cell+='<button type="button" class="dedadd" data-sdedadd="'+di+'|'+esc(x.dept)+'">＋ 控除を追加</button><span class="dedsub">控除計 <b data-dsub>'+yen(dsub)+'</b> → 充当 <b data-dasg>'+yen(asg)+'</b></span></div>';
+      rows+='<td class="dedtd">'+cell+'</td>';
     }
-    rows+='<td class="num massign">'+yen(asg)+'</td>'
-      +'<td><span class="chk'+on+'" data-ok="'+di+'" data-okdept="'+esc(x.dept)+'">'+(on?'✓ '+esc(x.dept)+' 確認済':esc(x.dept)+' 確認')+'</span></td></tr>';
+    rows+='<td><span class="chk'+on+'" data-ok="'+di+'" data-okdept="'+esc(x.dept)+'">'+(on?'✓ '+esc(x.dept)+' 確認済':esc(x.dept)+' 確認')+'</span></td></tr>';
   });
   const diff=deposit-sumAssign;
   let h='<div class="bd"><h4>この入金 '+yen(deposit)+'（'+esc(r.d.name)+'・一本）の内訳 ── 予定額は各部署ファイル（土木＝どっと原価／営業＝弥生）から自動</h4>';
-  h+='<table class="mtbl"><thead><tr><th>部門</th><th>請求先／工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の内訳（種別・金額・＋で追加）</th><th class="num">控除計</th>':'')+'<th class="num">充当'+(showDed?'（予定−控除）':'')+'</th><th>確認</th></tr></thead><tbody data-sbody>'+rows+'</tbody>'
-    +'<tfoot><tr><td colspan="2">合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td></td><td class="num" data-msd>'+yen(sumDed)+'</td>':'')+'<td class="num" data-msa>'+yen(sumAssign)+'</td><td></td></tr></tfoot></table>';
+  h+='<div class="mtblwrap"><table class="mtbl"><colgroup><col class="cdept"><col><col class="cnum">'+(showDed?'<col class="cded">':'')+'<col class="cok"></colgroup><thead><tr><th>部門</th><th>請求先／工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の内訳（種別・金額・＋で追加）</th>':'')+'<th>確認</th></tr></thead><tbody data-sbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="2">合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td class="num">控除計 <b data-msd>'+yen(sumDed)+'</b></td>':'')+'<td></td></tr></tfoot></table></div>';
   if(showDed){ const sysDed=Math.max(0, sumPlan-deposit);
     h+='<div class="mdedchk'+(sumDed===sysDed?'':' bad')+'"><span>控除の想定合計 <b data-sysded>'+yen(sysDed)+'</b>（予定−入金）</span><span>入力の控除計 <b data-inpded>'+yen(sumDed)+'</b></span><span class="mdcklb" data-dedlb>'+(sumDed===sysDed?'一致 ✓':'差 '+yen(Math.abs(sumDed-sysDed)))+'</span></div>'; }
   h+='<div class="meqsum'+(diff===0?'':' bad')+'"><span>実入金 <b>'+yen(deposit)+'</b></span><span>充当合計 <b data-eqsum>'+yen(sumAssign)+'</b></span><span class="mdifflb" data-eqlb>'+(diff===0?'✅ 残0':(diff>0?'不足 '+yen(diff):'超過 '+yen(-diff)))+'</span></div>';
@@ -1216,23 +1229,23 @@ function multiPanelHtml(r,di){
   let h='<div class="bd eqwrap"><div class="eqcard" data-mcard>';
   h+='<p class="eqhd"><b>'+esc(payee)+'</b> からの入金 <b>'+yen(deposit)+'</b> を、工事ごとに充当'+(showDed?'（差額の控除は支払通知書を見て入力）':'')+'</p>';
   // ── 工事ごとの充当テーブル（控除欄は差額があるときだけ） ──
-  h+='<table class="mtbl"><thead><tr><th>工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の内訳（種別・金額・＋で追加）</th><th class="num">控除計</th>':'')+'<th class="num">充当'+(showDed?'（予定−控除）':'')+'</th></tr></thead><tbody>';
-  if(!works.length){ h+='<tr><td colspan="'+(showDed?5:3)+'" class="mnone">工事が未選択（「工事を直す」で選んでください）</td></tr>'; }
+  h+='<div class="mtblwrap"><table class="mtbl"><colgroup><col><col class="cnum">'+(showDed?'<col class="cded">':'')+'</colgroup><thead><tr><th>工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の内訳（種別・金額・＋で追加）</th>':'')+'</tr></thead><tbody>';
+  if(!works.length){ h+='<tr><td colspan="'+(showDed?3:2)+'" class="mnone">工事が未選択（「工事を直す」で選んでください）</td></tr>'; }
   works.forEach(e=>{ const eid=_eid(e), plan=planAmt(e); const lines=mc.dedBy[eid]||[]; const dsub=showDed?_linesSum(lines):0, asg=plan-dsub;
     sumPlan+=plan; sumDed+=dsub; sumAssign+=asg;
     h+='<tr data-mrow="'+esc(eid)+'"><td class="mwk">'+esc(fmtEntry(e))+'</td><td class="num">'+yen(plan)+'</td>';
     if(showDed){ let cell='<div class="dedlines">';
       (lines.length?lines:[{kind:'手数料',amt:0}]).forEach((l,li)=>{
         cell+='<div class="dedline"><select class="mkind" data-mkind="'+di+'|'+esc(eid)+'|'+li+'">'+DED_KINDS.map(k=>'<option'+(k===l.kind?' selected':'')+'>'+k+'</option>').join('')+'</select>'
-          +'<input type="text" inputmode="numeric" autocomplete="off" class="mdedin" data-mded="'+di+'|'+esc(eid)+'|'+li+'" value="'+yen(l.amt||0)+'">'
+          +'<input type="number" min="0" step="1" inputmode="numeric" autocomplete="off" class="mdedin" data-mded="'+di+'|'+esc(eid)+'|'+li+'" value="'+(l.amt||0)+'">'
           +(lines.length>1?'<button type="button" class="dedx" data-mdeddel="'+di+'|'+esc(eid)+'|'+li+'" title="この控除を削除">×</button>':'')+'</div>';
       });
-      cell+='<button type="button" class="dedadd" data-mdedadd="'+di+'|'+esc(eid)+'">＋ 控除を追加</button></div>';
-      h+='<td>'+cell+'</td><td class="num" data-dsub>'+yen(dsub)+'</td>';
+      cell+='<button type="button" class="dedadd" data-mdedadd="'+di+'|'+esc(eid)+'">＋ 控除を追加</button><span class="dedsub">控除計 <b data-dsub>'+yen(dsub)+'</b> → 充当 <b data-dasg>'+yen(asg)+'</b></span></div>';
+      h+='<td class="dedtd">'+cell+'</td>';
     }
-    h+='<td class="num massign">'+yen(asg)+'</td></tr>';
+    h+='</tr>';
   });
-  h+='</tbody><tfoot><tr><td>合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td></td><td class="num" data-msd>'+yen(sumDed)+'</td>':'')+'<td class="num" data-msa>'+yen(sumAssign)+'</td></tr></tfoot></table>';
+  h+='</tbody><tfoot><tr><td>合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td class="num">控除計 <b data-msd>'+yen(sumDed)+'</b></td>':'')+'</tr></tfoot></table></div>';
   const diff=deposit-sumAssign;   // diff=0 で成立
   if(showDed){ const sysDed=Math.max(0, sumPlan-deposit);   // システムが出す控除額＝予定合計−入金（本来あるべき控除の合計）
     h+='<div class="mdedchk'+(sumDed===sysDed?'':' bad')+'"><span>控除の想定合計 <b data-sysded>'+yen(sysDed)+'</b>（予定−入金）</span><span>入力の控除計 <b data-inpded>'+yen(sumDed)+'</b></span><span class="mdcklb" data-dedlb>'+(sumDed===sysDed?'一致 ✓':'差 '+yen(Math.abs(sumDed-sysDed)))+'</span></div>'; }
@@ -1415,6 +1428,7 @@ function recalcMultiPanel(detail,r){   // 工事ごと控除（複数種別）�
     const eid=tr.dataset.mrow; const e=entriesByEids([eid])[0]; const plan=e?planAmt(e):0;
     const dsub=_linesSum(mc.dedBy[eid]||[]), asg=plan-dsub;
     const dc=tr.querySelector('[data-dsub]'); if(dc)dc.textContent=yen(dsub);
+    const ag=tr.querySelector('[data-dasg]'); if(ag)ag.textContent=yen(asg);
     const ac=tr.querySelector('.massign'); if(ac)ac.textContent=yen(asg);
     sp+=plan; sd+=dsub; sa+=asg;
   });
@@ -1470,6 +1484,7 @@ function recalcSharedPanel(detail,r){   // 一本振込：控除（複数種別�
     const dp=tr.dataset.srow; const plan=planOf[dp]||0;
     const dsub=_linesSum((sc.sded&&sc.sded[dp])||[]), asg=plan-dsub;
     const dc=tr.querySelector('[data-dsub]'); if(dc)dc.textContent=yen(dsub);
+    const ag=tr.querySelector('[data-dasg]'); if(ag)ag.textContent=yen(asg);
     const ac=tr.querySelector('.massign'); if(ac)ac.textContent=yen(asg);
     sp+=plan; sd+=dsub; sa+=asg;
   });
