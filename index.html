@@ -297,6 +297,12 @@ main{max-width:1560px;}
 select.mkind{border:1px solid #d3d9e2;border-radius:7px;padding:5px 6px;font:inherit;font-size:11.5px;background:#fff}
 input.mdedin{width:110px;text-align:right;font:inherit;font-size:12.5px;font-weight:700;padding:6px 8px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums}
 input.mdedin:focus{outline:none;border-color:#4f46e5}
+.dedlines{display:flex;flex-direction:column;gap:6px}
+.dedline{display:flex;align-items:center;gap:6px}
+.dedx{border:1px solid #e3b7b1;background:#fff;color:#c02626;border-radius:6px;width:24px;height:28px;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0}
+.dedx:hover{background:#fdecee}
+.dedadd{align-self:flex-start;border:1px dashed #c9cfdb;background:#fff;color:#4f46e5;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit}
+.dedadd:hover{background:#f2f4ff;border-color:#4f46e5}
 .meqsum{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;margin:6px 0 2px;padding:9px 12px;background:#f6f7f9;border-radius:9px;font-size:12.5px}
 .meqsum b{font-variant-numeric:tabular-nums;font-size:14px}
 .meqsum .mdifflb{margin-left:auto;font-weight:800;color:#0f9d6b}
@@ -1026,12 +1032,13 @@ function ensureSded(r){
   splitConfirm[key]=splitConfirm[key]||{alloc:{},ok:{}};
   const sc=splitConfirm[key]; sc.sded=sc.sded||{}; sc.alloc=sc.alloc||{};
   Object.keys(sc.sded).forEach(d=>{ if(!bd.some(x=>x.dept===d)) delete sc.sded[d]; });   // 対象外の部門を掃除
+  bd.forEach(x=>{ const norm=_dedToLines(sc.sded[x.dept]); if(norm) sc.sded[x.dept]=norm; });   // 既存を配列に正規化
   const totalPlan=bd.reduce((a,x)=>a+x.plan,0), need=Math.max(0, totalPlan-dep);   // 本来の控除合計＝予定−入金
   const allMissing=bd.length && bd.every(x=>!sc.sded[x.dept]);
   if(allMissing && need>0){   // 初期値＝控除を部門へ予定額按分（種別＝手数料。人が直す）
-    let acc=0; bd.forEach((x,i)=>{ const share=(i===bd.length-1)?(need-acc):Math.round(need*x.plan/(totalPlan||1)); acc+=share; sc.sded[x.dept]={amt:Math.max(0,share),kind:'手数料'}; });
-  } else { bd.forEach(x=>{ if(!sc.sded[x.dept]) sc.sded[x.dept]={amt:0,kind:'手数料'}; }); }
-  bd.forEach(x=>{ sc.alloc[x.dept]=x.plan-((sc.sded[x.dept]&&sc.sded[x.dept].amt)||0); });   // 充当を同期
+    let acc=0; bd.forEach((x,i)=>{ const share=(i===bd.length-1)?(need-acc):Math.round(need*x.plan/(totalPlan||1)); acc+=share; sc.sded[x.dept]=[{kind:'手数料',amt:Math.max(0,share)}]; });
+  } else { bd.forEach(x=>{ if(!sc.sded[x.dept]) sc.sded[x.dept]=[{kind:'手数料',amt:0}]; }); }
+  bd.forEach(x=>{ sc.alloc[x.dept]=x.plan-_linesSum(sc.sded[x.dept]); });   // 充当を同期
   sc.resid=dep-bd.reduce((a,x)=>a+(sc.alloc[x.dept]||0),0);
   return sc;
 }
@@ -1087,23 +1094,31 @@ function isMulti(r){ return r.status==='review' && !!r.multi; }
 function multiOk(r){ const mc=multiConfirm[r.key]; return !!(mc&&mc.done); }
 function multiSumPlan(combo){ return entriesByEids(combo).reduce((a,e)=>a+planAmt(e),0); }
 const DED_KINDS=['手数料','相殺','安全協力費'];   // どっと原価 仕訳コード：手数料3521／相殺3561／安全協力費3541
-/* 控除を「工事ごと（額＋種別）」で保持。dedByが正・mc.dedは合計として同期。旧・一括dedは工事へ按分して移行 */
+function _dedToLines(v){   // 控除の値を「[{kind,amt},...]」配列に正規化（旧: 数値／{amt,kind}／未設定 も許容）
+  if(Array.isArray(v)) return v.map(l=>({kind:l.kind||'手数料',amt:Math.max(0,l.amt||0)}));
+  if(v&&typeof v==='object') return [{kind:v.kind||'手数料',amt:Math.max(0,v.amt||0)}];
+  if(typeof v==='number') return [{kind:'手数料',amt:Math.max(0,v)}];
+  return null;
+}
+function _linesSum(ls){ return (ls||[]).reduce((a,l)=>a+(l.amt||0),0); }
+/* 控除を「工事ごと（複数種別＝配列）」で保持。dedBy[eid]=[{kind,amt},...]。mc.dedは合計として同期。旧形式は移行 */
 function ensureDedBy(mc){
   mc.dedBy=mc.dedBy||{};
   const combo=mc.combo||[];
   Object.keys(mc.dedBy).forEach(id=>{ if(combo.indexOf(id)<0) delete mc.dedBy[id]; });   // comboから外れた工事は掃除
+  combo.forEach(id=>{ const norm=_dedToLines(mc.dedBy[id]); if(norm) mc.dedBy[id]=norm; });   // 既存を配列に正規化
   const allMissing = combo.length && combo.every(id=>!mc.dedBy[id]);
   if(allMissing && (mc.ded||0)>0){   // 旧・一括ded → 工事へ予定額按分して移行（種別は既定＝手数料）
     const totalPlan=multiSumPlan(combo)||1; const D=mc.ded||0; let acc=0;
-    combo.forEach((id,i)=>{ const e=entriesByEids([id])[0]; const share=(i===combo.length-1)?(D-acc):Math.round(D*(e?planAmt(e):0)/totalPlan); acc+=share; mc.dedBy[id]={amt:Math.max(0,share),kind:'手数料'}; });
+    combo.forEach((id,i)=>{ const e=entriesByEids([id])[0]; const share=(i===combo.length-1)?(D-acc):Math.round(D*(e?planAmt(e):0)/totalPlan); acc+=share; mc.dedBy[id]=[{kind:'手数料',amt:Math.max(0,share)}]; });
   } else {
-    combo.forEach(id=>{ if(!mc.dedBy[id]) mc.dedBy[id]={amt:0,kind:'手数料'}; });
+    combo.forEach(id=>{ if(!mc.dedBy[id]) mc.dedBy[id]=[{kind:'手数料',amt:0}]; });
   }
-  mc.ded=combo.reduce((a,id)=>a+((mc.dedBy[id]&&mc.dedBy[id].amt)||0),0);   // 合計を同期（他コード互換）
+  mc.ded=combo.reduce((a,id)=>a+_linesSum(mc.dedBy[id]),0);   // 合計を同期（他コード互換）
   return mc.dedBy;
 }
-function multiDistDed(mc){ ensureDedBy(mc); const out={}; (mc.combo||[]).forEach(id=>{ out[id]=(mc.dedBy[id]&&mc.dedBy[id].amt)||0; }); return out; }   // 工事→控除額（記入済み予定表・NEO用）
-function multiDedKind(mc){ ensureDedBy(mc); const out={}; (mc.combo||[]).forEach(id=>{ out[id]=(mc.dedBy[id]&&mc.dedBy[id].kind)||'手数料'; }); return out; }   // 工事→控除種別
+function multiDistDed(mc){ ensureDedBy(mc); const out={}; (mc.combo||[]).forEach(id=>{ out[id]=_linesSum(mc.dedBy[id]); }); return out; }   // 工事→控除額合計（記入済み予定表・NEO用）
+function multiDedKind(mc){ ensureDedBy(mc); const out={}; (mc.combo||[]).forEach(id=>{ const ls=(mc.dedBy[id]||[]).filter(l=>(l.amt||0)>0); out[id]= ls.length?ls.map(l=>l.kind).join('／'):'手数料'; }); return out; }   // 工事→控除種別（複数は／区切り）
 function multiSumAssign(mc){ const dist=multiDistDed(mc); return (mc.combo||[]).reduce((a,id)=>{ const e=entriesByEids([id])[0]; return a+((e?planAmt(e):0)-(dist[id]||0)); },0); }   // Σ充当（＝Σ(予定−控除)）
 function ensureMulti(r){ const k=r.key, dep=r.d.amount;
   if(!multiConfirm[k]){ const combo=(r.multi.combos[0]||[]).map(_eid); const ded=Math.max(0, multiSumPlan(combo)-dep); multiConfirm[k]={combo,ded,done:false}; }
@@ -1157,20 +1172,27 @@ function breakdownHtml(r,di){
   const showDed=(planSum0-deposit)>0;   // 差額（予定＞入金）があるときだけ控除欄を出す
   let sumPlan=0,sumDed=0,sumAssign=0, rows='';
   bd.forEach(x=>{
-    const ded=showDed?((sc.sded[x.dept]&&sc.sded[x.dept].amt)||0):0, kind=(sc.sded[x.dept]&&sc.sded[x.dept].kind)||'手数料', asg=x.plan-ded, on=(sc.ok&&sc.ok[x.dept])?' on':'';
-    sumPlan+=x.plan; sumDed+=ded; sumAssign+=asg;
-    rows+='<tr><td><span class="dept '+deptCls(x.dept)+'">'+esc(x.dept)+'</span></td>'
+    const lines=sc.sded[x.dept]||[]; const dsub=showDed?_linesSum(lines):0, asg=x.plan-dsub, on=(sc.ok&&sc.ok[x.dept])?' on':'';
+    sumPlan+=x.plan; sumDed+=dsub; sumAssign+=asg;
+    rows+='<tr data-srow="'+esc(x.dept)+'"><td><span class="dept '+deptCls(x.dept)+'">'+esc(x.dept)+'</span></td>'
       +'<td>'+esc(x.label)+'</td>'
-      +'<td class="num">'+yen(x.plan)+'</td>'
-      +(showDed?('<td><select class="mkind" data-skind="'+di+'|'+esc(x.dept)+'">'+DED_KINDS.map(k=>'<option'+(k===kind?' selected':'')+'>'+k+'</option>').join('')+'</select></td>'
-        +'<td class="num"><input type="text" inputmode="numeric" class="mdedin" data-sded="'+di+'|'+esc(x.dept)+'" value="'+yen(ded)+'"></td>'):'')
-      +'<td class="num massign">'+yen(asg)+'</td>'
+      +'<td class="num">'+yen(x.plan)+'</td>';
+    if(showDed){ let cell='<div class="dedlines">';
+      (lines.length?lines:[{kind:'手数料',amt:0}]).forEach((l,li)=>{
+        cell+='<div class="dedline"><select class="mkind" data-skind="'+di+'|'+esc(x.dept)+'|'+li+'">'+DED_KINDS.map(k=>'<option'+(k===l.kind?' selected':'')+'>'+k+'</option>').join('')+'</select>'
+          +'<input type="text" inputmode="numeric" class="mdedin" data-sded="'+di+'|'+esc(x.dept)+'|'+li+'" value="'+yen(l.amt||0)+'">'
+          +(lines.length>1?'<button type="button" class="dedx" data-sdeddel="'+di+'|'+esc(x.dept)+'|'+li+'" title="この控除を削除">×</button>':'')+'</div>';
+      });
+      cell+='<button type="button" class="dedadd" data-sdedadd="'+di+'|'+esc(x.dept)+'">＋ 控除を追加</button></div>';
+      rows+='<td>'+cell+'</td><td class="num" data-dsub>'+yen(dsub)+'</td>';
+    }
+    rows+='<td class="num massign">'+yen(asg)+'</td>'
       +'<td><span class="chk'+on+'" data-ok="'+di+'" data-okdept="'+esc(x.dept)+'">'+(on?'✓ '+esc(x.dept)+' 確認済':esc(x.dept)+' 確認')+'</span></td></tr>';
   });
   const diff=deposit-sumAssign;
   let h='<div class="bd"><h4>この入金 '+yen(deposit)+'（'+esc(r.d.name)+'・一本）の内訳 ── 予定額は各部署ファイル（土木＝どっと原価／営業＝弥生）から自動</h4>';
-  h+='<table class="mtbl"><thead><tr><th>部門</th><th>請求先／工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の種別</th><th class="num">控除額</th>':'')+'<th class="num">充当'+(showDed?'（予定−控除）':'')+'</th><th>確認</th></tr></thead><tbody data-sbody>'+rows+'</tbody>'
-    +'<tfoot><tr><td colspan="2">合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td>控除計</td><td class="num" data-msd>'+yen(sumDed)+'</td>':'')+'<td class="num" data-msa>'+yen(sumAssign)+'</td><td></td></tr></tfoot></table>';
+  h+='<table class="mtbl"><thead><tr><th>部門</th><th>請求先／工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の内訳（種別・金額・＋で追加）</th><th class="num">控除計</th>':'')+'<th class="num">充当'+(showDed?'（予定−控除）':'')+'</th><th>確認</th></tr></thead><tbody data-sbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="2">合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td></td><td class="num" data-msd>'+yen(sumDed)+'</td>':'')+'<td class="num" data-msa>'+yen(sumAssign)+'</td><td></td></tr></tfoot></table>';
   if(showDed){ const sysDed=Math.max(0, sumPlan-deposit);
     h+='<div class="mdedchk'+(sumDed===sysDed?'':' bad')+'"><span>控除の想定合計 <b data-sysded>'+yen(sysDed)+'</b>（予定−入金）</span><span>入力の控除計 <b data-inpded>'+yen(sumDed)+'</b></span><span class="mdcklb" data-dedlb>'+(sumDed===sysDed?'一致 ✓':'差 '+yen(Math.abs(sumDed-sysDed)))+'</span></div>'; }
   h+='<div class="meqsum'+(diff===0?'':' bad')+'"><span>実入金 <b>'+yen(deposit)+'</b></span><span>充当合計 <b data-eqsum>'+yen(sumAssign)+'</b></span><span class="mdifflb" data-eqlb>'+(diff===0?'✅ 残0':(diff>0?'不足 '+yen(diff):'超過 '+yen(-diff)))+'</span></div>';
@@ -1192,16 +1214,23 @@ function multiPanelHtml(r,di){
   let h='<div class="bd eqwrap"><div class="eqcard" data-mcard>';
   h+='<p class="eqhd"><b>'+esc(payee)+'</b> からの入金 <b>'+yen(deposit)+'</b> を、工事ごとに充当'+(showDed?'（差額の控除は支払通知書を見て入力）':'')+'</p>';
   // ── 工事ごとの充当テーブル（控除欄は差額があるときだけ） ──
-  h+='<table class="mtbl"><thead><tr><th>工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の種別</th><th class="num">控除額</th>':'')+'<th class="num">充当'+(showDed?'（予定−控除）':'')+'</th></tr></thead><tbody>';
+  h+='<table class="mtbl"><thead><tr><th>工事</th><th class="num">予定額</th>'+(showDed?'<th>控除の内訳（種別・金額・＋で追加）</th><th class="num">控除計</th>':'')+'<th class="num">充当'+(showDed?'（予定−控除）':'')+'</th></tr></thead><tbody>';
   if(!works.length){ h+='<tr><td colspan="'+(showDed?5:3)+'" class="mnone">工事が未選択（「工事を直す」で選んでください）</td></tr>'; }
-  works.forEach(e=>{ const eid=_eid(e), plan=planAmt(e), ded=showDed?(dist[eid]||0):0, kind=kinds[eid]||'手数料', asg=plan-ded;
-    sumPlan+=plan; sumDed+=ded; sumAssign+=asg;
-    h+='<tr><td class="mwk">'+esc(fmtEntry(e))+'</td><td class="num">'+yen(plan)+'</td>'
-      +(showDed?('<td><select class="mkind" data-mkind="'+di+'|'+esc(eid)+'">'+DED_KINDS.map(k=>'<option'+(k===kind?' selected':'')+'>'+k+'</option>').join('')+'</select></td>'
-        +'<td class="num"><input type="text" inputmode="numeric" class="mdedin" data-mded="'+di+'|'+esc(eid)+'" value="'+yen(ded)+'"></td>'):'')
-      +'<td class="num massign">'+yen(asg)+'</td></tr>';
+  works.forEach(e=>{ const eid=_eid(e), plan=planAmt(e); const lines=mc.dedBy[eid]||[]; const dsub=showDed?_linesSum(lines):0, asg=plan-dsub;
+    sumPlan+=plan; sumDed+=dsub; sumAssign+=asg;
+    h+='<tr data-mrow="'+esc(eid)+'"><td class="mwk">'+esc(fmtEntry(e))+'</td><td class="num">'+yen(plan)+'</td>';
+    if(showDed){ let cell='<div class="dedlines">';
+      (lines.length?lines:[{kind:'手数料',amt:0}]).forEach((l,li)=>{
+        cell+='<div class="dedline"><select class="mkind" data-mkind="'+di+'|'+esc(eid)+'|'+li+'">'+DED_KINDS.map(k=>'<option'+(k===l.kind?' selected':'')+'>'+k+'</option>').join('')+'</select>'
+          +'<input type="text" inputmode="numeric" class="mdedin" data-mded="'+di+'|'+esc(eid)+'|'+li+'" value="'+yen(l.amt||0)+'">'
+          +(lines.length>1?'<button type="button" class="dedx" data-mdeddel="'+di+'|'+esc(eid)+'|'+li+'" title="この控除を削除">×</button>':'')+'</div>';
+      });
+      cell+='<button type="button" class="dedadd" data-mdedadd="'+di+'|'+esc(eid)+'">＋ 控除を追加</button></div>';
+      h+='<td>'+cell+'</td><td class="num" data-dsub>'+yen(dsub)+'</td>';
+    }
+    h+='<td class="num massign">'+yen(asg)+'</td></tr>';
   });
-  h+='</tbody><tfoot><tr><td>合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td>控除計</td><td class="num" data-msd>'+yen(sumDed)+'</td>':'')+'<td class="num" data-msa>'+yen(sumAssign)+'</td></tr></tfoot></table>';
+  h+='</tbody><tfoot><tr><td>合計</td><td class="num" data-msp>'+yen(sumPlan)+'</td>'+(showDed?'<td></td><td class="num" data-msd>'+yen(sumDed)+'</td>':'')+'<td class="num" data-msa>'+yen(sumAssign)+'</td></tr></tfoot></table>';
   const diff=deposit-sumAssign;   // diff=0 で成立
   if(showDed){ const sysDed=Math.max(0, sumPlan-deposit);   // システムが出す控除額＝予定合計−入金（本来あるべき控除の合計）
     h+='<div class="mdedchk'+(sumDed===sysDed?'':' bad')+'"><span>控除の想定合計 <b data-sysded>'+yen(sysDed)+'</b>（予定−入金）</span><span>入力の控除計 <b data-inpded>'+yen(sumDed)+'</b></span><span class="mdcklb" data-dedlb>'+(sumDed===sysDed?'一致 ✓':'差 '+yen(Math.abs(sumDed-sysDed)))+'</span></div>'; }
@@ -1378,14 +1407,14 @@ function updateOutputs(){
 /* ===== 操作 ===== */
 $('resTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; resTab=b.dataset.t; document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
 $('deptTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; deptTab=b.dataset.dt; render(); });
-function recalcMultiPanel(detail,r){   // 工事ごと控除の入力に応じて 充当・合計・残・ボタンを即時更新
-  const deposit=r.d.amount; let sp=0,sd=0,sa=0;
-  detail.querySelectorAll('table.mtbl tbody tr').forEach(tr=>{
-    const inp=tr.querySelector('input[data-mded]'); if(!inp)return;
-    const plan=parseInt((tr.children[1].textContent||'').replace(/[^0-9\-]/g,''),10)||0;
-    const ded=toInt(inp.value)||0, asg=plan-ded;
+function recalcMultiPanel(detail,r){   // 工事ごと控除（複数種別）の入力に応じて 充当・合計・残・ボタンを即時更新（モデルから集計）
+  const mc=multiConfirm[r.key]; const deposit=r.d.amount; let sp=0,sd=0,sa=0;
+  detail.querySelectorAll('tr[data-mrow]').forEach(tr=>{
+    const eid=tr.dataset.mrow; const e=entriesByEids([eid])[0]; const plan=e?planAmt(e):0;
+    const dsub=_linesSum(mc.dedBy[eid]||[]), asg=plan-dsub;
+    const dc=tr.querySelector('[data-dsub]'); if(dc)dc.textContent=yen(dsub);
     const ac=tr.querySelector('.massign'); if(ac)ac.textContent=yen(asg);
-    sp+=plan; sd+=ded; sa+=asg;
+    sp+=plan; sd+=dsub; sa+=asg;
   });
   const set=(sel,v)=>{ const el=detail.querySelector(sel); if(el)el.textContent=yen(v); };
   set('[data-msp]',sp); set('[data-msd]',sd); set('[data-msa]',sa); set('[data-eqsum]',sa);
@@ -1402,44 +1431,45 @@ function recalcMultiPanel(detail,r){   // 工事ごと控除の入力に応じ�
 $('resBody').addEventListener('input',e=>{
   const mkind=e.target.closest('select[data-mkind]');
   if(mkind){ const detail=mkind.closest('tr.detail'); if(!detail)return; const r=results[+detail.dataset.detail]; if(!r||!isMulti(r))return;
-    const eid=mkind.dataset.mkind.split('|').slice(1).join('|'); const mc=ensureMulti(r);
-    mc.dedBy=mc.dedBy||{}; mc.dedBy[eid]=mc.dedBy[eid]||{amt:0,kind:'手数料'}; mc.dedBy[eid].kind=mkind.value;
+    const sp=mkind.dataset.mkind.split('|'); const li=+sp[sp.length-1]; const eid=sp.slice(1,-1).join('|'); const mc=ensureMulti(r);
+    mc.dedBy=mc.dedBy||{}; mc.dedBy[eid]=mc.dedBy[eid]||[{kind:'手数料',amt:0}]; if(!mc.dedBy[eid][li])mc.dedBy[eid][li]={kind:'手数料',amt:0}; mc.dedBy[eid][li].kind=mkind.value;
     saveMulti(); scheduleSync(); return;
   }
   const minp=e.target.closest('input[data-mded]');
   if(minp){ const detail=minp.closest('tr.detail'); if(!detail)return; const r=results[+detail.dataset.detail]; if(!r||!isMulti(r))return;
-    const eid=minp.dataset.mded.split('|').slice(1).join('|'); const mc=ensureMulti(r);
-    mc.dedBy=mc.dedBy||{}; mc.dedBy[eid]=mc.dedBy[eid]||{amt:0,kind:'手数料'}; mc.dedBy[eid].amt=Math.max(0, toInt(minp.value)||0);
-    mc.ded=(mc.combo||[]).reduce((a,id)=>a+((mc.dedBy[id]&&mc.dedBy[id].amt)||0),0);
+    const sp=minp.dataset.mded.split('|'); const li=+sp[sp.length-1]; const eid=sp.slice(1,-1).join('|'); const mc=ensureMulti(r);
+    mc.dedBy=mc.dedBy||{}; mc.dedBy[eid]=mc.dedBy[eid]||[{kind:'手数料',amt:0}]; if(!mc.dedBy[eid][li])mc.dedBy[eid][li]={kind:'手数料',amt:0}; mc.dedBy[eid][li].amt=Math.max(0, toInt(minp.value)||0);
+    mc.ded=(mc.combo||[]).reduce((a,id)=>a+_linesSum(mc.dedBy[id]),0);
     recalcMultiPanel(detail,r);
     saveMulti(); scheduleSync(); return;
   }
   // 一本振込：控除の種別を選ぶ
   const skind=e.target.closest('select[data-skind]');
   if(skind){ const detail=skind.closest('tr.detail'); if(!detail)return; const r=results[+detail.dataset.detail]; if(!r)return;
-    const dp=skind.dataset.skind.split('|').slice(1).join('|'); const sc=splitConfirm[r.key]=splitConfirm[r.key]||{alloc:{},ok:{}};
-    sc.sded=sc.sded||{}; sc.sded[dp]=sc.sded[dp]||{amt:0,kind:'手数料'}; sc.sded[dp].kind=skind.value;
+    const sp=skind.dataset.skind.split('|'); const li=+sp[sp.length-1]; const dp=sp.slice(1,-1).join('|'); const sc=splitConfirm[r.key]=splitConfirm[r.key]||{alloc:{},ok:{}};
+    sc.sded=sc.sded||{}; sc.sded[dp]=sc.sded[dp]||[{kind:'手数料',amt:0}]; if(!sc.sded[dp][li])sc.sded[dp][li]={kind:'手数料',amt:0}; sc.sded[dp][li].kind=skind.value;
     saveSplit(); scheduleSync(); return;
   }
   // 一本振込：控除額を入力（充当＝予定−控除を再計算）
   const sinp=e.target.closest('input[data-sded]');
   if(sinp){ const detail=sinp.closest('tr.detail'); if(!detail)return; const r=results[+detail.dataset.detail]; if(!r)return;
-    const dp=sinp.dataset.sded.split('|').slice(1).join('|'); const key=r.key; const sc=splitConfirm[key]=splitConfirm[key]||{alloc:{},ok:{}};
-    sc.sded=sc.sded||{}; sc.sded[dp]=sc.sded[dp]||{amt:0,kind:'手数料'}; sc.sded[dp].amt=Math.max(0, toInt(sinp.value)||0);
+    const sp=sinp.dataset.sded.split('|'); const li=+sp[sp.length-1]; const dp=sp.slice(1,-1).join('|'); const key=r.key; const sc=splitConfirm[key]=splitConfirm[key]||{alloc:{},ok:{}};
+    sc.sded=sc.sded||{}; sc.sded[dp]=sc.sded[dp]||[{kind:'手数料',amt:0}]; if(!sc.sded[dp][li])sc.sded[dp][li]={kind:'手数料',amt:0}; sc.sded[dp][li].amt=Math.max(0, toInt(sinp.value)||0);
     const planOf={}; sharedBreakdown(r).forEach(x=>planOf[x.dept]=x.plan); sc.alloc=sc.alloc||{};
-    Object.keys(sc.sded).forEach(d=>{ if(planOf[d]!=null) sc.alloc[d]=planOf[d]-((sc.sded[d]&&sc.sded[d].amt)||0); });
+    Object.keys(sc.sded).forEach(d=>{ if(planOf[d]!=null) sc.alloc[d]=planOf[d]-_linesSum(sc.sded[d]); });
     sc.resid=r.d.amount-Object.keys(sc.alloc).reduce((a,d)=>a+(sc.alloc[d]||0),0);
     recalcSharedPanel(detail,r); saveSplit(); scheduleSync(); return;
   }
 });
-function recalcSharedPanel(detail,r){   // 一本振込：控除入力に応じて 充当・合計・残・控除照合 を即時更新
-  const deposit=r.d.amount; let sp=0,sd=0,sa=0;
-  detail.querySelectorAll('tbody[data-sbody] tr').forEach(tr=>{
-    const inp=tr.querySelector('input[data-sded]'); if(!inp)return;
-    const plan=parseInt((tr.children[2].textContent||'').replace(/[^0-9\-]/g,''),10)||0;
-    const ded=toInt(inp.value)||0, asg=plan-ded;
+function recalcSharedPanel(detail,r){   // 一本振込：控除（複数種別）入力に応じて 充当・合計・残・控除照合 を即時更新（モデルから集計）
+  const sc=splitConfirm[r.key]||{sded:{}}; const deposit=r.d.amount; let sp=0,sd=0,sa=0;
+  const planOf={}; sharedBreakdown(r).forEach(x=>planOf[x.dept]=x.plan);
+  detail.querySelectorAll('tr[data-srow]').forEach(tr=>{
+    const dp=tr.dataset.srow; const plan=planOf[dp]||0;
+    const dsub=_linesSum((sc.sded&&sc.sded[dp])||[]), asg=plan-dsub;
+    const dc=tr.querySelector('[data-dsub]'); if(dc)dc.textContent=yen(dsub);
     const ac=tr.querySelector('.massign'); if(ac)ac.textContent=yen(asg);
-    sp+=plan; sd+=ded; sa+=asg;
+    sp+=plan; sd+=dsub; sa+=asg;
   });
   const set=(s,v)=>{ const el=detail.querySelector(s); if(el)el.textContent=yen(v); };
   set('[data-msp]',sp); set('[data-msd]',sd); set('[data-msa]',sa); set('[data-eqsum]',sa);
@@ -1469,6 +1499,24 @@ function startMatome(r, P){   // 名義で特定できた相手だけ合算＝�
 $('resBody').addEventListener('click',e=>{
   const tgl=e.target.closest('[data-tgl]');
   if(tgl){ const r=results[+tgl.dataset.tgl]; if(openDetails.has(r.key))openDetails.delete(r.key); else openDetails.add(r.key); render(); return; }
+  // まとめ払い：控除を1行追加／削除（1工事に手数料＋相殺＋安全協力費 など複数種別）
+  const mda=e.target.closest('[data-mdedadd]');
+  if(mda){ const sp=mda.dataset.mdedadd.split('|'); const r=results[+sp[0]]; const eid=sp.slice(1).join('|'); const mc=ensureMulti(r);
+    mc.dedBy=mc.dedBy||{}; mc.dedBy[eid]=mc.dedBy[eid]||[]; const used=mc.dedBy[eid].map(l=>l.kind); const nk=DED_KINDS.find(k=>used.indexOf(k)<0)||'手数料';
+    mc.dedBy[eid].push({kind:nk,amt:0}); openDetails.add(r.key); saveMulti(); scheduleSync(); render(); return; }
+  const mdd=e.target.closest('[data-mdeddel]');
+  if(mdd){ const sp=mdd.dataset.mdeddel.split('|'); const r=results[+sp[0]]; const li=+sp[sp.length-1]; const eid=sp.slice(1,-1).join('|'); const mc=ensureMulti(r);
+    if(mc.dedBy&&mc.dedBy[eid]){ mc.dedBy[eid].splice(li,1); if(!mc.dedBy[eid].length)mc.dedBy[eid]=[{kind:'手数料',amt:0}]; mc.ded=(mc.combo||[]).reduce((a,id)=>a+_linesSum(mc.dedBy[id]),0); }
+    openDetails.add(r.key); saveMulti(); scheduleSync(); render(); return; }
+  // 一本振込：控除を1行追加／削除（1部門に複数種別）
+  const sda=e.target.closest('[data-sdedadd]');
+  if(sda){ const sp=sda.dataset.sdedadd.split('|'); const r=results[+sp[0]]; const dp=sp.slice(1).join('|'); ensureSded(r); const sc=splitConfirm[r.key];
+    sc.sded[dp]=sc.sded[dp]||[]; const used=sc.sded[dp].map(l=>l.kind); const nk=DED_KINDS.find(k=>used.indexOf(k)<0)||'手数料';
+    sc.sded[dp].push({kind:nk,amt:0}); openDetails.add(r.key); saveSplit(); scheduleSync(); render(); return; }
+  const sdd=e.target.closest('[data-sdeddel]');
+  if(sdd){ const sp=sdd.dataset.sdeddel.split('|'); const r=results[+sp[0]]; const li=+sp[sp.length-1]; const dp=sp.slice(1,-1).join('|'); ensureSded(r); const sc=splitConfirm[r.key];
+    if(sc.sded&&sc.sded[dp]){ sc.sded[dp].splice(li,1); if(!sc.sded[dp].length)sc.sded[dp]=[{kind:'手数料',amt:0}]; const planOf={}; sharedBreakdown(r).forEach(x=>planOf[x.dept]=x.plan); Object.keys(sc.sded).forEach(d=>{ if(planOf[d]!=null) sc.alloc[d]=planOf[d]-_linesSum(sc.sded[d]); }); }
+    openDetails.add(r.key); saveSplit(); scheduleSync(); render(); return; }
   // v0.3 複数工事への充当
   const mw=e.target.closest('[data-mw]');
   if(mw){ const sp=mw.dataset.mw.split('|'); const r=results[+sp[0]]; const eid=sp.slice(1).join('|'); const mc=ensureMulti(r);
