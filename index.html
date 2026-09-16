@@ -562,6 +562,11 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .rc .pill.share{background:linear-gradient(90deg,#eef2ff,#faf0ff);color:#6d28d9;border:1px solid #d9d0ff}
   #tabCollect .rc tr.g-share td.plan{box-shadow:inset 4px 0 0 #7c3aed;background:color-mix(in srgb,#7c3aed 5%,#fff)}
   #tabCollect .rc .sharehint{font-size:10.5px;color:#6d28d9;font-weight:700;margin-top:4px;line-height:1.4}
+  #tabCollect .rc .pill.need{background:#fdf3e2;color:#a8600a;border:1px solid #f0dcb8}
+  #tabCollect .rc button.pill.goreview{font:inherit;line-height:1.2;cursor:pointer;transition:filter .12s,transform .12s}
+  #tabCollect .rc button.pill.goreview:hover{filter:brightness(.97);transform:translateY(-1px)}
+  #tabCollect .rc tr.g-need td.plan{box-shadow:inset 4px 0 0 #d99a2e;background:color-mix(in srgb,#d99a2e 6%,#fff)}
+  #tabCollect .rc tr.g-need .sharehint{color:#a8600a}
   </style>
   <div id="tabCollect">
   <div class="step">
@@ -1257,7 +1262,7 @@ function render(){
         +'<div class="stp"><span class="n">2</span><div><b>予定に無い入金</b>（税金・個人・相殺・手数料の戻り など）→ 右の<b>「✕ 除外」</b>で対象外に（後で戻せます）。</div></div>'
         +'<div class="stp"><span class="n">3</span><div>分かる相手なら<b>「ちがう・手で選ぶ」</b>を開き、検索欄に<b>会社名や金額</b>を入れて選べます（読み込んだ予定表から検索）。</div></div>'
         +'</div></details>';
-      h+='<tr class="'+rowCls+'">'
+      h+='<tr class="'+rowCls+'" id="rvrow'+di+'">'
         + stateTd('need', r.reason||'要確認')
         + whoTd(r)
         + amtTd(r,diffHtml)
@@ -1494,12 +1499,26 @@ function collectPaid(){
 }
 function _ckpi(l,v,sub,cls){ return '<div class="ckpi '+(cls||'')+'"><div class="l">'+l+'</div><div class="v">'+v+(sub?' <small>'+sub+'</small>':'')+'</div></div>'; }
 /* 突合グループ：1入金↔1〜複数予定（settled）／予定のみ（plan＝未入金・一部）／入金のみ（inp＝予定外・未処理） */
+function _resolvesTo(depName, payee){   // 振込名義が その請求先に「名前で」結びつくか（名義マスタ or 得意先マスタ）＝金額だけの誤誘導を防ぐ
+  const pl=master[normName(depName)]||[];
+  if(pl.some(x=>normPayee(x)===normPayee(payee))) return true;
+  try{ const bt=resolveByTokui(depName); if(bt&&bt.some(x=>normPayee(x)===normPayee(payee))) return true; }catch(e){}
+  return false;
+}
 function reconGroups(){
   const {paid,lastd}=collectPaid();
   const groups=[]; const covered={};
   // 未確定の一本振込（部門またぎ）の請求先→入金情報。予定表一覧に「一本振込あり」の注意を出すため
   const pendShare={};
   (results||[]).forEach((r,ri)=>{ if(r.status!=='ignored' && isShared(r) && !splitOkAll(r)){ payeesOf(r).forEach(p=>{ const k=normPayee(p); if(!pendShare[k]) pendShare[k]={amt:r.d.amount,who:r.d.name,date:r.d.date,depts:resultDepts(r),ri:ri,key:r.key}; }); } });
+  // 未確認の入金（要確認）が、どの予定に当たりそうか＝予定行に「入金あり・未確認→ここで処理」を出すため
+  const reviewByEid={};
+  (results||[]).forEach((r,ri)=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ const bc=bestCand(r); if(bc){ const id=_eid(bc.e); if(!reviewByEid[id]) reviewByEid[id]={ri:ri,amt:r.d.amount,who:r.d.name,near:bc.near}; } } });
+  // まとめ払い（複数工事）も一覧から飛べるように：名前で相手が一致する候補だけ、その工事群を予定行に紐づけ（金額だけの誤誘導はしない）
+  (results||[]).forEach((r,ri)=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){
+    const cands=matomeCandidates(r.d.amount);
+    for(const c of cands){ if(_resolvesTo(r.d.name,c.payee)){ c.combo.forEach(id=>{ if(!reviewByEid[id]) reviewByEid[id]={ri:ri,amt:r.d.amount,who:r.d.name,matome:true,payee:c.payee}; }); break; } }
+  } });
   (results||[]).forEach(r=>{
     let plans=null;
     if(r.status==='matched' && r.entry){ plans=[r.entry]; }
@@ -1514,7 +1533,7 @@ function reconGroups(){
       plans.forEach(e=>covered[_eid(e)]=1);
     }
   });
-  allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id]){ const pd=paid[id]||0, plan=planAmt(e); const sp=pendShare[normPayee(e.請求先)]||null; groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||'', sharePend:sp}); } });
+  allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id]){ const pd=paid[id]||0, plan=planAmt(e); const sp=pendShare[normPayee(e.請求先)]||null; const nr=sp?null:(reviewByEid[id]||null); groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||'', sharePend:sp, needReview:nr}); } });
   (results||[]).forEach(r=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ groups.push({kind:'inp', dept:'', plans:[], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'extra', planTot:0, paidTot:0, zan:0}); } });
   return {groups, paid, lastd};
 }
@@ -1529,7 +1548,7 @@ function renderCollect(){
   let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && inSel(g));   // 選んだ部門に関わる行だけ（一本振込は土木/営業 両方の画面に自分の分が出る）
   // KPI（選んだ部門の予定側で集計）
   const planTot=es.reduce((a,e)=>a+planAmt(e),0);
-  const noneN=groups.filter(g=>g.st==='none'&&!g.sharePend).length, partN=groups.filter(g=>g.st==='part'&&!g.sharePend).length;   // 一本振込ありは未入金に数えない（入金は来ている＝要確認側）
+  const noneN=groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview).length, partN=groups.filter(g=>g.st==='part'&&!g.sharePend&&!g.needReview).length;   // 一本振込あり・入金あり未確認は「未入金」に数えない（入金は来ている＝要確認側）
   const okN=groups.filter(g=>g.st==='ok'||g.st==='fee'||g.st==='multi'||g.st==='over').length;
   const zansum=groups.reduce((a,g)=>a+(g.zan>0?g.zan:0),0);
   const paidsum=Math.max(0, planTot-zansum);
@@ -1544,13 +1563,14 @@ function renderCollect(){
   if(collectDept!=='all') list=list.filter(g=>g.dept===collectDept);
   if(collectMonth!=='all') list=list.filter(g=> g.inp ? (ymOf(g.inp.date)===collectMonth) : (g.st==='none'||g.st==='part'));  // 入金月で絞る。未入金・一部（入金なし）は常に表示＝取りっぱぐれを見逃さない
   // 状態タブ：未入金／要確認（一部・過入金・予定外・一本振込あり）／一致・回収済（一致・手数料差・まとめ払い）
-  const csBucket=g=> g.sharePend ? 'check' : (g.st==='none' ? 'none' : (g.st==='part'||g.st==='over'||g.st==='extra') ? 'check' : 'ok');
+  const csBucket=g=> (g.sharePend||g.needReview) ? 'check' : (g.st==='none' ? 'none' : (g.st==='part'||g.st==='over'||g.st==='extra') ? 'check' : 'ok');
   const scnt={none:0,check:0,ok:0}; list.forEach(g=>scnt[csBucket(g)]++);
   const setcs=(id,n)=>{const el=$(id);if(el)el.textContent=n?('('+n+')'):'';};
   setcs('cs-all',list.length); setcs('cs-none',scnt.none); setcs('cs-check',scnt.check); setcs('cs-ok',scnt.ok);
   if(collectStatus!=='all') list=list.filter(g=>csBucket(g)===collectStatus);
   const ord={none:0,part:1,over:2,extra:3,fee:4,multi:5,ok:6};
-  list.sort((a,b)=>((b.sharePend?1:0)-(a.sharePend?1:0)) || (ord[a.st]-ord[b.st]) || (b.zan-a.zan));   // 一本振込ありを最上部へ
+  const _pri=g=>(g.sharePend?2:0)+(g.needReview?1:0);
+  list.sort((a,b)=>(_pri(b)-_pri(a)) || (ord[a.st]-ord[b.st]) || (b.zan-a.zan));   // 一本振込あり・入金あり未確認を最上部へ
   const LAB={ok:'✓ 一致',fee:'手数料差',part:'一部入金',none:'未入金',extra:'予定外',multi:'✓ 合算で一致',over:'過入金'};
   if(!list.length){ host.innerHTML='<div class="empty">該当なし（部門タブ／絞り込みを変えてください）</div>'; return; }
   let h='<div class="twrap"><table class="rc"><thead>'
@@ -1561,7 +1581,7 @@ function renderCollect(){
     const rows=Math.max(1, g.plans.length);
     for(let i=0;i<rows;i++){
       const e=g.plans[i];
-      h+='<tr class="g-'+g.st+(g.sharePend?' g-share':'')+'">';
+      h+='<tr class="g-'+g.st+(g.sharePend?' g-share':'')+(g.needReview?' g-need':'')+'">';
       // 予定側
       if(e){ const work=e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):'（'+(e.dept||'弥生')+'）';
         const brace = g.st==='multi'?(i===0?'<span class="brace">┐ まとめ'+g.plans.length+'件':(i===rows-1?'<span class="brace">┘</span>':'<span class="brace">│</span>')):'';
@@ -1574,13 +1594,19 @@ function renderCollect(){
         if(g.sharePend){ pillLab='🔗 一本振込あり ¥'+yen(g.sharePend.amt); pillCls='share'; }  // 部門またぎの1本が来ている→内訳を確認して確定
         else if(g.st==='fee'){ const fe=Math.max(0,(g.planTot||0)-(g.inp?g.inp.amt:0)); pillLab='手数料差 ¥'+yen(fe); }  // 差額（＝手数料/協力費で埋めた分）を見せる
         else if(g.st==='over'){ const ov=Math.max(0,(g.inp?g.inp.amt:0)-(g.planTot||0)); pillLab='過入金 ＋¥'+yen(ov); }  // 予定より多い分
-        h+='<td class="ctr" rowspan="'+rows+'">'+(g.sharePend?'<button type="button" class="pill '+pillCls+' goshare" data-goshare="'+g.sharePend.ri+'" title="クリックで内訳へジャンプ">'+pillLab+'</button>':'<span class="pill '+pillCls+'">'+pillLab+'</span>')+(g.sharePend?'<div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。<u>クリックで内訳へ</u></div>':'')+'</td>';
+        let ctrHtml;
+        if(g.sharePend){ ctrHtml='<button type="button" class="pill '+pillCls+' goshare" data-goshare="'+g.sharePend.ri+'" title="クリックで内訳へジャンプ">'+pillLab+'</button><div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。<u>クリックで内訳へ</u></div>'; }
+        else if(g.needReview){ const nlab=g.needReview.matome?'🟡 まとめ入金かも':'🟡 入金あり・未確認'; ctrHtml='<button type="button" class="pill need goreview" data-goreview="'+g.needReview.ri+'" title="この入金の処理へ移動">'+nlab+'</button><div class="sharehint">'+esc(g.needReview.who)+' から入金。<u>→ ここで処理</u></div>'; }
+        else { ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'; }
+        h+='<td class="ctr" rowspan="'+rows+'">'+ctrHtml+'</td>';
         if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
             +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
             +'<div class="meta idate">入金日 '+esc(normDate(g.inp.date)||'—')+'</div></td>'
             +'<td class="inp num" rowspan="'+rows+'">¥'+yen(g.inp.amt)+'</td>'; }
+        else if(g.needReview){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.needReview.who)+'</div><div class="meta" style="color:#a8600a;font-weight:700">未確認（要処理）</div></td>'
+            +'<td class="inp num" rowspan="'+rows+'">¥'+yen(g.needReview.amt)+'</td>'; }
         else { h+='<td class="inp muted" rowspan="'+rows+'">（入金なし）</td><td class="inp num muted" rowspan="'+rows+'">—</td>'; }
-        const zc = g.st==='extra' ? '<span class="muted">—</span>' : (g.zan>0?'<span class="zan">¥'+yen(g.zan)+'</span>':(g.zan<0?'<span class="pill fee">+¥'+yen(-g.zan)+'</span>':'<span class="muted">0</span>'));
+        const zc = g.needReview ? '<span class="muted">確認待ち</span>' : (g.st==='extra' ? '<span class="muted">—</span>' : (g.zan>0?'<span class="zan">¥'+yen(g.zan)+'</span>':(g.zan<0?'<span class="pill fee">+¥'+yen(-g.zan)+'</span>':'<span class="muted">0</span>')));
         h+='<td class="num" rowspan="'+rows+'">'+zc+'</td>';
       }
       h+='</tr>';
@@ -1604,6 +1630,23 @@ document.getElementById('collectBody').addEventListener('click',e=>{
     document.querySelectorAll('#resBody tr.flash').forEach(x=>x.classList.remove('flash'));   // 前回のハイライトを消す
     const hit=document.querySelector('#resBody [data-tgl="'+ri+'"]');
     if(hit){ const tr=hit.closest('tr'); if(tr){ tr.scrollIntoView({behavior:'smooth',block:'center'}); tr.classList.add('flash'); setTimeout(()=>{ tr.classList.remove('flash'); },1500); } }
+  }));
+});
+/* 予定表一覧の「🟡 入金あり・未確認 → ここで処理」→ 要確認ドロワーの該当入金へジャンプ＆ハイライト */
+document.getElementById('collectBody').addEventListener('click',e=>{
+  const b=e.target.closest('[data-goreview]'); if(!b)return;
+  const ri=+b.dataset.goreview; const r=results[ri]; if(!r)return;
+  deptTab='all'; resTab='review';
+  document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x.dataset.t==='review'));
+  openDrawer('review');
+  // 飛んだ瞬間に「まとめ払いの内訳」を自動で開く（名前で相手が一致する時だけ）＝到着して即1クリックで消せる
+  let opened=false;
+  try{ const cands=matomeCandidates(r.d.amount); for(const c of cands){ if(_resolvesTo(r.d.name,c.payee)){ startMatome(r,c.payee); opened=true; break; } } }catch(err){}
+  if(!opened) render();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#resBody tr.flash').forEach(x=>x.classList.remove('flash'));
+    const tr=document.getElementById('rvrow'+ri);
+    if(tr){ tr.scrollIntoView({behavior:'smooth',block:'center'}); tr.classList.add('flash'); setTimeout(()=>tr.classList.remove('flash'),1600); }
   }));
 });
 document.getElementById('viewMode').addEventListener('change',e=>{ viewMode=e.target.value; applyPlanSel(); runMatch(); });   // 予定表／累積を切替
@@ -1915,7 +1958,11 @@ function loadDemo(){
       {type:'土木',dept:'土木',請求先:'鹿島道路㈱',工事名:'E 県道改良工事',工事番号:'12502-01',amount:1500000,row:24},
       {type:'土木',dept:'土木',請求先:'鹿島道路㈱',工事名:'F 区道補修工事',工事番号:'12503-01',amount:1735000,row:26},
       {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'B 橋梁補修工事',工事番号:'12611-01',amount:3000000,row:28},
-      {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'C 法面工事',工事番号:'12612-01',amount:800000,row:30}
+      {type:'土木',dept:'土木',請求先:'大川原組㈱',工事名:'C 法面工事',工事番号:'12612-01',amount:800000,row:30},
+      {type:'土木',dept:'土木',請求先:'㈱ヤマエイ長島',工事名:'調整池整備工事',工事番号:'12655-01',amount:2211000,row:34},
+      {type:'土木',dept:'土木',請求先:'㈱加藤組',工事名:'法面補強工事',工事番号:'12660-01',amount:1320000,row:36},
+      {type:'土木',dept:'土木',請求先:'木内建設㈱',工事名:'橋梁下部工',工事番号:'12670-01',amount:5400000,row:38},
+      {type:'土木',dept:'土木',請求先:'㈱協和',工事名:'河川維持工事',工事番号:'12680-01',amount:770000,row:40}
     ]});
   addSnap({dept:'営業', importedAt:'2026/08/10', periodKey:'202607', periodLabel:'26年7月分', name:'（サンプル）請求先別回収状況_営業7月.xlsx', entries:[
       {type:'弥生',dept:'営業',請求先:'丸二建設㈱',code:'E001',amount:1100000,altAmount:1100000,row:5},
@@ -1936,12 +1983,13 @@ function loadDemo(){
     {date:'2026/08/16',name:'ﾃﾞﾝｼｻｲｹﾝ ｶ)ﾆｼ',amount:640000,bank:'静銀',src:'demo',kind:'振込',raw:''},     // 名義未登録
     {date:'2026/08/20',name:'ｶｼﾞﾏﾄﾞｳﾛ(ｶ',amount:7470000,bank:'静銀',src:'demo',kind:'振込',raw:''},       // 複数工事ピタリ（D+E+F）
     {date:'2026/08/21',name:'ｵｵｶﾜﾗｸﾞﾐ(ｶ',amount:3600000,bank:'静銀',src:'demo',kind:'振込',raw:''},       // 複数工事＋控除（B+C=380万→控除20万）
-    {date:'2026/08/22',name:'ｾﾞﾛﾖﾃｲ(ｶ',amount:150000,bank:'静銀',src:'demo',kind:'振込',raw:''}          // 予定額0円なのに入金あり＝過入金（一致にしない）
+    {date:'2026/08/22',name:'ｾﾞﾛﾖﾃｲ(ｶ',amount:150000,bank:'静銀',src:'demo',kind:'振込',raw:''},          // 予定額0円なのに入金あり＝過入金（一致にしない）
+    {date:'2026/08/19',name:'ｷｮｳﾜ(ｶ',amount:765000,bank:'静銀',src:'demo',kind:'振込',raw:''}            // 手数料差5千＝自動確定されず要確認に残る（突合で🟡入金あり・未確認）
   ];
   bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps,importedAt:'2026/08/22'}];
   viewMode='予定表'; selDept='土木'; selDate='latest'; applyPlanSel();   // サンプル＝土木の予定表(最新)を表示
   master={};
-  [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱'],['ｶｼﾞﾏﾄﾞｳﾛ(ｶ','鹿島道路㈱'],['ｵｵｶﾜﾗｸﾞﾐ(ｶ','大川原組㈱'],['ｾﾞﾛﾖﾃｲ(ｶ','ゼロ予定㈱']]
+  [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱'],['ｶｼﾞﾏﾄﾞｳﾛ(ｶ','鹿島道路㈱'],['ｵｵｶﾜﾗｸﾞﾐ(ｶ','大川原組㈱'],['ｾﾞﾛﾖﾃｲ(ｶ','ゼロ予定㈱'],['ｷｮｳﾜ(ｶ','㈱協和']]
     .forEach(function(pr){ master[normName(pr[0])]=[pr[1]]; });
   confirmed={};
   confirmed[depKey(dps[2])]={payee:'国土建設㈱',type:'土木',row:20,code:null,dept:'土木',工事番号:'12377-01',工事名:'県道××舗装工事',fee:0};   // 過入金
