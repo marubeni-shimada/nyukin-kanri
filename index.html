@@ -1914,8 +1914,8 @@ document.getElementById('collectBody').addEventListener('click',e=>{
 });
 function goReviewJump(ri){
   const r=results[ri]; if(!r)return;
-  deptTab='all'; resTab='review';
-  document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x.dataset.t==='review'));
+  deptTab='all'; resTab=isOrphan(r)?'orphan':'review';   // その入金が居るタブ（要確認／予定表にない）へ切り替えて飛ぶ＝参照先に必ず着く
+  document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===resTab));
   openDrawer('review');
   // 飛んだ瞬間に「まとめ払いの内訳」を自動で開く（名前で相手が一致する時だけ）＝到着して即1クリックで消せる
   let opened=false;
