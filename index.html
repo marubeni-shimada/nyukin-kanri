@@ -572,6 +572,10 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .rc button.pill.goreview:hover{filter:brightness(.97);transform:translateY(-1px)}
   #tabCollect .rc tr.g-need td.plan{box-shadow:inset 4px 0 0 #d99a2e;background:color-mix(in srgb,#d99a2e 6%,#fff)}
   #tabCollect .rc tr.g-need .sharehint{color:#a8600a}
+  #tabCollect .rc .why{margin-left:6px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid #e3b7b1;background:#fff;color:#c02626;font-size:11px;font-weight:900;cursor:pointer;line-height:1;vertical-align:middle;user-select:none}
+  #tabCollect .rc .why:hover{background:#fdecee}
+  #tabCollect .rc tr.g-part .why{border-color:#f0cfa0;color:#b45309}
+  #tabCollect .rc tr.g-part .why:hover{background:#fff7ed}
   </style>
   <div id="tabCollect">
   <div class="step">
@@ -620,6 +624,8 @@ let planYayoi=[];    // [{name, dept, entries:[...]}]
 let master={};       // normKey -> [請求先,...]（1名義→複数請求先候補OK：鹿島の支店違い等）
 let confirmed={};    // depKey -> {payee,type,row,code,dept,工事番号,工事名,fee}
 let ignoreSet=new Set(); // depositのkey(対象外)
+let noAutoSet=new Set(); // depositのkey：手動で取り消した入金＝自動消込(🅐/②)を再適用せず要確認に留める
+let whyStore=[];     // 突合ビュー：未入金/一部の「なぜ？」理由（renderCollectごとに再生成）
 let results=[];      // 照合結果
 let resTab='review';  // 既定＝未処理（確定したものは自動で消込済みへ移る）
 let deptTab='all';   // v0.2 部門タブ（all/土木/営業/環境/share）
@@ -627,7 +633,7 @@ let splitConfirm={}; // v0.2 一本振込の内訳＋両部署確認：key -> {a
 let multiConfirm={}; // v0.3 複数工事への充当：depKey -> {combo:[eid...], ded:{eid:控除額}, done:bool}
 let adjMode=new Set();    // v0.6 まとめ払い：式ビューで「工事を直す」を開いている行（r.key）
 let singleMode=new Set(); // v0.6 要確認：「1工事として選ぶ」を開いている行（r.key）
-const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan', MMULTI='nyukin_multi', MTOKUI='nyukin_tokui';
+const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan', MMULTI='nyukin_multi', MTOKUI='nyukin_tokui', MNOAUTO='nyukin_noauto';
 let allowPersist=true;  // 銀行・予定表の取込をこのPCに保存（サンプル表示中はfalse）。順不同・別日でも残す
 // マスタ保存GAS：URLをここに固定（大石さんは触らなくても最初から共有される）
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbyQNsc3cvrgle_ruuNLd6knrJ0l6vAU-ImTpAYEsIyOLdzPoLgF0wj0SgTZMGdFD3Tz/exec';
@@ -887,10 +893,10 @@ function runMatch(){
     if(!payeeList.length){ const bt=resolveByTokui(d.name); if(bt.length){ payeeList=bt; byTokui=true; } }   // 得意先マスタで名前解決（金額も合えば自動確定・複数該当は候補提示）
     const pool = payeeList.length ? entries.filter(e=>payeeList.some(p=>normPayee(p)===normPayee(e.請求先))) : [];
     const exact = pool.filter(e=>amtMatch(e,d.amount));   // マスタ有り＆金額ピタリ＝残高0＝自動
-    if(payeeList.length && exact.length===1){ results.push({d,key,status:'matched',entry:exact[0],fee:0}); return; }
+    if(payeeList.length && exact.length===1 && !noAutoSet.has(key)){ results.push({d,key,status:'matched',entry:exact[0],fee:0}); return; }
     // 🅐 名義未登録でも、金額で相手が一意に決まるなら自動採用＋名義を自動学習（初回から消込・以降はマスタが育つ）
     // ※得意先マスタで名前解決(byTokui)しても、名義マスタ自体は空なので🅐を回す（回さないと従来の自動が減る）
-    if(byTokui || !payeeList.length){
+    if((byTokui || !payeeList.length) && !noAutoSet.has(key)){
       const exAll = entries.filter(e=>amtMatch(e,d.amount));               // 金額ピタリの予定（全部門）
       if(exAll.length===1){                                                // ＝相手は一意（安全）
         const e0=exAll[0];
@@ -927,7 +933,7 @@ function runMatch(){
     }
     if(multi) reason='複数工事に充当'+(multi.kind==='deduct'?'（控除あり）':(multi.combos.length>1?'（候補'+multi.combos.length+'通り）':'（候補確定）'));
     // ② 自動確定（リスク許容）：名前が特定できた相手で、まとめ払いの組合せが一つに決まるなら自動で消込（誤りは「戻す」で取消せる）
-    if(multi && !multiConfirm[key]){
+    if(multi && !multiConfirm[key] && !noAutoSet.has(key)){
       const poolPayees=new Set(pool.map(e=>normPayee(e.請求先)));
       const decisive=(multi.kind==='exact' && multi.combos.length===1) || multi.kind==='deduct';   // 残0が一意 or 控除が一つに決まる
       if(poolPayees.size===1 && decisive){
@@ -1396,7 +1402,7 @@ $('resBody').addEventListener('click',e=>{
   if(ign){ const di=+ign.dataset.ign; ignoreSet.add(results[di].key); saveIgnore(); runMatch(); return; }
   if(e.target.closest('#igAll')){ const orph=results.filter(r=>r.status==='review'&&!isDone(r)&&isOrphan(r)&&inDept(r)); if(orph.length && confirm('「予定表にない」入金 '+orph.length+'件 をまとめて対象外にします。（対象外タブから戻せます）よろしいですか？')){ orph.forEach(r=>ignoreSet.add(r.key)); saveIgnore(); runMatch(); } return; }
   const un=e.target.closest('[data-un]');
-  if(un){ const di=+un.dataset.un; const r=results[di]; delete confirmed[r.key]; const nk=normName(r.d.name); if(master[nk]&&r.entry){ master[nk]=master[nk].filter(p=>normPayee(p)!==normPayee(r.entry.請求先)); if(!master[nk].length)delete master[nk]; } saveMasterLocal(); saveConfirmed(); renderMaster(); pushMaster(); runMatch(); return; }
+  if(un){ const di=+un.dataset.un; const r=results[di]; noAutoSet.add(r.key); saveNoAuto(); delete confirmed[r.key]; const nk=normName(r.d.name); if(master[nk]&&r.entry){ master[nk]=master[nk].filter(p=>normPayee(p)!==normPayee(r.entry.請求先)); if(!master[nk].length)delete master[nk]; } saveMasterLocal(); saveConfirmed(); renderMaster(); pushMaster(); runMatch(); return; }
   const res=e.target.closest('[data-res]');
   if(res){ const di=+res.dataset.res; ignoreSet.delete(results[di].key); saveIgnore(); runMatch(); return; }
 });
@@ -1550,8 +1556,59 @@ function reconGroups(){
   (results||[]).forEach((r,ri)=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ groups.push({kind:'inp', ri:ri, dept:(resultDepts(r)[0]||''), plans:[], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'extra', planTot:0, paidTot:0, zan:0}); } });
   return {groups, paid, lastd};
 }
+/* 未入金／一部の「なぜ？」理由を、取込済み入金・名義マスタから自動判定 */
+function computeWhy(g){
+  const e=(g.plans&&g.plans[0])||{}; const P=e.請求先||''; const A=g.planTot||0; const need=Math.max(0,(g.planTot||0)-(g.paidTot||0));
+  const tol=Math.max(20000, Math.round(A*0.05));
+  // 1) この請求先に「名前で」結びつく未確認入金があるか＝金額違い／まとめ入金の一部かも
+  let resolveRi=-1, resolveDep=null;
+  (results||[]).forEach((r,ri)=>{ if(resolveRi>=0)return; if(r.status!=='review')return; if(isMulti(r)&&multiOk(r))return; if(isShared(r)&&splitOkAll(r))return; if(P&&_resolvesTo(r.d.name,P)){ resolveRi=ri; resolveDep=r.d; } });
+  // 2) 金額が近い「名義未登録」の未確認入金があるか＝入金は来てるが名義未登録
+  let unregDep=null;
+  if(resolveRi<0){ (results||[]).forEach(r=>{ if(unregDep)return; if(r.status!=='review')return; if(bestCand(r))return; if((master[normName(r.d.name)]||[]).length>0)return; try{ if(resolveByTokui(r.d.name))return; }catch(e2){} const amt=r.d.amount||0; if(Math.abs(amt-A)<=tol || (need>0&&Math.abs(amt-need)<=tol)){ unregDep=r.d; } }); }
+  if(resolveRi>=0){ return {t:'金額が予定と違う／まとめ入金の一部かも',
+    lines:['この請求先（'+esc(P)+'）からの入金は<b>あります</b>が、予定額と一致していません。','振込名義 <b>'+esc(resolveDep.name)+'</b> ¥'+yen(resolveDep.amount)+'（'+esc(normDate(resolveDep.date)||'')+'）'],
+    li:['複数工事の<b>まとめ入金</b>かも→内訳を確認','控除（手数料・相殺）で差が出ている場合は控除を入力'],
+    act:{label:'この入金を確認する',kind:'review',ri:resolveRi}}; }
+  if(unregDep){ return {t:'入金は来ているかも（名義が未登録）',
+    lines:['金額の近い入金が<b>1件あります</b>が、振込名義が名義マスタに<b>未登録</b>のため紐づいていません。','振込名義 <b>'+esc(unregDep.name)+'</b> ¥'+yen(unregDep.amount)],
+    li:['名義マスタで「'+esc(unregDep.name)+' → '+esc(P)+'」を紐づけると自動で消込されます'],
+    act:{label:'名義マスタで紐づける',kind:'master'}}; }
+  if(g.st==='part'){ return {t:'一部だけ入金されています',
+    lines:['予定 ¥'+yen(g.planTot)+' に対して ¥'+yen(g.paidTot)+' だけ入金済み。<b>残 ¥'+yen(need)+'</b>。'],
+    li:['残りが後日来る予定なら<b>入金待ち</b>','差が控除（手数料・相殺・協会費）なら要確認で<b>控除を入力</b>して残0に'],
+    act:null}; }
+  return {t:'まだ入金が来ていない可能性',
+    lines:['取込済みの銀行明細に、この予定額（¥'+yen(A)+'）に合う入金が<b>見つかりません</b>。'],
+    li:['まだ振込日が来ていない（入金待ち）','銀行明細を<b>まだ取込んでいない月</b>があるかも'],
+    act:null};
+}
+function _whyPop(){ let p=document.getElementById('whyPop'); if(p)return p;
+  const m=document.createElement('div'); m.id='whyMask'; m.style.cssText='position:fixed;inset:0;z-index:1400;display:none';
+  p=document.createElement('div'); p.id='whyPop'; p.style.cssText='position:fixed;z-index:1401;max-width:340px;background:#0f1720;color:#eaf1ee;border-radius:12px;padding:13px 15px;box-shadow:0 12px 34px rgba(0,0,0,.30);font-size:12.5px;line-height:1.6;display:none';
+  document.body.appendChild(m); document.body.appendChild(p);
+  m.addEventListener('click',closeWhy);
+  p.addEventListener('click',e=>{ const b=e.target.closest('.whyact'); if(!b)return; const k=b.dataset.k; closeWhy(); if(k==='master'){ openDrawer('master'); } else if(k==='review'){ goReviewJump(+b.dataset.ri); } });
+  return p;
+}
+function closeWhy(){ const p=document.getElementById('whyPop'),m=document.getElementById('whyMask'); if(p)p.style.display='none'; if(m)m.style.display='none'; }
+function openWhy(el){
+  const r=whyStore[+el.dataset.why]; if(!r)return;
+  const p=_whyPop(), m=document.getElementById('whyMask');
+  let h='<div style="font-weight:800;color:#ffd9d2;margin-bottom:6px">'+esc(r.t)+'</div>'+r.lines.map(x=>'<div>'+x+'</div>').join('');
+  if(r.li&&r.li.length) h+='<ul style="margin:6px 0 0;padding-left:16px">'+r.li.map(x=>'<li style="margin:3px 0">'+x+'</li>').join('')+'</ul>';
+  h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">';
+  if(r.act) h+='<button type="button" class="whyact" data-k="'+r.act.kind+'" data-ri="'+(r.act.ri!=null?r.act.ri:'')+'" style="border:0;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:800;cursor:pointer;background:#2f6f6a;color:#fff">'+esc(r.act.label)+'</button>';
+  h+='<button type="button" class="whyact" data-k="close" style="border:0;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:800;cursor:pointer;background:#26313b;color:#cfe0da">閉じる</button></div>';
+  p.innerHTML=h; p.style.display='block'; m.style.display='block';
+  const b=el.getBoundingClientRect(), pw=p.offsetWidth, ph=p.offsetHeight;
+  let left=b.left+b.width/2-pw/2; left=Math.max(10,Math.min(left,window.innerWidth-pw-10));
+  let top=b.bottom+10; if(top+ph>window.innerHeight-10) top=Math.max(10,b.top-ph-10);
+  p.style.left=left+'px'; p.style.top=top+'px';
+}
 function renderCollect(){
   const host=$('collectBody'); if(!host) return;
+  whyStore=[];
   const bar=$('collectBar');
   renderPlanSelector();
   // 表示は選んだ部門のみ（突合は全部門で実施済み＝一本振込を検出）。selDeptに関わる行だけ出す（一本振込は関与部門に表示）
@@ -1610,7 +1667,8 @@ function renderCollect(){
         let ctrHtml;
         if(g.sharePend){ ctrHtml='<button type="button" class="pill '+pillCls+' goshare" data-goshare="'+g.sharePend.ri+'" title="クリックで内訳へジャンプ">'+pillLab+'</button><div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。<u>クリックで内訳へ</u></div>'; }
         else if(g.needReview){ const nlab=g.needReview.matome?'🟡 まとめ入金かも':'🟡 入金あり・未確認'; ctrHtml='<button type="button" class="pill need goreview" data-goreview="'+g.needReview.ri+'" title="この入金の処理へ移動">'+nlab+'</button><div class="sharehint">'+esc(g.needReview.who)+' から入金。<u>→ ここで処理</u></div>'; }
-        else { ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'+(g.kind==='settled'&&g.ri!=null?'<div class="undohint"><button type="button" class="lk-undo" data-goundo="'+g.ri+'" title="この消込を取り消して要確認に戻す">↩ 取り消し</button></div>':''); }
+        else { let whyBtn=''; if(g.kind==='plan'&&(g.st==='none'||g.st==='part')){ const wi=whyStore.push(computeWhy(g))-1; whyBtn='<span class="why" data-why="'+wi+'" title="なぜ未入金？">?</span>'; }
+          ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'+whyBtn+(g.kind==='settled'&&g.ri!=null?'<div class="undohint"><button type="button" class="lk-undo" data-goundo="'+g.ri+'" title="この消込を取り消して要確認に戻す">↩ 取り消し</button></div>':''); }
         h+='<td class="ctr" rowspan="'+rows+'">'+ctrHtml+'</td>';
         if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
             +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
@@ -1649,6 +1707,7 @@ document.getElementById('collectBody').addEventListener('click',e=>{
 function undoFromCollect(ri){
   const r=results[ri]; if(!r) return;
   if(!confirm('この消込を取り消して「要確認」に戻します。よろしいですか？')) return;
+  noAutoSet.add(r.key); saveNoAuto();   // 自動消込(🅐/②)を再適用させない＝要確認に留める
   if(r.status==='matched' && confirmed[r.key]){
     delete confirmed[r.key];
     const nk=normName(r.d.name); if(master[nk]&&r.entry){ master[nk]=master[nk].filter(p=>normPayee(p)!==normPayee(r.entry.請求先)); if(!master[nk].length)delete master[nk]; }
@@ -1660,9 +1719,15 @@ function undoFromCollect(ri){
 }
 document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.target.closest('[data-goundo]'); if(b){ undoFromCollect(+b.dataset.goundo); } });
 /* 予定表一覧の「🟡 入金あり・未確認 → ここで処理」→ 要確認ドロワーの該当入金へジャンプ＆ハイライト */
+document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.target.closest('.why'); if(!b)return; e.stopPropagation(); openWhy(b); });
+window.addEventListener('scroll',()=>{ const p=document.getElementById('whyPop'); if(p&&p.style.display==='block') closeWhy(); },{passive:true});
+window.addEventListener('resize',()=>{ const p=document.getElementById('whyPop'); if(p&&p.style.display==='block') closeWhy(); });
 document.getElementById('collectBody').addEventListener('click',e=>{
   const b=e.target.closest('[data-goreview]'); if(!b)return;
-  const ri=+b.dataset.goreview; const r=results[ri]; if(!r)return;
+  goReviewJump(+b.dataset.goreview);
+});
+function goReviewJump(ri){
+  const r=results[ri]; if(!r)return;
   deptTab='all'; resTab='review';
   document.querySelectorAll('#resTabs button').forEach(x=>x.classList.toggle('on',x.dataset.t==='review'));
   openDrawer('review');
@@ -1679,7 +1744,7 @@ document.getElementById('collectBody').addEventListener('click',e=>{
     if(row){ row.classList.add('flash'); setTimeout(()=>row.classList.remove('flash'),1800); }
     if(detail){ detail.classList.add('flash'); setTimeout(()=>detail.classList.remove('flash'),1800); }
   }));
-});
+}
 document.getElementById('viewMode').addEventListener('change',e=>{ viewMode=e.target.value; applyPlanSel(); runMatch(); });   // 予定表／累積を切替
 document.getElementById('selDept').addEventListener('change',e=>{ selDept=e.target.value; selDate='latest'; applyPlanSel(); runMatch(); });   // 部門を選ぶ
 document.getElementById('selDate').addEventListener('change',e=>{ selDate=e.target.value; applyPlanSel(); runMatch(); });   // 取込日を選ぶ（予定表モードのみ）
@@ -1688,6 +1753,7 @@ document.getElementById('collectMonth').addEventListener('change',e=>{ collectMo
 /* ===== マスタ ===== */
 function saveMasterLocal(){ localStorage.setItem(MKEY,JSON.stringify(master)); }
 function saveIgnore(){ localStorage.setItem(MIGN,JSON.stringify([...ignoreSet])); }
+function saveNoAuto(){ try{ localStorage.setItem(MNOAUTO,JSON.stringify([...noAutoSet])); }catch(e){} }
 /* 取込データの保存（銀行・予定表）：順不同・別日でも残す。予定表はentriesのみ保存（xlsx本体は保存しない＝記入済み出力はセッション内で有効） */
 function saveBank(){ if(!allowPersist)return; try{ localStorage.setItem(MBANK,JSON.stringify(bankFiles)); }catch(e){} }
 function savePlan(){ if(!allowPersist)return; try{
@@ -2032,7 +2098,7 @@ function loadDemo(){
   confirmed[depKey(dps[3])]={payee:'山田建設㈱',type:'土木',row:14,code:null,dept:'土木',工事番号:'12360-01',工事名:'△△護岸工事',fee:0};     // 不足
   confirmed[depKey(dps[4])]={payee:'丸西工業㈱',type:'土木',row:16,code:null,dept:'土木',工事番号:'12388-01',工事名:'○○下水道工事',fee:660}; // 手数料差
   confirmed[depKey(dps[11])]={payee:'ゼロ予定㈱',type:'土木',row:32,code:null,dept:'土木',工事番号:'12700-01',工事名:'追加変更 未確定工事',fee:0}; // 予定0→過入金
-  splitConfirm={}; ignoreSet=new Set();
+  splitConfirm={}; ignoreSet=new Set(); noAutoSet=new Set();
   setGasState('off'); const gs=$('gasState'); if(gs) gs.textContent='サンプル';
   renderBankFiles(); renderPlanFiles(); renderMaster(); runMatch();
   const host=document.querySelector('main');
@@ -2056,6 +2122,7 @@ else {
   seedTokui();   // 内蔵マスタ（518社）を土台に＝どのPCでも同じ結果。取り込んだ追加分があれば上に重ねる
   try{ const tj=JSON.parse(localStorage.getItem(MTOKUI)||'null'); if(tj&&Array.isArray(tj.master)) mergeTokui(tj.master, null); }catch(e){}
   try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
+  try{ (JSON.parse(localStorage.getItem(MNOAUTO)||'[]')||[]).forEach(k=>noAutoSet.add(k)); }catch(e){}
   try{ bankFiles=JSON.parse(localStorage.getItem(MBANK)||'[]')||[]; bankFiles.forEach(bf=>(bf.deposits||[]).forEach(d=>{ d.date=normDate(d.date); if(d.importedAt) d.importedAt=normDate(d.importedAt); })); }catch(e){ bankFiles=[]; }  // 先に取り込んでおいた銀行を復元（日付GMT表記を正規化）
   try{ const pj=JSON.parse(localStorage.getItem(MPLAN)||'null'); if(pj){
     if(Array.isArray(pj.snaps)){ planSnaps=pj.snaps; _sidSeq=pj.seq||planSnaps.length; viewMode=pj.viewMode||'予定表'; selDept=pj.selDept||'土木'; selDate=pj.selDate||'latest'; planSnaps.forEach(s=>(s.entries||[]).forEach(e=>{ if(!e.snapId)e.snapId=s.sid; })); }
