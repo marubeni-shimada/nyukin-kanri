@@ -319,6 +319,16 @@ main{max-width:1560px;}
 .cchip.warn .r0{color:var(--warn)}
 .cchip .brk{font-size:12px;color:var(--ink2)}
 .warnline{font-size:12px;color:var(--warn);font-weight:800;margin:2px 0 4px}
+/* 2026-09-15 要確認をわかりやすく：小見出し＋「相手が出ないとき」案内 */
+.q1{font-size:11.5px;color:var(--muted);font-weight:700;margin:0 0 6px}
+details.needhelp{margin-top:8px;border:1px dashed color-mix(in srgb,var(--ac2) 40%,var(--line));border-radius:8px;max-width:560px}
+details.needhelp summary{cursor:pointer;padding:6px 10px;font-size:12px;font-weight:800;color:var(--ac2);list-style:none}
+details.needhelp summary::-webkit-details-marker{display:none}
+details.needhelp[open] summary{border-bottom:1px dashed var(--line)}
+details.needhelp .nb{padding:8px 11px;font-size:12px;color:var(--ink2);line-height:1.7}
+details.needhelp .nb b{color:var(--ink)}
+details.needhelp .nb .stp{display:flex;gap:7px;margin:5px 0}
+details.needhelp .nb .stp .n{flex:none;width:18px;height:18px;border-radius:50%;background:var(--ac2);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
 
 /* ===== v0.4 引き算：取込ストリップ／アクションバー／引き出し ===== */
 .istrip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;background:var(--panel,#fff);border:1px solid var(--line);border-radius:12px;}
@@ -328,6 +338,13 @@ main{max-width:1560px;}
 .istrip .idrop.drag{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent);}
 .istrip .isum{font-weight:800;color:var(--ac);margin-left:6px;}
 .istrip .ifiles{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;}
+/* 取込ファイルの折りたたみ（増えても幅が広がらない） */
+.fold{margin-top:8px;border:1px solid var(--line);border-radius:8px;background:#fbfbfc;}
+.fold>summary{list-style:none;cursor:pointer;padding:6px 10px;font-size:11.5px;font-weight:800;color:var(--ac2);display:flex;align-items:center;gap:6px;}
+.fold>summary::-webkit-details-marker{display:none;}
+.fold>summary .caret{transition:.15s;display:inline-block;font-size:10px;}
+.fold[open]>summary .caret{transform:rotate(90deg);}
+.fold .files{padding:6px 10px 10px;margin:0;}
 .istrip .ifiles .files{display:inline-flex;gap:6px;flex-wrap:wrap;}
 
 .actbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
@@ -402,13 +419,13 @@ button.pill.goshare:active{transform:translateY(0)}
       <div class="ibox-h"><span class="ibox-ic">🏦</span><span class="ibox-t">① 銀行の入金明細（CSV）</span></div>
       <div class="ibox-s">静銀・島掛など複数OK・重複は自動除外。ここにドラッグ、またはクリックで選択。</div>
       <div class="ibox-n" id="bankSum"></div>
-      <div class="files" id="bankFiles"></div>
+      <details class="fold" id="bankFold" style="display:none"><summary><span class="caret">▶</span><span id="bankFoldLab">取り込んだファイル</span></summary><div class="files" id="bankFiles"></div></details>
     </div>
     <div class="ibox plan" id="dropPlan">
       <div class="ibox-h"><span class="ibox-ic">📄</span><span class="ibox-t">② 予定表（Excel）</span></div>
       <div class="ibox-s">土木＝どっと原価／営業・環境＝弥生。ここにドラッグ、またはクリックで選択。</div>
       <div class="ibox-n" id="planSum"></div>
-      <div class="files" id="planFiles"></div>
+      <details class="fold" id="planFold" style="display:none"><summary><span class="caret">▶</span><span id="planFoldLab">取り込んだ予定表</span></summary><div class="files" id="planFiles"></div></details>
     </div>
     <input type="file" id="fileBank" accept=".csv" multiple hidden>
     <input type="file" id="filePlan" accept=".xlsx" multiple hidden>
@@ -1197,7 +1214,7 @@ function render(){
         + '<td class="act"><button class="btn sub mini" data-un="'+di+'">戻す</button></td></tr>';
     } else if(r.status==='review'){
       const b=bestCand(r); let diffHtml='';
-      let cell='';
+      let cell='<div class="q1">この入金は誰の・何の入金？</div>';
       if(b && b.near){ const plan=planAmt(b.e),diff=plan-r.d.amount; diffHtml='<span class="diff"><span class="diffS">予定'+yen(plan)+'／差'+yen(diff)+'</span></span>'; }
       const sOpen = singleMode.has(r.key);
       // 候補を集約：単一工事(bestCand)＋まとめ払い(合算/合算−控除)を自動提示
@@ -1207,32 +1224,39 @@ function render(){
       if(chips.length===0){
         // 候補ゼロ：従来どおり手で選ぶ／検索
         cell+='<div class="acts"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select>'
-          +'<button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 まとめ払い（相手を選ぶ）</button>'
-          +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1工事として選ぶ')+'</button></div>';
+          +'<button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 複数工事のまとめ入金</button>'
+          +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1つの工事の入金')+'</button></div>';
       } else if(chips.length===1){
         const c=chips[0];
         if(c.kind==='single'){
-          cell+='<div class="predA">→ <span class="who2">'+esc(c.payee)+'</span> の入金かも <span class="mut">（まとめ払い？）</span></div>';
-          cell+='<div class="acts"><button class="btn mini" data-msetp="'+esc(c.payee)+'" data-mpi="'+di+'" title="この相手の複数工事を合算して充当します">🧩 まとめて充当</button>'
-            +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1工事として選ぶ')+'</button></div>';
+          const _df=planAmt(c.e)-r.d.amount;
+          cell+='<div class="predA">→ <span class="who2">'+esc(c.payee)+'</span> さんの入金のようです <span class="mut">'+(c.near?'（手数料差 '+yen(_df)+'）':'（金額がピタリ）')+'</span></div>';
+          cell+='<div class="acts"><button class="btn mini" data-best="1" data-di="'+di+'" title="この1工事に消し込みます">この工事に消込'+(c.near?'':'（残0）')+'</button>'
+            +'<button class="btn sub mini" data-msetp="'+esc(c.payee)+'" data-mpi="'+di+'" title="この相手の複数工事を合算して充当します">🧩 複数工事のまとめ入金</button>'
+            +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'ちがう・手で選ぶ')+'</button></div>';
         } else {
-          cell+='<div class="predA">→ <span class="who2">'+esc(c.payee)+'</span> のまとめ払いかも</div>';
-          cell+='<div class="acts">'+candChipBtn(c,di)+'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'手で選ぶ')+'</button></div>';
+          cell+='<div class="predA">→ <span class="who2">'+esc(c.payee)+'</span> さんの複数工事のまとめ入金かも</div>';
+          cell+='<div class="acts">'+candChipBtn(c,di)+'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'ちがう・手で選ぶ')+'</button></div>';
         }
       } else {
         // 候補が複数：金額だけの偶然一致があるので勝手に確定せず選ばせる
         cell+='<div class="warnline">⚠️ 候補が'+chips.length+'件あります。相手を選んでください</div><div class="cchips">';
         chips.forEach(c=>{ cell+=(c.kind==='single')?singleChipBtn(c,di):candChipBtn(c,di); });
-        cell+='</div><div class="acts" style="margin-top:2px"><button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'手で選ぶ／検索')+'</button></div>';
+        cell+='</div><div class="acts" style="margin-top:2px"><button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'ちがう・手で選ぶ')+'</button></div>';
       }
       if(sOpen){
         // 「1工事として選ぶ／手で選ぶ」＝従来の候補確定＋検索＋別相手まとめ払い（直したい人だけ）
         cell+='<div class="single">';
         if(b){ const e=b.e,diff=planAmt(e)-r.d.amount; cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
         cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
-        cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="相手を選んでまとめ払いにする">🧩 まとめ払い（相手を選ぶ）</button></div>';
+        cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="相手を選んでまとめ払いにする">🧩 複数工事のまとめ入金</button></div>';
         cell+='</div>';
       }
+      cell+='<details class="needhelp"><summary>相手が出ないとき ▾</summary><div class="nb">'
+        +'<div class="stp"><span class="n">1</span><div><b>相手はいるのに出ない</b> → その入金の<b>対象月・部門の予定表</b>を読み込んでください。候補は読み込んだ予定表から出ます（土木6月／営業7月のような月ズレ・部門違いに注意）。</div></div>'
+        +'<div class="stp"><span class="n">2</span><div><b>予定に無い入金</b>（税金・個人・相殺・手数料の戻り など）→ 右の<b>「✕ 除外」</b>で対象外に（後で戻せます）。</div></div>'
+        +'<div class="stp"><span class="n">3</span><div>分かる相手なら<b>「ちがう・手で選ぶ」</b>を開き、検索欄に<b>会社名や金額</b>を入れて選べます（読み込んだ予定表から検索）。</div></div>'
+        +'</div></details>';
       h+='<tr class="'+rowCls+'">'
         + stateTd('need', r.reason||'要確認')
         + whoTd(r)
@@ -1770,6 +1794,7 @@ function renderBankFiles(){
   const imps=bankFiles.flatMap(b=>(b.deposits||[]).map(d=>d.importedAt).concat(b.importedAt||[])).filter(Boolean);
   const lastImp=imps.length?imps.slice().sort().slice(-1)[0]:'';  // 最終取込日（YYYY/MM/DDは辞書順=時系列）
   $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金</span> <b>'+total+'</b> 件'+(lastImp?' <span class="lastimp">📅 最終取込 '+esc(lastImp)+'</span>':'')+' <span class="muted">（保存済み・重複は自動除外。予定表を入れると照合）</span>'):'';
+  const bf=$('bankFold'); if(bf){ bf.style.display=bankFiles.length?'block':'none'; const bl=$('bankFoldLab'); if(bl)bl.textContent='取り込んだファイル '+bankFiles.length+'件'; }
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
   saveBank();
   renderLink();
@@ -1780,6 +1805,7 @@ function renderPlanFiles(){
   $('planFiles').innerHTML=chips.join('');
   const de=planSnaps.filter(s=>s.dept==='土木').reduce((a,s)=>a+s.entries.length,0), ye=planSnaps.filter(s=>s.dept!=='土木').reduce((a,s)=>a+s.entries.length,0);
   $('planSum').innerHTML=planSnaps.length?('<span class="k">予定表</span> <b>'+planSnaps.length+'</b> 表 <span class="muted">（土木 '+de+'工事／弥生 '+ye+'件・対象月で選べます）</span>'):'';
+  const pf=$('planFold'); if(pf){ const nf=chips.length; pf.style.display=nf?'block':'none'; const pl=$('planFoldLab'); if(pl)pl.textContent='取り込んだ予定表・マスタ '+nf+'件'; }
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
   savePlan();
   renderLink();
@@ -1793,7 +1819,7 @@ $('clearPlan').addEventListener('click',()=>{ if(planSnaps.length && !confirm('�
 /* ドロップ＆選択 */
 function wire(dropId,inputId,handler,after){
   const drop=$(dropId), input=$(inputId);
-  drop.addEventListener('click',()=>input.click());
+  drop.addEventListener('click',e=>{ if(e.target.closest('.fold')) return; input.click(); });   // 折りたたみ（取込ファイル一覧）のクリックではファイル選択を開かない
   drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
   drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
   drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');handleFiles(e.dataTransfer.files);});
