@@ -297,9 +297,11 @@ main{max-width:1560px;}
 select.mkind{border:1px solid #d3d9e2;border-radius:7px;padding:5px 6px;font:inherit;font-size:11.5px;background:#fff}
 input.mdedin{width:110px;text-align:right;font:inherit;font-size:12.5px;font-weight:700;padding:6px 8px;border:1px solid #d3d9e2;border-radius:8px;font-variant-numeric:tabular-nums}
 input.mdedin:focus{outline:none;border-color:#4f46e5}
-.dedlines{display:flex;flex-direction:column;gap:6px}
-.dedline{display:flex;align-items:center;gap:6px}
-.dedx{border:1px solid #e3b7b1;background:#fff;color:#c02626;border-radius:6px;width:24px;height:28px;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0}
+.dedlines{display:flex;flex-direction:column;gap:6px;min-width:250px}
+.dedline{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap}
+.dedline select.mkind{flex:0 0 auto}
+.dedline input.mdedin{flex:0 0 auto;width:100px}
+.dedx{flex:0 0 auto;border:1px solid #e3b7b1;background:#fff;color:#c02626;border-radius:6px;width:24px;height:28px;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0}
 .dedx:hover{background:#fdecee}
 .dedadd{align-self:flex-start;border:1px dashed #c9cfdb;background:#fff;color:#4f46e5;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit}
 .dedadd:hover{background:#f2f4ff;border-color:#4f46e5}
@@ -1180,7 +1182,7 @@ function breakdownHtml(r,di){
     if(showDed){ let cell='<div class="dedlines">';
       (lines.length?lines:[{kind:'手数料',amt:0}]).forEach((l,li)=>{
         cell+='<div class="dedline"><select class="mkind" data-skind="'+di+'|'+esc(x.dept)+'|'+li+'">'+DED_KINDS.map(k=>'<option'+(k===l.kind?' selected':'')+'>'+k+'</option>').join('')+'</select>'
-          +'<input type="text" inputmode="numeric" class="mdedin" data-sded="'+di+'|'+esc(x.dept)+'|'+li+'" value="'+yen(l.amt||0)+'">'
+          +'<input type="text" inputmode="numeric" autocomplete="off" class="mdedin" data-sded="'+di+'|'+esc(x.dept)+'|'+li+'" value="'+yen(l.amt||0)+'">'
           +(lines.length>1?'<button type="button" class="dedx" data-sdeddel="'+di+'|'+esc(x.dept)+'|'+li+'" title="この控除を削除">×</button>':'')+'</div>';
       });
       cell+='<button type="button" class="dedadd" data-sdedadd="'+di+'|'+esc(x.dept)+'">＋ 控除を追加</button></div>';
@@ -1222,7 +1224,7 @@ function multiPanelHtml(r,di){
     if(showDed){ let cell='<div class="dedlines">';
       (lines.length?lines:[{kind:'手数料',amt:0}]).forEach((l,li)=>{
         cell+='<div class="dedline"><select class="mkind" data-mkind="'+di+'|'+esc(eid)+'|'+li+'">'+DED_KINDS.map(k=>'<option'+(k===l.kind?' selected':'')+'>'+k+'</option>').join('')+'</select>'
-          +'<input type="text" inputmode="numeric" class="mdedin" data-mded="'+di+'|'+esc(eid)+'|'+li+'" value="'+yen(l.amt||0)+'">'
+          +'<input type="text" inputmode="numeric" autocomplete="off" class="mdedin" data-mded="'+di+'|'+esc(eid)+'|'+li+'" value="'+yen(l.amt||0)+'">'
           +(lines.length>1?'<button type="button" class="dedx" data-mdeddel="'+di+'|'+esc(eid)+'|'+li+'" title="この控除を削除">×</button>':'')+'</div>';
       });
       cell+='<button type="button" class="dedadd" data-mdedadd="'+di+'|'+esc(eid)+'">＋ 控除を追加</button></div>';
