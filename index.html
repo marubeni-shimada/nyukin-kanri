@@ -319,6 +319,7 @@ main{max-width:1560px;}
 .cchip.warn .r0{color:var(--warn)}
 .cchip .brk{font-size:12px;color:var(--ink2)}
 .warnline{font-size:12px;color:var(--warn);font-weight:800;margin:2px 0 4px}
+.orphanbar{font-size:12px;color:var(--ink2);background:#fdf6e6;border:1px solid #f0dcb8;border-radius:9px;padding:8px 12px;margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 /* 2026-09-15 要確認をわかりやすく：小見出し＋「相手が出ないとき」案内 */
 .q1{font-size:11.5px;color:var(--muted);font-weight:700;margin:0 0 6px}
 details.needhelp{margin-top:8px;border:1px dashed color-mix(in srgb,var(--ac2) 40%,var(--line));border-radius:8px;max-width:560px}
@@ -457,6 +458,7 @@ button.pill.goshare:active{transform:translateY(0)}
     <div class="tabs" id="resTabs">
       <button data-t="review" class="on">未処理 <span id="cReview"></span></button>
       <button data-t="matched">消込済み <span id="cMatched"></span></button>
+      <button data-t="orphan">予定表にない <span id="cOrphan"></span></button>
       <button data-t="all">すべて</button>
       <button data-t="ignored">対象外 <span id="cIgnored"></span></button>
     </div>
@@ -590,8 +592,8 @@ button.pill.goshare:active{transform:translateY(0)}
     <div class="ckstatus" id="collectStatus">
       <button data-cs="all" class="on">すべて <span class="cs-n" id="cs-all"></span></button>
       <button data-cs="none">🔴 未入金 <span class="cs-n" id="cs-none"></span></button>
-      <button data-cs="check">⚠️ 要確認 <span class="cs-n" id="cs-check"></span></button>
-      <button data-cs="ok">✓ 一致・回収済 <span class="cs-n" id="cs-ok"></span></button>
+      <button data-cs="check">🟡 要確認（入金あり） <span class="cs-n" id="cs-check"></span></button>
+      <button data-cs="ok">✅ 消込済み <span class="cs-n" id="cs-ok"></span></button>
     </div>
     <div id="collectBody"><div class="empty">予定表（STEP2）を読み込むと、突合状況が出ます</div></div>
   </div>
@@ -953,6 +955,8 @@ function candChip(di,ci,e,near,dep){
 }
 function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+trunc(e.工事名||'',18)+' ¥'+yen(planAmt(e)); }
 function bestCand(r){ if(r.exactCands&&r.exactCands.length) return {e:r.exactCands[0],near:false}; if(r.nearCands&&r.nearCands.length) return {e:r.nearCands[0],near:true}; return null; }
+/* 予定にどこにも当たらない入金＝「予定表にない」（候補も無く・名前で相手も特定できない）＝無関係の可能性 */
+function isOrphan(r){ if(!r||r.status!=='review') return false; if(bestCand(r)) return false; try{ const cs=matomeCandidates(r.d.amount); if(cs.some(c=>_resolvesTo(r.d.name,c.payee))) return false; }catch(e){} return true; }
 /* ===== v0.2 部門・一本振込 ヘルパー ===== */
 let openDetails=new Set();        // 内訳を開いている入金（r.keyで保持）
 function saveSplit(){ try{ localStorage.setItem(MSPLIT,JSON.stringify(splitConfirm)); }catch(e){} }
@@ -1167,13 +1171,16 @@ function render(){
   const _rb=$('resBody'); const _twOld=_rb?_rb.querySelector('.twrap'):null; const _scTop=_twOld?_twOld.scrollTop:0; const _winY=window.scrollY;   // 内訳の開閉等で画面が飛ばないようスクロール保持
   const scoped=results.filter(inDept);   // 選択中の部門タブに絞って数える
   const done=scoped.filter(isDone);
-  const pending=scoped.filter(r=>r.status==='review' && !isDone(r));
+  const pendingAll=scoped.filter(r=>r.status==='review' && !isDone(r));
+  const orphan=pendingAll.filter(isOrphan);              // 予定表にない（無関係候補）
+  const pending=pendingAll.filter(r=>!isOrphan(r));      // 未処理＝予定に当たる要処理だけ
   const ign=scoped.filter(r=>r.status==='ignored');
   $('cReview').textContent=pending.length?('('+pending.length+')'):'';
   $('cMatched').textContent=done.length?('('+done.length+')'):'';
+  const _co=$('cOrphan'); if(_co)_co.textContent=orphan.length?('('+orphan.length+')'):'';
   $('cIgnored').textContent=ign.length?('('+ign.length+')'):'';
   // アクションバーの「要確認 N件」＝全部門の未処理を集計（見る画面から片付けへ誘導）
-  const totalReview=results.filter(r=>r.status==='review' && !isDone(r)).length;
+  const totalReview=results.filter(r=>r.status==='review' && !isDone(r) && !isOrphan(r)).length;   // 「予定表にない」は要確認件数から除外（無関係）
   const _rvb=$('openReview'), _rvl=$('reviewLabel');
   if(_rvb&&_rvl){ if(totalReview){ _rvb.classList.remove('clear'); _rvl.innerHTML='⚠️ 要確認 <b>'+totalReview+'</b> 件 → 処理する'; } else { _rvb.classList.add('clear'); _rvl.textContent='✓ 要確認はありません'; } }
   const depLabel = deptTab==='all'?'全部':deptTab==='share'?'一本の振込':deptTab==='nodept'?'未分類':deptTab;
@@ -1181,16 +1188,18 @@ function render(){
   const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
   renderDeptTabs();
   const body=$('resBody');
-  const base = resTab==='matched'?done : resTab==='review'?pending : resTab==='ignored'?ign : scoped;
+  const base = resTab==='matched'?done : resTab==='review'?pending : resTab==='orphan'?orphan : resTab==='ignored'?ign : scoped;
   const list = base;
   if(!list.length){
     let msg;
     if(!results.length) msg='STEP1・2を読み込んで「照合する」を押してください';
     else if(resTab==='review') msg=(pending.length? '該当なし（部門タブを変えてください）' : '未処理はありません。確定分は「消込済み」タブで確認できます');
+    else if(resTab==='orphan') msg='「予定表にない」入金はありません';
     else msg='該当なし（部門タブ／絞り込みを変えてください）';
     body.innerHTML='<div class="empty">'+msg+'</div>'; updateOutputs(); renderLink(); renderCollect(); return;
   }
-  let h='<div class="twrap"><table><thead><tr><th style="width:140px">状態</th><th style="width:160px">入金（誰から）</th><th class="num" style="width:112px">金額</th><th>充当先（どの工事）</th><th style="width:140px">操作</th></tr></thead><tbody>';
+  const orphanBar = resTab==='orphan' ? '<div class="orphanbar">🟠 どの予定表（土木/営業/環境）にも当たらない入金です。無関係（税金・相殺・別件）ならまとめて対象外に。<button class="btn sub mini" id="igAll">まとめて対象外へ</button><span class="muted" style="margin-left:8px">※「対象外」タブから戻せます</span></div>' : '';
+  let h=orphanBar+'<div class="twrap"><table><thead><tr><th style="width:140px">状態</th><th style="width:160px">入金（誰から）</th><th class="num" style="width:112px">金額</th><th>充当先（どの工事）</th><th style="width:140px">操作</th></tr></thead><tbody>';
   list.forEach(r=>{
     const di=results.indexOf(r);
     if(isShared(r)){
@@ -1382,6 +1391,7 @@ $('resBody').addEventListener('click',e=>{
   if(fix){ manualFix(results[+fix.dataset.fix]); return; }
   const ign=e.target.closest('[data-ign]');
   if(ign){ const di=+ign.dataset.ign; ignoreSet.add(results[di].key); saveIgnore(); runMatch(); return; }
+  if(e.target.closest('#igAll')){ const orph=results.filter(r=>r.status==='review'&&!isDone(r)&&isOrphan(r)&&inDept(r)); if(orph.length && confirm('「予定表にない」入金 '+orph.length+'件 をまとめて対象外にします。（対象外タブから戻せます）よろしいですか？')){ orph.forEach(r=>ignoreSet.add(r.key)); saveIgnore(); runMatch(); } return; }
   const un=e.target.closest('[data-un]');
   if(un){ const di=+un.dataset.un; const r=results[di]; delete confirmed[r.key]; const nk=normName(r.d.name); if(master[nk]&&r.entry){ master[nk]=master[nk].filter(p=>normPayee(p)!==normPayee(r.entry.請求先)); if(!master[nk].length)delete master[nk]; } saveMasterLocal(); saveConfirmed(); renderMaster(); pushMaster(); runMatch(); return; }
   const res=e.target.closest('[data-res]');
@@ -1534,7 +1544,7 @@ function reconGroups(){
     }
   });
   allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id]){ const pd=paid[id]||0, plan=planAmt(e); const sp=pendShare[normPayee(e.請求先)]||null; const nr=sp?null:(reviewByEid[id]||null); groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||'', sharePend:sp, needReview:nr}); } });
-  (results||[]).forEach(r=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ groups.push({kind:'inp', dept:'', plans:[], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'extra', planTot:0, paidTot:0, zan:0}); } });
+  (results||[]).forEach((r,ri)=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ groups.push({kind:'inp', ri:ri, dept:(resultDepts(r)[0]||''), plans:[], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'extra', planTot:0, paidTot:0, zan:0}); } });
   return {groups, paid, lastd};
 }
 function renderCollect(){
@@ -1545,7 +1555,7 @@ function renderCollect(){
   const inSel=g=> g.plans && g.plans.some(e=>deptOf(e)===selDept);
   const es=allEntries().filter(e=>deptOf(e)===selDept);
   if(!allEntries().length && !(results||[]).some(r=>r.status==='review')){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表を取り込むと、ここに入金状況が出ます</div>'; return; }
-  let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && inSel(g));   // 選んだ部門に関わる行だけ（一本振込は土木/営業 両方の画面に自分の分が出る）
+  let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && inSel(g));   // 選んだ部門に関わる行だけ（一本振込は土木/営業 両方の画面に自分の分が出る）。予定にどこにも無い入金＝無関係なので出さない
   // KPI（選んだ部門の予定側で集計）
   const planTot=es.reduce((a,e)=>a+planAmt(e),0);
   const noneN=groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview).length, partN=groups.filter(g=>g.st==='part'&&!g.sharePend&&!g.needReview).length;   // 一本振込あり・入金あり未確認は「未入金」に数えない（入金は来ている＝要確認側）
