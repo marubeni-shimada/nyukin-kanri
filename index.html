@@ -1655,8 +1655,12 @@ document.getElementById('collectBody').addEventListener('click',e=>{
   if(!opened) render();
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     document.querySelectorAll('#resBody tr.flash').forEach(x=>x.classList.remove('flash'));
-    const tr=document.getElementById('rvrow'+ri);
-    if(tr){ tr.scrollIntoView({behavior:'smooth',block:'center'}); tr.classList.add('flash'); setTimeout(()=>tr.classList.remove('flash'),1600); }
+    const row=document.getElementById('rvrow'+ri);
+    const detail=opened?document.querySelector('#resBody [data-detail="'+ri+'"]'):null;   // まとめ払いは内訳パネルそのものへ止める＝参照先が一目
+    const target=detail||row;
+    if(target){ target.scrollIntoView({behavior:'smooth',block:'center'}); }
+    if(row){ row.classList.add('flash'); setTimeout(()=>row.classList.remove('flash'),1800); }
+    if(detail){ detail.classList.add('flash'); setTimeout(()=>detail.classList.remove('flash'),1800); }
   }));
 });
 document.getElementById('viewMode').addEventListener('change',e=>{ viewMode=e.target.value; applyPlanSel(); runMatch(); });   // 予定表／累積を切替
@@ -1972,7 +1976,11 @@ function loadDemo(){
       {type:'土木',dept:'土木',請求先:'㈱ヤマエイ長島',工事名:'調整池整備工事',工事番号:'12655-01',amount:2211000,row:34},
       {type:'土木',dept:'土木',請求先:'㈱加藤組',工事名:'法面補強工事',工事番号:'12660-01',amount:1320000,row:36},
       {type:'土木',dept:'土木',請求先:'木内建設㈱',工事名:'橋梁下部工',工事番号:'12670-01',amount:5400000,row:38},
-      {type:'土木',dept:'土木',請求先:'㈱協和',工事名:'河川維持工事',工事番号:'12680-01',amount:770000,row:40}
+      {type:'土木',dept:'土木',請求先:'㈱協和',工事名:'河川維持工事',工事番号:'12680-01',amount:770000,row:40},
+      {type:'土木',dept:'土木',請求先:'原孝組㈱',工事名:'A 道路改良',工事番号:'12690-01',amount:1200000,row:42},
+      {type:'土木',dept:'土木',請求先:'原孝組㈱',工事名:'B 側溝設置',工事番号:'12690-02',amount:800000,row:44},
+      {type:'土木',dept:'土木',請求先:'原孝組㈱',工事名:'C 舗装補修',工事番号:'12690-03',amount:900000,row:46},
+      {type:'土木',dept:'土木',請求先:'原孝組㈱',工事名:'D 法面工事',工事番号:'12690-04',amount:1100000,row:48}
     ]});
   addSnap({dept:'営業', importedAt:'2026/08/10', periodKey:'202607', periodLabel:'26年7月分', name:'（サンプル）請求先別回収状況_営業7月.xlsx', entries:[
       {type:'弥生',dept:'営業',請求先:'丸二建設㈱',code:'E001',amount:1100000,altAmount:1100000,row:5},
@@ -1994,12 +2002,13 @@ function loadDemo(){
     {date:'2026/08/20',name:'ｶｼﾞﾏﾄﾞｳﾛ(ｶ',amount:7470000,bank:'静銀',src:'demo',kind:'振込',raw:''},       // 複数工事ピタリ（D+E+F）
     {date:'2026/08/21',name:'ｵｵｶﾜﾗｸﾞﾐ(ｶ',amount:3600000,bank:'静銀',src:'demo',kind:'振込',raw:''},       // 複数工事＋控除（B+C=380万→控除20万）
     {date:'2026/08/22',name:'ｾﾞﾛﾖﾃｲ(ｶ',amount:150000,bank:'静銀',src:'demo',kind:'振込',raw:''},          // 予定額0円なのに入金あり＝過入金（一致にしない）
-    {date:'2026/08/19',name:'ｷｮｳﾜ(ｶ',amount:765000,bank:'静銀',src:'demo',kind:'振込',raw:''}            // 手数料差5千＝自動確定されず要確認に残る（突合で🟡入金あり・未確認）
+    {date:'2026/08/19',name:'ｷｮｳﾜ(ｶ',amount:765000,bank:'静銀',src:'demo',kind:'振込',raw:''},            // 手数料差5千＝自動確定されず要確認に残る（突合で🟡入金あり・未確認）
+    {date:'2026/08/21',name:'ﾊﾗｺｸﾞﾐ(ｶ',amount:2000000,bank:'静銀',src:'demo',kind:'振込',raw:''}          // まとめ払い（組合せ複数A+B/C+Dで自動化されず→突合で🟡まとめ入金かも→ここで処理）
   ];
   bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps,importedAt:'2026/08/22'}];
   viewMode='予定表'; selDept='土木'; selDate='latest'; applyPlanSel();   // サンプル＝土木の予定表(最新)を表示
   master={};
-  [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱'],['ｶｼﾞﾏﾄﾞｳﾛ(ｶ','鹿島道路㈱'],['ｵｵｶﾜﾗｸﾞﾐ(ｶ','大川原組㈱'],['ｾﾞﾛﾖﾃｲ(ｶ','ゼロ予定㈱'],['ｷｮｳﾜ(ｶ','㈱協和']]
+  [['ﾏﾙﾆｹﾝｾﾂ(ｶ','丸二建設㈱'],['ｱｽｶﾄﾞｳﾛ(ｶ','あすか道路㈱'],['ｺｸﾄﾞｹﾝｾﾂ(ｶ','国土建設㈱'],['ﾔﾏﾀﾞｹﾝｾﾂ(ｶ','山田建設㈱'],['ﾏﾙﾆｼｺｳｷﾞｮｳ(ｶ','丸西工業㈱'],['ｵｵｲｼｹﾝｾﾂ(ｶ','大石建設㈱'],['ｲｼﾓﾄﾄﾞﾎﾞｸ(ｶ','石本土木㈱'],['ﾄｳｶｲｺｳｷﾞｮｳ(ｶ','東海工業㈱'],['ｶｼﾞﾏﾄﾞｳﾛ(ｶ','鹿島道路㈱'],['ｵｵｶﾜﾗｸﾞﾐ(ｶ','大川原組㈱'],['ｾﾞﾛﾖﾃｲ(ｶ','ゼロ予定㈱'],['ｷｮｳﾜ(ｶ','㈱協和'],['ﾊﾗｺｸﾞﾐ(ｶ','原孝組㈱']]
     .forEach(function(pr){ master[normName(pr[0])]=[pr[1]]; });
   confirmed={};
   confirmed[depKey(dps[2])]={payee:'国土建設㈱',type:'土木',row:20,code:null,dept:'土木',工事番号:'12377-01',工事名:'県道××舗装工事',fee:0};   // 過入金
