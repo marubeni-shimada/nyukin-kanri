@@ -1988,7 +1988,7 @@ function renderExNames(){
   const ents=[...ignoreNames.entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
   const c=$('exNameCount'); if(c) c.textContent=ents.length?('　'+ents.length+'件'):'';
   const tn=$('exNameTabN'); if(tn) tn.textContent=ents.length?('('+ents.length+')'):'';
-  tb.innerHTML=ents.length?ents.map(([k,nm])=>'<tr><td>'+esc(nm||k)+'</td><td style="text-align:right"><button class="btn sub mini" data-exdel="'+esc(k)+'" title="除外を解除して名義の紐づけ一覧に戻す">↩ 名義の紐づけに戻す</button></td></tr>').join(''):'<tr><td colspan="2" class="empty">まだありません（名義の紐づけ一覧の「🚫 関係ない」で追加します）</td></tr>';
+  tb.innerHTML=ents.length?ents.map(([k,nm])=>'<tr><td>'+esc(nm||k)+'</td><td style="text-align:right;white-space:nowrap"><button class="btn sub mini" style="white-space:nowrap" data-exdel="'+esc(k)+'" title="除外を解除して名義の紐づけ一覧に戻す">↩ 名義の紐づけに戻す</button></td></tr>').join(''):'<tr><td colspan="2" class="empty">まだありません（名義の紐づけ一覧の「🚫 関係ない」で追加します）</td></tr>';
 }
 $('masterTbl').addEventListener('click',e=>{ const d=e.target.closest('[data-mdel]'); if(d){ delete master[d.dataset.mdel]; saveMasterLocal(); renderMaster(); renderLink(); pushMaster(); runMatch(); } });
 $('exNameTbl').addEventListener('click',e=>{ const d=e.target.closest('[data-exdel]'); if(d){ ignoreNames.delete(d.dataset.exdel); saveIgnoreNames(); renderExNames(); renderLink(); runMatch(); } });
@@ -2037,7 +2037,7 @@ function renderLink(){
       if(!r.props.length) p+='<span class="muted" style="font-size:11px">提案なし　</span>';
       p+='<span style="display:inline-flex;gap:4px"><input class="selp" list="payeeList" data-add="'+i+'" placeholder="請求先を検索" style="min-width:150px"><button class="btn mini" data-addi="'+i+'">追加</button></span>';
       h+='<td>'+p+'</td>';
-      h+='<td class="act"><button class="btn sub mini" data-exname="'+i+'" title="この振込名義は関係ない（税金・保険・組合費など）→「除外名義」タブへ移して次回から自動で対象外。後で戻せます">🚫 関係ない</button></td></tr>';
+      h+='<td class="act" style="white-space:nowrap"><button class="btn sub mini" style="white-space:nowrap" data-exname="'+i+'" title="この振込名義は関係ない（税金・保険・組合費など）→「除外名義」タブへ移して次回から自動で対象外。後で戻せます">🚫 関係ない</button></td></tr>';
     });
     h+='</tbody></table></div>';
     host.innerHTML=h;
