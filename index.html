@@ -318,6 +318,10 @@ input.mdedin::-webkit-outer-spin-button,input.mdedin::-webkit-inner-spin-button{
 .dedadd:hover{background:#f2f4ff;border-color:#4f46e5}
 .dedsub{font-size:11px;color:#6b7280;margin-top:2px}
 .dedsub b{color:#1f2937;font-variant-numeric:tabular-nums}
+.pickinfo{margin-top:5px;font-size:12px;color:#3b4150;line-height:1.5}
+.pickinfo .pi-ok{color:#0f9d6b}
+.pickinfo .pi-warn{color:#b45309}
+.pickinfo .muted{color:#9aa2b1}
 .exalways-l{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:#6d28d9;margin-top:5px;cursor:pointer;white-space:nowrap}
 .exalways-l input{width:13px;height:13px;accent-color:#6d28d9;cursor:pointer}
 .mtabs{display:flex;gap:6px;margin:0 0 14px;border-bottom:1px solid var(--line,#e6e8ec)}
@@ -1030,11 +1034,11 @@ function payeeOptions(sel){
 function crossBadge(payee){ return isCross(payee)?'<span class="tag cross" title="複数部門にまたがる請求先。1振込の内訳（按分）を確認">内訳確認:'+esc(crossDepts(payee).join('+'))+'</span>':''; }
 function candChip(di,ci,e,near,dep){
   const plan=planAmt(e), diff=plan-dep;
-  const label=(e.type==='土木'?e.請求先+'／'+trunc(e.工事名,14):e.請求先+'（'+(e.dept||'弥生')+'）');
+  const label=(e.type==='土木'?e.請求先+'／'+(e.工事名||''):e.請求先+'（'+(e.dept||'弥生')+'）');
   const amt=near?('予定'+yen(plan)+'／差'+yen(diff)):('予定'+yen(plan)+'／残0');
   return '<button class="chip-c '+(near?'near':'exact')+'" data-di="'+di+'" data-ci="'+ci+'" data-near="'+(near?1:0)+'">'+esc(label)+' <b>'+amt+'</b> '+crossBadge(e.請求先)+'</button>';
 }
-function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+trunc(e.工事名||'',18)+' ¥'+yen(planAmt(e)); }
+function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+(e.工事名||'')+' ¥'+yen(planAmt(e)); }   // 工事名は省略せず全部（何の工事か分かるように）
 function bestCand(r){ if(r.exactCands&&r.exactCands.length) return {e:r.exactCands[0],near:false}; if(r.nearCands&&r.nearCands.length) return {e:r.nearCands[0],near:true}; return null; }
 /* 予定にどこにも当たらない入金＝「予定表にない」（候補も無く・名前で相手も特定できない）＝無関係の可能性 */
 function isOrphan(r){ if(!r||r.status!=='review') return false; if(bestCand(r)) return false;
@@ -1127,14 +1131,14 @@ function matomeCandidates(dep){   // 入金額を「複数工事の合算(残0)�
   _mcandCache[dep]=res; return res;
 }
 function candChipBtn(c,di){   // まとめ払い候補チップ（クリックでその相手のまとめ払い開始＝startMatome）
-  const brk=entriesByEids(c.combo).map(e=>trunc(e.工事名||e.請求先,10)).join('＋');
+  const brk=entriesByEids(c.combo).map(e=>(e.工事名||e.請求先)).join('＋');
   const tail=(c.kind==='exact')?('＝'+yen(c.sum)):('＝'+yen(c.sum)+' −控除'+yen(c.ded));
   return '<button class="cchip'+(c.kind==='exact'?'':' warn')+'" data-msetp="'+esc(c.payee)+'" data-mpi="'+di+'" title="この相手の工事を合算して充当します">'
     +'<span class="r0">'+(c.kind==='exact'?'残0':'控除')+'</span><span class="brk"><b>'+esc(c.payee)+'</b>：'+esc(brk)+' '+tail+'</span>🧩</button>';
 }
 function singleChipBtn(c,di){   // 単一工事候補チップ（クリックで1工事として確定＝data-best）
   return '<button class="cchip" data-best="1" data-di="'+di+'" title="1工事として確定">'
-    +'<span class="r0">'+(c.near?'手数料差':'残0')+'</span><span class="brk"><b>'+esc(c.payee)+'</b>：'+esc(trunc(c.e.工事名||'',12))+'（1工事）</span></button>';
+    +'<span class="r0">'+(c.near?'手数料差':'残0')+'</span><span class="brk"><b>'+esc(c.payee)+'</b>：'+esc(c.e.工事名||'')+'（1工事）</span></button>';
 }
 function isMulti(r){ return r.status==='review' && !!r.multi; }
 function multiOk(r){ const mc=multiConfirm[r.key]; return !!(mc&&mc.done); }
@@ -1310,7 +1314,7 @@ function multiRowHtml(r,di){
     + stateTd(done?'ok':'need', done?'':(r.reason||'複数工事に充当'))
     + whoTd(r)
     + amtTd(r,'')
-    + '<td><span class="lk multi">🧩 複数工事</span> '+esc(works.map(e=>trunc(e.工事名||e.請求先,10)).join('＋')||r.d.name)+(done&&mc&&mc.auto?' <span class="tag auto" title="名前が特定できた相手のまとめ払いを自動で消込しました。内訳は「内訳を見る」で確認、違えば「戻す」で取消せます">自動</span>':'')+'</td>'
+    + '<td><span class="lk multi">🧩 複数工事</span> '+esc(works.map(e=>(e.工事名||e.請求先)).join('＋')||r.d.name)+(done&&mc&&mc.auto?' <span class="tag auto" title="名前が特定できた相手のまとめ払いを自動で消込しました。内訳は「内訳を見る」で確認、違えば「戻す」で取消せます">自動</span>':'')+'</td>'
     + '<td class="act">'+(done?'<button class="btn sub mini" data-mundo="'+di+'">戻す</button>':('<button class="btn primary mini" data-tgl="'+di+'">'+(open?'閉じる':'内訳を見る')+'</button>'+(r.multi&&r.multi.manual?' <button class="btn sub mini" data-mclr="'+di+'" title="まとめ払いをやめて請求先を選び直す">選び直す</button>':'')))+'</td></tr>';
   h+='<tr class="detail" data-detail="'+di+'" style="display:'+(open?'':'none')+'"><td colspan="5">'+multiPanelHtml(r,di)+'</td></tr>';
   return h;
@@ -1411,7 +1415,7 @@ function render(){
         // 「1工事として選ぶ／手で選ぶ」＝従来の候補確定＋検索＋別相手まとめ払い（直したい人だけ）
         cell+='<div class="single">';
         if(b){ const e=b.e,diff=planAmt(e)-r.d.amount; cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
-        cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div>';
+        cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>';
         cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="相手を選んでまとめ払いにする">🧩 複数工事のまとめ入金</button></div>';
         cell+='</div>';
       }
@@ -1621,6 +1625,19 @@ function manualFix(r){
   const near = planAmt(e)>r.d.amount && tolOK(r.d.amount,planAmt(e));
   confirmMatch(r,e,near);   // 選んだ予定に紐づけ＋名義を学習（差額は手数料へ）
 }
+/* 要確認：請求先/工事を選ぶと、その工事の予定額・入金・差を確定前に表示（誤確定の予防） */
+$('resBody').addEventListener('input',e=>{
+  const s=e.target.closest('input.selp[data-sel]'); if(!s)return;
+  const di=+s.dataset.sel; const r=results[di]; if(!r)return;
+  const box=document.querySelector('[data-pickinfo="'+di+'"]'); if(!box)return;
+  const e2=allEntries().find(x=>dispEntry(x)===s.value.trim());
+  if(!e2){ box.innerHTML='<span class="muted">↑ 一覧から工事を選ぶと、予定額と差が出ます</span>'; return; }
+  const plan=planAmt(e2), dep=r.d.amount, diff=plan-dep;
+  const lab = diff===0 ? '<b class="pi-ok">残0 ✓</b>'
+    : diff>0 ? '<b class="pi-warn">不足/控除 ¥'+yen(diff)+'</b>（この工事の予定に対して入金が少ない）'
+    : '<b class="pi-warn">過入金 ¥'+yen(-diff)+'</b>（入金が予定より多い）';
+  box.innerHTML='選択：<b>'+esc(e2.請求先)+'／'+esc(e2.工事名||'')+'</b>　予定 <b>¥'+yen(plan)+'</b> ／ 入金 <b>¥'+yen(dep)+'</b> ／ '+lab;
+});
 $('runMatch').addEventListener('click',runMatch);
 /* 引き出し（消込・名義マスタ）の開閉。見る画面（突合）は常時表示 */
 function openDrawer(k){
