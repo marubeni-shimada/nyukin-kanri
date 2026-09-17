@@ -564,7 +564,7 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .ckpi{border:1px solid var(--line,#e7e9ee);border-radius:12px;padding:12px 14px;background:var(--card,#fff)}
   #tabCollect .ckpi .l{font-size:11.5px;color:#6b7280}
   #tabCollect .ckpi .v{font-size:22px;font-weight:700;margin-top:2px;letter-spacing:.01em}
-  #tabCollect .ckpi .v small{font-size:12px;font-weight:600;color:#6b7280;margin-left:2px}
+  #tabCollect .ckpi .v small{display:block;font-size:11.5px;font-weight:600;color:#6b7280;margin-top:3px;line-height:1.4}
   #tabCollect .ckpi.alert .v{color:#c02626}
   #tabCollect .ckpi.part .v{color:#b45309}
   #tabCollect .ckpi.ok .v{color:#0f9d6b}
@@ -637,6 +637,9 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .rc button.pill.goreview:hover{filter:brightness(.97);transform:translateY(-1px)}
   #tabCollect .rc tr.g-need td.plan{box-shadow:inset 4px 0 0 #d99a2e;background:color-mix(in srgb,#d99a2e 6%,#fff)}
   #tabCollect .rc tr.g-need .sharehint{color:#a8600a}
+  #tabCollect .rc .whysub{font-size:10.5px;font-weight:800;margin-top:4px;line-height:1.3}
+  #tabCollect .rc .whysub.maybe{color:#a8600a}
+  #tabCollect .rc .whysub.notyet{color:#9aa2b1}
   #tabCollect .rc .why{margin-left:6px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid #e3b7b1;background:#fff;color:#c02626;font-size:11px;font-weight:900;cursor:pointer;line-height:1;vertical-align:middle;user-select:none}
   #tabCollect .rc .why:hover{background:#fdecee}
   #tabCollect .rc tr.g-part .why{border-color:#f0cfa0;color:#b45309}
@@ -1823,11 +1826,14 @@ function renderCollect(){
   const planTot=es.reduce((a,e)=>a+planAmt(e),0);
   const noneN=groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview&&!isDb(g)).length, partN=groups.filter(g=>g.st==='part'&&!g.sharePend&&!g.needReview&&!isDb(g)).length;   // 一本振込あり・入金あり未確認は「未入金」に数えない（入金は来ている＝要確認側）。電債で確認済も除く
   const okN=groups.filter(g=>isDb(g)||g.st==='ok'||g.st==='fee'||g.st==='multi'||g.st==='over').length;
+  // 未入金の内訳：入金が来ている（名義未登録/金額違い＝要処理）と、本当に入金が見つからない を分ける
+  let noneMaybe=0; groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview&&!isDb(g)).forEach(g=>{ try{ const w=computeWhy(g); if(w&&w.act) noneMaybe++; }catch(e){} });
+  const noneReal=Math.max(0, noneN-noneMaybe);
   const zansum=groups.reduce((a,g)=>a+((!isDb(g)&&g.zan>0)?g.zan:0),0);   // 電債で確認済は残0扱い
   const paidsum=Math.max(0, planTot-zansum);
   $('collectSum').innerHTML = _ckpi('予定 合計','¥'+yen(planTot),'')
     + _ckpi('入金（回収）','¥'+yen(paidsum), planTot?(Math.round(paidsum/planTot*100)+'%'):'', 'ok')
-    + _ckpi('未入金・一部',(noneN+partN)+'件','（未入金'+noneN+'）','alert')
+    + _ckpi('未入金・一部',(noneN+partN)+'件','本当に未入金 '+noneReal+' ／ 入金あり(要処理) '+noneMaybe+' ／ 一部 '+partN,'alert')
     + _ckpi('回収済',okN+'件','','');
   if(bar) bar.style.width=(planTot?Math.round(paidsum/planTot*100):0)+'%';
   const isNG=g=>!isDb(g)&&(g.st==='none'||g.st==='part'||g.st==='extra');
@@ -1871,9 +1877,11 @@ function renderCollect(){
         if(g.sharePend){ ctrHtml='<button type="button" class="pill '+pillCls+' goshare" data-goshare="'+g.sharePend.ri+'" title="クリックで内訳へジャンプ">'+pillLab+'</button><div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。<u>クリックで内訳へ</u></div>'; }
         else if(g.needReview){ const nlab=g.needReview.matome?'🟡 まとめ入金かも':'🟡 入金あり・未確認'; ctrHtml='<button type="button" class="pill need goreview" data-goreview="'+g.needReview.ri+'" title="この入金の処理へ移動">'+nlab+'</button><div class="sharehint">'+esc(g.needReview.who)+' から入金。<u>→ ここで処理</u></div>'; }
         else if(isDb(g)){ ctrHtml='<span class="pill ok">✅ 消込済み</span><div class="undohint"><button type="button" class="lk-undo" data-denundo="'+esc(g.denbaiKey)+'" title="電債の確認を取り消す">↩ 電債を取り消し</button></div>'; }
-        else { let whyBtn=''; if(g.kind==='plan'&&(g.st==='none'||g.st==='part')){ const wi=whyStore.push(computeWhy(g))-1; whyBtn='<span class="why" data-why="'+wi+'" title="なぜ未入金？">?</span>'; }
+        else { let whyBtn='', whySub=''; if(g.kind==='plan'&&(g.st==='none'||g.st==='part')){ const w=computeWhy(g); const wi=whyStore.push(w)-1; whyBtn='<span class="why" data-why="'+wi+'" title="なぜ？">?</span>';
+            if(g.st==='none') whySub = w.act ? '<div class="whysub maybe">🟠 入金あり・要処理</div>' : '<div class="whysub notyet">まだ来てない</div>';   // 未入金の行に内訳を直接表示（入金は来てる＝要処理／本当に来てない）
+          }
           const dbChk = dbQual(g) ? '<label class="dbchk"><input type="checkbox" data-denbai="'+esc(g.denbaiKey)+'">電債ですか？</label>' : '';   // 残が大きい一部入金＝電債の可能性→チェックで消込済み
-          ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'+whyBtn+dbChk+(g.kind==='settled'&&g.ri!=null?'<div class="undohint"><button type="button" class="lk-undo" data-goundo="'+g.ri+'" title="この消込を取り消して要確認に戻す">↩ 取り消し</button></div>':''); }
+          ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'+whyBtn+whySub+dbChk+(g.kind==='settled'&&g.ri!=null?'<div class="undohint"><button type="button" class="lk-undo" data-goundo="'+g.ri+'" title="この消込を取り消して要確認に戻す">↩ 取り消し</button></div>':''); }
         h+='<td class="ctr" rowspan="'+rows+'">'+ctrHtml+'</td>';
         if(g.inp){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.inp.who)+'</div>'
             +'<div class="meta">'+kindTag(g.inp.dkind)+' '+esc(g.inp.bank||'')+'</div>'
