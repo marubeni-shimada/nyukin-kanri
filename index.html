@@ -321,6 +321,8 @@ input.mdedin::-webkit-outer-spin-button,input.mdedin::-webkit-inner-spin-button{
 .pickblock{margin-top:4px}
 .picklabel{font-size:12px;font-weight:800;color:#3b4150;margin:0 0 4px}
 .pick{display:flex;gap:6px;align-items:center;width:100%;flex-wrap:wrap}
+input.pickfilter{flex:1 1 100%;width:100%;font:inherit;font-size:12.5px;padding:7px 10px;border:1px solid var(--line,#d3d9e2);border-radius:8px;background:#fff;margin-bottom:2px}
+input.pickfilter:focus{outline:none;border-color:#4f46e5}
 select.planpick{flex:1 1 560px;min-width:420px;max-width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line,#d3d9e2);border-radius:8px;background:#fff}
 @media(max-width:640px){ select.planpick{min-width:0;flex-basis:auto} }
 .pickinfo{margin-top:5px;font-size:12px;color:#3b4150;line-height:1.5}
@@ -1044,10 +1046,11 @@ function candChip(di,ci,e,near,dep){
   return '<button class="chip-c '+(near?'near':'exact')+'" data-di="'+di+'" data-ci="'+ci+'" data-near="'+(near?1:0)+'">'+esc(label)+' <b>'+amt+'</b> '+crossBadge(e.請求先)+'</button>';
 }
 function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+(e.工事名||'')+' ¥'+yen(planAmt(e)); }   // 工事名は省略せず全部（何の工事か分かるように）
-function planSelectHtml(di){   // 要確認：請求先→工事をプルダウンで選ぶ（valueはdispEntry＝manualFixと整合）
+function planSelectHtml(di){   // 要確認：請求先→工事をプルダウンで選ぶ（valueはdispEntry＝manualFixと整合）＋絞り込み検索
   const byP={}; allEntries().forEach(e=>{ (byP[e.請求先]=byP[e.請求先]||[]).push(e); });
   const payees=Object.keys(byP).sort((a,b)=>String(a).localeCompare(String(b)));
-  let h='<select class="selp planpick" data-sel="'+di+'"><option value="">— 請求先／工事を選ぶ —</option>';
+  let h='<input type="text" class="pickfilter" data-pf="'+di+'" placeholder="🔍 会社名・工事名・金額で絞り込み" autocomplete="off">';
+  h+='<select class="selp planpick" data-sel="'+di+'"><option value="">— 請求先／工事を選ぶ —</option>';
   payees.forEach(p=>{ h+='<optgroup label="'+esc(p)+'">';
     byP[p].forEach(e=>{ const lab=(e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):('（'+(e.dept||'弥生')+'）'))+'　¥'+yen(planAmt(e)); h+='<option value="'+esc(dispEntry(e))+'">'+esc(lab)+'</option>'; });
     h+='</optgroup>'; });
@@ -1656,6 +1659,14 @@ function updatePickInfo(s){
     : '<b class="pi-warn">過入金 ¥'+yen(-diff)+'</b>（入金が予定より多い）';
   box.innerHTML='選択：<b>'+esc(e2.請求先)+'／'+esc(e2.工事名||'')+'</b>　予定 <b>¥'+yen(plan)+'</b> ／ 入金 <b>¥'+yen(dep)+'</b> ／ '+lab;
 }
+/* 要確認：工事プルダウンの絞り込み検索（会社名・工事名・金額） */
+$('resBody').addEventListener('input',e=>{
+  const f=e.target.closest('.pickfilter[data-pf]'); if(!f)return;
+  const sel=document.querySelector('select.planpick[data-sel="'+f.dataset.pf+'"]'); if(!sel)return;
+  const norm=x=>String(x).toLowerCase().replace(/[,¥\s　]/g,''); const q=norm(f.value);
+  sel.querySelectorAll('option').forEach(o=>{ if(o.value===''){ o.hidden=false; return; } const g=(o.parentNode&&o.parentNode.tagName==='OPTGROUP')?o.parentNode.label:''; o.hidden = !!q && !norm(g+o.textContent).includes(q); });
+  sel.querySelectorAll('optgroup').forEach(g=>{ g.hidden = ![...g.children].some(o=>!o.hidden); });
+});
 $('resBody').addEventListener('input',e=>{ const s=e.target.closest('.selp[data-sel]'); if(s) updatePickInfo(s); });
 $('resBody').addEventListener('change',e=>{ const s=e.target.closest('.selp[data-sel]'); if(s) updatePickInfo(s); });
 $('runMatch').addEventListener('click',runMatch);
