@@ -318,6 +318,8 @@ input.mdedin::-webkit-outer-spin-button,input.mdedin::-webkit-inner-spin-button{
 .dedadd:hover{background:#f2f4ff;border-color:#4f46e5}
 .dedsub{font-size:11px;color:#6b7280;margin-top:2px}
 .dedsub b{color:#1f2937;font-variant-numeric:tabular-nums}
+.pickblock{margin-top:4px}
+.picklabel{font-size:12px;font-weight:800;color:#3b4150;margin:0 0 4px}
 .pick{display:flex;gap:6px;align-items:center;width:100%;flex-wrap:wrap}
 select.planpick{flex:1 1 560px;min-width:420px;max-width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line,#d3d9e2);border-radius:8px;background:#fff}
 @media(max-width:640px){ select.planpick{min-width:0;flex-basis:auto} }
@@ -1402,10 +1404,14 @@ function render(){
       if(b) chips.push({kind:'single', payee:b.e.請求先, e:b.e, near:b.near});
       matomeCandidates(r.d.amount).slice(0,4).forEach(m=>chips.push(m));
       if(chips.length===0){
-        // 候補ゼロ：従来どおり手で選ぶ／検索
-        cell+='<div class="acts"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select>'
-          +'<button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 複数工事のまとめ入金</button>'
-          +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'1つの工事の入金')+'</button></div>';
+        // 候補ゼロ：工事を直接プルダウンで選べる（1つの工事）＋ まとめ払い（請求先）
+        cell+='<div class="pickblock">'
+          +'<div class="picklabel">① 1つの工事に消込（工事を選ぶ）</div>'
+          +'<div class="pick">'+planSelectHtml(di)+'<button class="btn mini" data-fix="'+di+'">確定</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>'
+          +'<div class="picklabel" style="margin-top:8px">② 複数工事をまとめて（請求先を選ぶ）</div>'
+          +'<div class="acts"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select>'
+          +'<button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 複数工事のまとめ入金</button></div>'
+          +'</div>';
       } else if(chips.length===1){
         const c=chips[0];
         if(c.kind==='single'){
@@ -2357,7 +2363,8 @@ function loadDemo(){
     {date:'2026/08/22',name:'ｾﾞﾛﾖﾃｲ(ｶ',amount:150000,bank:'静銀',src:'demo',kind:'振込',raw:''},          // 予定額0円なのに入金あり＝過入金（一致にしない）
     {date:'2026/08/19',name:'ｷｮｳﾜ(ｶ',amount:765000,bank:'静銀',src:'demo',kind:'振込',raw:''},            // 手数料差5千＝自動確定されず要確認に残る（突合で🟡入金あり・未確認）
     {date:'2026/08/21',name:'ﾊﾗｺｸﾞﾐ(ｶ',amount:2000000,bank:'静銀',src:'demo',kind:'振込',raw:''},          // まとめ払い（組合せ複数A+B/C+Dで自動化されず→突合で🟡まとめ入金かも→ここで処理）
-    {date:'2026/08/23',name:'ｹﾝｾﾂｸﾐｱｲ',amount:38000,bank:'静銀',src:'demo',kind:'振込',raw:''}            // 予定表にない無関係入金（組合費）→✕除外＋「今後もこの名義」で除外名義マスタに登録できる
+    {date:'2026/08/23',name:'ｹﾝｾﾂｸﾐｱｲ',amount:38000,bank:'静銀',src:'demo',kind:'振込',raw:''},            // 予定表にない無関係入金（組合費）→✕除外＋「今後もこの名義」で除外名義マスタに登録できる
+    {date:'2026/08/24',name:'ｵｵｲｼｹﾝｾﾂ(ｶ',amount:250000,bank:'静銀',src:'demo',kind:'振込',raw:''}          // 候補ゼロ（名義は大石建設と分かるが金額が予定と合わない・1工事でまとめ払いも無し）→要確認で工事プルダウン/まとめ払いを直接選べる
   ];
   bankFiles=[{name:'（サンプル）静銀・島掛.csv',bank:'サンプル',deposits:dps,importedAt:'2026/08/22'}];
   viewMode='予定表'; selDept='土木'; selDate='latest'; applyPlanSel();   // サンプル＝土木の予定表(最新)を表示
