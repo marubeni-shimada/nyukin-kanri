@@ -318,6 +318,9 @@ input.mdedin::-webkit-outer-spin-button,input.mdedin::-webkit-inner-spin-button{
 .dedadd:hover{background:#f2f4ff;border-color:#4f46e5}
 .dedsub{font-size:11px;color:#6b7280;margin-top:2px}
 .dedsub b{color:#1f2937;font-variant-numeric:tabular-nums}
+.pick{display:flex;gap:6px;align-items:center;width:100%;flex-wrap:wrap}
+select.planpick{flex:1 1 560px;min-width:420px;max-width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line,#d3d9e2);border-radius:8px;background:#fff}
+@media(max-width:640px){ select.planpick{min-width:0;flex-basis:auto} }
 .pickinfo{margin-top:5px;font-size:12px;color:#3b4150;line-height:1.5}
 .pickinfo .pi-ok{color:#0f9d6b}
 .pickinfo .pi-warn{color:#b45309}
@@ -1039,6 +1042,16 @@ function candChip(di,ci,e,near,dep){
   return '<button class="chip-c '+(near?'near':'exact')+'" data-di="'+di+'" data-ci="'+ci+'" data-near="'+(near?1:0)+'">'+esc(label)+' <b>'+amt+'</b> '+crossBadge(e.請求先)+'</button>';
 }
 function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+(e.工事名||'')+' ¥'+yen(planAmt(e)); }   // 工事名は省略せず全部（何の工事か分かるように）
+function planSelectHtml(di){   // 要確認：請求先→工事をプルダウンで選ぶ（valueはdispEntry＝manualFixと整合）
+  const byP={}; allEntries().forEach(e=>{ (byP[e.請求先]=byP[e.請求先]||[]).push(e); });
+  const payees=Object.keys(byP).sort((a,b)=>String(a).localeCompare(String(b)));
+  let h='<select class="selp planpick" data-sel="'+di+'"><option value="">— 請求先／工事を選ぶ —</option>';
+  payees.forEach(p=>{ h+='<optgroup label="'+esc(p)+'">';
+    byP[p].forEach(e=>{ const lab=(e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):('（'+(e.dept||'弥生')+'）'))+'　¥'+yen(planAmt(e)); h+='<option value="'+esc(dispEntry(e))+'">'+esc(lab)+'</option>'; });
+    h+='</optgroup>'; });
+  h+='</select>';
+  return h;
+}
 function bestCand(r){ if(r.exactCands&&r.exactCands.length) return {e:r.exactCands[0],near:false}; if(r.nearCands&&r.nearCands.length) return {e:r.nearCands[0],near:true}; return null; }
 /* 予定にどこにも当たらない入金＝「予定表にない」（候補も無く・名前で相手も特定できない）＝無関係の可能性 */
 function isOrphan(r){ if(!r||r.status!=='review') return false; if(bestCand(r)) return false;
@@ -1415,7 +1428,7 @@ function render(){
         // 「1工事として選ぶ／手で選ぶ」＝従来の候補確定＋検索＋別相手まとめ払い（直したい人だけ）
         cell+='<div class="single">';
         if(b){ const e=b.e,diff=planAmt(e)-r.d.amount; cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
-        cell+='<div class="pick"><input class="selp" list="planList" data-sel="'+di+'" placeholder="請求先や金額で検索"><button class="btn mini" data-fix="'+di+'">確定</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>';
+        cell+='<div class="pick">'+planSelectHtml(di)+'<button class="btn mini" data-fix="'+di+'">確定</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>';
         cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="相手を選んでまとめ払いにする">🧩 複数工事のまとめ入金</button></div>';
         cell+='</div>';
       }
@@ -1626,18 +1639,19 @@ function manualFix(r){
   confirmMatch(r,e,near);   // 選んだ予定に紐づけ＋名義を学習（差額は手数料へ）
 }
 /* 要確認：請求先/工事を選ぶと、その工事の予定額・入金・差を確定前に表示（誤確定の予防） */
-$('resBody').addEventListener('input',e=>{
-  const s=e.target.closest('input.selp[data-sel]'); if(!s)return;
+function updatePickInfo(s){
   const di=+s.dataset.sel; const r=results[di]; if(!r)return;
   const box=document.querySelector('[data-pickinfo="'+di+'"]'); if(!box)return;
   const e2=allEntries().find(x=>dispEntry(x)===s.value.trim());
-  if(!e2){ box.innerHTML='<span class="muted">↑ 一覧から工事を選ぶと、予定額と差が出ます</span>'; return; }
+  if(!e2){ box.innerHTML='<span class="muted">↑ プルダウンから工事を選ぶと、予定額と差が出ます</span>'; return; }
   const plan=planAmt(e2), dep=r.d.amount, diff=plan-dep;
   const lab = diff===0 ? '<b class="pi-ok">残0 ✓</b>'
     : diff>0 ? '<b class="pi-warn">不足/控除 ¥'+yen(diff)+'</b>（この工事の予定に対して入金が少ない）'
     : '<b class="pi-warn">過入金 ¥'+yen(-diff)+'</b>（入金が予定より多い）';
   box.innerHTML='選択：<b>'+esc(e2.請求先)+'／'+esc(e2.工事名||'')+'</b>　予定 <b>¥'+yen(plan)+'</b> ／ 入金 <b>¥'+yen(dep)+'</b> ／ '+lab;
-});
+}
+$('resBody').addEventListener('input',e=>{ const s=e.target.closest('.selp[data-sel]'); if(s) updatePickInfo(s); });
+$('resBody').addEventListener('change',e=>{ const s=e.target.closest('.selp[data-sel]'); if(s) updatePickInfo(s); });
 $('runMatch').addEventListener('click',runMatch);
 /* 引き出し（消込・名義マスタ）の開閉。見る画面（突合）は常時表示 */
 function openDrawer(k){
