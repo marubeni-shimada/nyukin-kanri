@@ -320,10 +320,15 @@ input.mdedin::-webkit-outer-spin-button,input.mdedin::-webkit-inner-spin-button{
 .dedsub b{color:#1f2937;font-variant-numeric:tabular-nums}
 .pickblock{margin-top:4px}
 .picklabel{font-size:12px;font-weight:800;color:#3b4150;margin:0 0 4px}
-.pick{display:flex;gap:6px;align-items:center;width:100%;flex-wrap:wrap}
-.planpick{flex:1 1 560px;min-width:420px;max-width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line,#d3d9e2);border-radius:8px;background:#fff}
-.planpick:focus{outline:none;border-color:#4f46e5}
-@media(max-width:640px){ .planpick{min-width:0;flex-basis:auto} }
+.pick{display:flex;gap:6px;align-items:flex-start;width:100%;flex-wrap:wrap}
+.cb{position:relative;flex:1 1 560px;min-width:420px;max-width:100%}
+.cb-inp{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line,#d3d9e2);border-radius:8px;background:#fff;cursor:pointer}
+.cb-inp:focus{outline:none;border-color:#4f46e5}
+.cb-pop{position:absolute;z-index:60;left:0;right:0;top:calc(100% + 3px);max-height:320px;overflow-y:auto;background:#fff;border:1px solid #d3d9e2;border-radius:10px;box-shadow:0 12px 30px rgba(20,22,35,.16);padding:4px}
+.cb-grp{font-size:10.5px;font-weight:800;color:#6b7280;background:#f6f7f9;padding:5px 9px;border-radius:6px;margin:4px 2px 2px;position:sticky;top:0}
+.cb-item{font-size:12.5px;padding:8px 10px;border-radius:7px;cursor:pointer;white-space:normal}
+.cb-item:hover{background:#eef2ff}
+@media(max-width:640px){ .cb{min-width:0;flex-basis:auto} }
 .pickinfo{margin-top:5px;font-size:12px;color:#3b4150;line-height:1.5}
 .pickinfo .pi-ok{color:#0f9d6b}
 .pickinfo .pi-warn{color:#b45309}
@@ -1045,8 +1050,23 @@ function candChip(di,ci,e,near,dep){
   return '<button class="chip-c '+(near?'near':'exact')+'" data-di="'+di+'" data-ci="'+ci+'" data-near="'+(near?1:0)+'">'+esc(label)+' <b>'+amt+'</b> '+crossBadge(e.請求先)+'</button>';
 }
 function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+(e.工事名||'')+' ¥'+yen(planAmt(e)); }   // 工事名は省略せず全部（何の工事か分かるように）
-function planSelectHtml(di){   // 要確認：請求先／工事を選ぶ＝プルダウン兼検索（クリックで一覧・打つと絞込。valueはdispEntry＝manualFixと整合）
-  return '<input type="text" class="selp planpick" list="planList" data-sel="'+di+'" placeholder="🔍 クリックで一覧・入力で検索（会社名／工事名／金額）" autocomplete="off">';
+function _ckn(s){ return String(s||'').toLowerCase().replace(/[,¥\s　]/g,''); }   // 検索用の正規化（カンマ・¥・空白除去）
+function planSelectHtml(di){   // 要確認：請求先→工事の「検索できるプルダウン」（開いて文字を打つと中身が絞れる）。valueはdispEntry＝manualFixと整合
+  const byP={}; allEntries().forEach(e=>{ (byP[e.請求先]=byP[e.請求先]||[]).push(e); });
+  const payees=Object.keys(byP).sort((a,b)=>String(a).localeCompare(String(b)));
+  let items='';
+  payees.forEach((p,gi)=>{ items+='<div class="cb-grp" data-gi="'+gi+'">'+esc(p)+'</div>';
+    byP[p].forEach(e=>{ const dv=dispEntry(e); const lab=(e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):('（'+(e.dept||'弥生')+'）'))+'　¥'+yen(planAmt(e)); items+='<div class="cb-item" data-gi="'+gi+'" data-cv="'+esc(dv)+'" data-k="'+esc(_ckn(p+lab))+'">'+esc(lab)+'</div>'; });
+  });
+  return '<div class="cb" data-cb="'+di+'">'
+    +'<input type="text" class="selp cb-inp" data-sel="'+di+'" placeholder="🔍 請求先／工事を選ぶ（クリックで一覧・打つと絞込）" autocomplete="off">'
+    +'<div class="cb-pop" hidden>'+items+'</div></div>';
+}
+function cbFilter(inp){   // 入力に応じてプルダウン内を絞り込み
+  const pop=inp.parentNode.querySelector('.cb-pop'); if(!pop)return;
+  const q=_ckn(inp.value);
+  pop.querySelectorAll('.cb-item').forEach(it=>{ it.hidden = !!q && it.dataset.k.indexOf(q)<0; });
+  pop.querySelectorAll('.cb-grp').forEach(g=>{ g.hidden = ![...pop.querySelectorAll('.cb-item[data-gi="'+g.dataset.gi+'"]')].some(it=>!it.hidden); });
 }
 function bestCand(r){ if(r.exactCands&&r.exactCands.length) return {e:r.exactCands[0],near:false}; if(r.nearCands&&r.nearCands.length) return {e:r.nearCands[0],near:true}; return null; }
 /* 予定にどこにも当たらない入金＝「予定表にない」（候補も無く・名前で相手も特定できない）＝無関係の可能性 */
@@ -1650,7 +1670,18 @@ function updatePickInfo(s){
     : '<b class="pi-warn">過入金 ¥'+yen(-diff)+'</b>（入金が予定より多い）';
   box.innerHTML='選択：<b>'+esc(e2.請求先)+'／'+esc(e2.工事名||'')+'</b>　予定 <b>¥'+yen(plan)+'</b> ／ 入金 <b>¥'+yen(dep)+'</b> ／ '+lab;
 }
-$('resBody').addEventListener('input',e=>{ const s=e.target.closest('.selp[data-sel]'); if(s) updatePickInfo(s); });
+/* 検索できるプルダウン：クリックで開く／打つと絞る／項目クリックで選ぶ */
+$('resBody').addEventListener('focusin',e=>{ const inp=e.target.closest('.cb-inp'); if(!inp)return; const pop=inp.parentNode.querySelector('.cb-pop'); if(pop){ pop.hidden=false; cbFilter(inp); } });
+$('resBody').addEventListener('input',e=>{
+  const inp=e.target.closest('.cb-inp');
+  if(inp){ const pop=inp.parentNode.querySelector('.cb-pop'); if(pop)pop.hidden=false; cbFilter(inp); updatePickInfo(inp); return; }
+});
+$('resBody').addEventListener('click',e=>{
+  const it=e.target.closest('.cb-item'); if(!it)return;
+  const cb=it.closest('.cb'); const inp=cb.querySelector('.cb-inp');
+  inp.value=it.dataset.cv; cb.querySelector('.cb-pop').hidden=true; updatePickInfo(inp);
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('.cb')) document.querySelectorAll('.cb-pop').forEach(p=>p.hidden=true); });
 $('resBody').addEventListener('change',e=>{ const s=e.target.closest('.selp[data-sel]'); if(s) updatePickInfo(s); });
 $('runMatch').addEventListener('click',runMatch);
 /* 引き出し（消込・名義マスタ）の開閉。見る画面（突合）は常時表示 */
