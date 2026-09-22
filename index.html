@@ -522,6 +522,7 @@ button.pill.goshare:active{transform:translateY(0)}
     <div class="depttabs" id="deptTabs"></div>
     <div class="tabs" id="resTabs">
       <button data-t="review" class="on">未処理 <span id="cReview"></span></button>
+      <button data-t="held">🕒 保留 <span id="cHeld"></span></button>
       <button data-t="matched">消込済み <span id="cMatched"></span></button>
       <button data-t="orphan">予定表にない <span id="cOrphan"></span></button>
       <button data-t="all">すべて</button>
@@ -652,6 +653,7 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .rc button.pill.goreview:hover{filter:brightness(.97);transform:translateY(-1px)}
   #tabCollect .rc tr.g-need td.plan{box-shadow:inset 4px 0 0 #d99a2e;background:color-mix(in srgb,#d99a2e 6%,#fff)}
   #tabCollect .rc tr.g-need .sharehint{color:#a8600a}
+  #tabCollect .rc .heldtag{display:inline-block;margin-top:5px;font-size:10.5px;font-weight:800;color:#4338ca;background:#eef2ff;border:1px solid #d9d0ff;border-radius:6px;padding:2px 8px}
   #tabCollect .rc .whysub{font-size:10.5px;font-weight:800;margin-top:4px;line-height:1.3}
   #tabCollect .rc .whysub.maybe{color:#a8600a}
   #tabCollect .rc .whysub.notyet{color:#9aa2b1}
@@ -708,6 +710,7 @@ let master={};       // normKey -> [請求先,...]（1名義→複数請求先�
 let confirmed={};    // depKey -> {payee,type,row,code,dept,工事番号,工事名,fee}
 let ignoreSet=new Set(); // depositのkey(対象外)
 let ignoreNames=new Map(); // 除外名義マスタ：normName(振込名義)->表示名。この名義の入金は次回から自動で対象外（税金/保険/組合費など毎回来る無関係入金）
+let holdSet=new Map();     // 保留：depKey -> {wk,payee,disp,plan,...}。月またぎ等で今は確定しない一部入金。保留タブに退避（後で確定/戻せる）
 let noAutoSet=new Set(); // depositのkey：手動で取り消した入金＝自動消込(🅐/②)を再適用せず要確認に留める
 let denbaiSet=new Set(); // 突合ビュー：残が大きい一部入金を「電債で確認済＝消込済み」にした印（denbaiKey）
 let whyStore=[];     // 突合ビュー：未入金/一部の「なぜ？」理由（renderCollectごとに再生成）
@@ -719,7 +722,7 @@ let splitConfirm={}; // v0.2 一本振込の内訳＋両部署確認：key -> {a
 let multiConfirm={}; // v0.3 複数工事への充当：depKey -> {combo:[eid...], ded:{eid:控除額}, done:bool}
 let adjMode=new Set();    // v0.6 まとめ払い：式ビューで「工事を直す」を開いている行（r.key）
 let singleMode=new Set(); // v0.6 要確認：「1工事として選ぶ」を開いている行（r.key）
-const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan', MMULTI='nyukin_multi', MTOKUI='nyukin_tokui', MNOAUTO='nyukin_noauto', MDENBAI='nyukin_denbai', MIGNAME='nyukin_ignorename';
+const MKEY='nyukin_master', MIGN='nyukin_ignore', MCONF='nyukin_confirmed', MSPLIT='nyukin_split', MBANK='nyukin_bank', MPLAN='nyukin_plan', MMULTI='nyukin_multi', MTOKUI='nyukin_tokui', MNOAUTO='nyukin_noauto', MDENBAI='nyukin_denbai', MIGNAME='nyukin_ignorename', MHOLD='nyukin_hold';
 let allowPersist=true;  // 銀行・予定表の取込をこのPCに保存（サンプル表示中はfalse）。順不同・別日でも残す
 // マスタ保存GAS：URLをここに固定（大石さんは触らなくても最初から共有される）
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbyQNsc3cvrgle_ruuNLd6knrJ0l6vAU-ImTpAYEsIyOLdzPoLgF0wj0SgTZMGdFD3Tz/exec';
@@ -973,6 +976,7 @@ function runMatch(){
     if(seen.has(key)) return; seen.add(key);
     if(ignoreSet.has(key)){ results.push({d,key,status:'ignored'}); return; }
     if(ignoreNames.has(normName(d.name))){ results.push({d,key,status:'ignored',byName:true}); return; }   // 除外名義マスタ＝この振込名義は自動で対象外
+    if(holdSet.has(key)){ results.push({d,key,status:'held',hold:holdSet.get(key)}); return; }   // 保留＝この工事の一部として置いてある（後で確定/戻す）
     const cf=confirmed[key];
     if(cf){ const e=findEntry(cf); if(e){ results.push({d,key,status:'matched',entry:e,fee:cf.fee||0,auto:!!cf.auto}); return; } }
     let payeeList=master[normName(d.name)]||[];
@@ -1051,8 +1055,8 @@ function candChip(di,ci,e,near,dep){
 }
 function dispEntry(e){ return '['+(e.dept||(e.type==='土木'?'土木':'弥生'))+'] '+e.請求先+'／'+(e.工事名||'')+' ¥'+yen(planAmt(e)); }   // 工事名は省略せず全部（何の工事か分かるように）
 function _ckn(s){ return String(s||'').toLowerCase().replace(/[,¥\s　]/g,''); }   // 検索用の正規化（カンマ・¥・空白除去）
-function planSelectHtml(di){   // 要確認：請求先→工事の「検索できるプルダウン」（開いて文字を打つと中身が絞れる）。valueはdispEntry＝manualFixと整合
-  const byP={}; allEntries().forEach(e=>{ (byP[e.請求先]=byP[e.請求先]||[]).push(e); });
+function planSelectHtml(di){   // 要確認：請求先→工事の「検索できるプルダウン」（開いて文字を打つと中身が絞れる）。別月の工事も候補に出す。valueはdispEntry＝manualFixと整合
+  const byP={}; allEntriesAllMonths().forEach(e=>{ (byP[e.請求先]=byP[e.請求先]||[]).push(e); });
   const payees=Object.keys(byP).sort((a,b)=>String(a).localeCompare(String(b)));
   let items='';
   payees.forEach((p,gi)=>{ items+='<div class="cb-grp" data-gi="'+gi+'">'+esc(p)+'</div>';
@@ -1357,7 +1361,9 @@ function render(){
   const orphan=pendingAll.filter(isOrphan);              // 予定表にない（無関係候補）
   const pending=pendingAll.filter(r=>!isOrphan(r));      // 未処理＝予定に当たる要処理だけ
   const ign=scoped.filter(r=>r.status==='ignored');
+  const held=scoped.filter(r=>r.status==='held');
   $('cReview').textContent=pending.length?('('+pending.length+')'):'';
+  const _ch=$('cHeld'); if(_ch)_ch.textContent=held.length?('('+held.length+')'):'';
   $('cMatched').textContent=done.length?('('+done.length+')'):'';
   const _co=$('cOrphan'); if(_co)_co.textContent=orphan.length?('('+orphan.length+')'):'';
   $('cIgnored').textContent=ign.length?('('+ign.length+')'):'';
@@ -1370,8 +1376,23 @@ function render(){
   const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
   renderDeptTabs();
   const body=$('resBody');
-  const base = resTab==='matched'?done : resTab==='review'?pending : resTab==='orphan'?orphan : resTab==='ignored'?ign : scoped;
+  const base = resTab==='matched'?done : resTab==='review'?pending : resTab==='orphan'?orphan : resTab==='held'?held : resTab==='ignored'?ign : scoped;
   const list = base;
+  if(resTab==='held'){   // 保留タブ＝この工事の一部として置いてある入金（確定/戻す）
+    if(!held.length){ body.innerHTML='<div class="empty">保留はありません（要確認で工事を選び「🕒 保留」で置けます）</div>'; updateOutputs(); renderLink(); renderCollect(); return; }
+    let hh='<div class="orphanbar">🕒 「この工事の一部」として保留中の入金。月またぎ等で今は確定しないもの。残りが来たら<b>確定</b>、違えば<b>戻す</b>。</div>';
+    hh+='<div class="twrap"><table><thead><tr><th style="width:120px">状態</th><th style="width:160px">入金（誰から）</th><th class="num" style="width:112px">入金額</th><th>充当先（保留中の工事）</th><th class="num" style="width:110px">予定額</th><th style="width:150px">操作</th></tr></thead><tbody>';
+    held.forEach(r=>{ const di=results.indexOf(r); const h=r.hold||holdSet.get(r.key)||{}; const diff=(h.plan||0)-r.d.amount;
+      hh+='<tr><td><span class="stt need" style="background:#eef2ff;color:#4338ca">🕒 保留</span></td>'
+        +whoTd(r)
+        +'<td class="num"><div class="amt2">'+yen(r.d.amount)+'</div></td>'
+        +'<td>'+esc(h.payee||'')+'／'+esc(h.工事名||h.disp||'')+(h.工事番号?'（'+esc(h.工事番号)+'）':'')+'</td>'
+        +'<td class="num">'+(h.plan!=null?'¥'+yen(h.plan):'—')+(h.plan!=null&&diff>0?'<div class="sub2" style="color:#b45309">残 '+yen(diff)+'</div>':'')+'</td>'
+        +'<td class="act"><button class="btn primary mini" data-holdgo="'+di+'" title="この工事に消込（差は一部入金として残る）">確定</button> <button class="btn sub mini" data-holdback="'+di+'">戻す</button></td></tr>';
+    });
+    hh+='</tbody></table></div>';
+    body.innerHTML=hh; updateOutputs(); renderLink(); renderCollect(); return;
+  }
   if(!list.length){
     let msg;
     if(!results.length) msg='STEP1・2を読み込んで「照合する」を押してください';
@@ -1448,7 +1469,7 @@ function render(){
         // 「1工事として選ぶ／手で選ぶ」＝従来の候補確定＋検索＋別相手まとめ払い（直したい人だけ）
         cell+='<div class="single">';
         if(b){ const e=b.e,diff=planAmt(e)-r.d.amount; cell+='<a class="cand '+(b.near?'near':'exact')+'" data-best="1" data-di="'+di+'" title="クリックで確定">'+esc(fmtEntry(e))+(b.near?'（差'+yen(diff)+'）':'（残0）')+' '+crossBadge(e.請求先)+'</a>'; }
-        cell+='<div class="pick">'+planSelectHtml(di)+'<button class="btn mini" data-fix="'+di+'">確定</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>';
+        cell+='<div class="pick">'+planSelectHtml(di)+'<button class="btn mini" data-fix="'+di+'">確定</button><button class="btn sub mini" data-hold="'+di+'" title="この工事の一部として保留（月またぎ等で今は確定しない・後で確定/戻せる）">🕒 保留</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>';
         cell+='<div class="pick pick-multi"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select><button class="btn mini" data-mset="'+di+'" title="相手を選んでまとめ払いにする">🧩 複数工事のまとめ入金</button></div>';
         cell+='</div>';
       }
@@ -1635,6 +1656,12 @@ $('resBody').addEventListener('click',e=>{
   if(best){ const r=results[+best.dataset.di]; const b=bestCand(r); if(b) confirmMatch(r,b.e,b.near); return; }
   const fix=e.target.closest('[data-fix]');
   if(fix){ manualFix(results[+fix.dataset.fix]); return; }
+  const hold=e.target.closest('[data-hold]');
+  if(hold){ holdFix(results[+hold.dataset.hold]); return; }
+  const hgo=e.target.closest('[data-holdgo]');   // 保留→確定（充当先の工事に消込。差は一部入金として残る）
+  if(hgo){ const r=results[+hgo.dataset.holdgo]; const h=holdSet.get(r.key); const e2=h?(findEntryAll(h.eid)||{請求先:h.payee,type:h.type,dept:h.dept,row:h.row,code:h.code,工事番号:h.工事番号,工事名:h.工事名,amount:h.plan}):null; if(!e2){ alert('充当先の工事が見つかりません（予定表を取り込み直してください）。'); return; } holdSet.delete(r.key); saveHold(); const near=planAmt(e2)>r.d.amount && tolOK(r.d.amount,planAmt(e2)); confirmMatch(r,e2,near); return; }
+  const hback=e.target.closest('[data-holdback]');   // 保留→戻す（要確認へ）
+  if(hback){ const r=results[+hback.dataset.holdback]; holdSet.delete(r.key); saveHold(); scheduleSync(); runMatch(); return; }
   const ign=e.target.closest('[data-ign]');
   if(ign){ const di=+ign.dataset.ign; ignoreSet.add(results[di].key); saveIgnore(); runMatch(); return; }
   if(e.target.closest('#igAll')){ const orph=results.filter(r=>r.status==='review'&&!isDone(r)&&isOrphan(r)&&inDept(r)); if(orph.length && confirm('「予定表にない」入金 '+orph.length+'件 をまとめて対象外にします。（対象外タブから戻せます）よろしいですか？')){ orph.forEach(r=>ignoreSet.add(r.key)); saveIgnore(); runMatch(); } return; }
@@ -1650,13 +1677,22 @@ function confirmMatch(r,entry,near){
   confirmed[depKey(d)]={payee:entry.請求先,type:entry.type,row:entry.row||null,code:entry.code||null,dept:entry.dept||null,工事番号:entry.工事番号||null,工事名:entry.工事名||null,fee:near?fee:0};
   addMaster(d.name,entry.請求先); saveConfirmed(); renderMaster(); pushMaster(); runMatch();
 }
-function manualFix(r){
+function _pickedEntry(r){   // 「請求先/工事を選ぶ」で選んだ予定（別月も含めて探す）
   const inp=document.querySelector('[data-sel="'+results.indexOf(r)+'"]'); const val=inp?inp.value.trim():'';
-  if(!val){ alert('一覧から予定を選んでください（請求先や金額で検索）'); return; }
-  const e=allEntries().find(x=>dispEntry(x)===val);
-  if(!e){ alert('一覧から選んでください（候補に無い場合は請求先や金額で検索して選択）'); return; }
+  if(!val) return null;
+  return allEntriesAllMonths().find(x=>dispEntry(x)===val)||null;
+}
+function manualFix(r){
+  const e=_pickedEntry(r);
+  if(!e){ alert('プルダウンから請求先／工事を選んでください（打つと絞り込めます）'); return; }
   const near = planAmt(e)>r.d.amount && tolOK(r.d.amount,planAmt(e));
   confirmMatch(r,e,near);   // 選んだ予定に紐づけ＋名義を学習（差額は手数料へ）
+}
+function holdFix(r){   // 選んだ工事の「一部・保留」に置く（確定しないで退避）
+  const e=_pickedEntry(r);
+  if(!e){ alert('プルダウンから請求先／工事を選んでください（この工事の一部として保留します）'); return; }
+  holdSet.set(r.key,{eid:_eid(e), wk:_wk(e), payee:e.請求先, disp:dispEntry(e), plan:planAmt(e), type:e.type, dept:e.dept, row:e.row||null, code:e.code||null, 工事番号:e.工事番号||null, 工事名:e.工事名||null});
+  saveHold(); scheduleSync(); runMatch(); toast('「'+trunc(e.工事名||e.請求先,14)+'」の一部として保留にしました（保留タブ）');
 }
 /* 要確認：請求先/工事を選ぶと、その工事の予定額・入金・差を確定前に表示（誤確定の予防） */
 function updatePickInfo(s){
@@ -1791,6 +1827,7 @@ function _resolvesTo(depName, payee){   // 振込名義が その請求先に「
 function reconGroups(){
   const {paid,lastd}=collectPaid();
   const groups=[]; const covered={};
+  const heldEids=new Set(); const heldList=[]; (results||[]).forEach((r,ri)=>{ if(r.status==='held'&&r.hold){ const he=findEntryAll(r.hold.eid); if(he)heldEids.add(_eid(he)); heldList.push({r,ri,e:he}); } });   // 保留＝専用行として一覧に必ず出す
   // 未確定の一本振込（部門またぎ）の請求先→入金情報。予定表一覧に「一本振込あり」の注意を出すため
   const pendShare={};
   (results||[]).forEach((r,ri)=>{ if(r.status!=='ignored' && isShared(r) && !splitOkAll(r)){ payeesOf(r).forEach(p=>{ const k=normPayee(p); if(!pendShare[k]) pendShare[k]={amt:r.d.amount,who:r.d.name,date:r.d.date,depts:resultDepts(r),ri:ri,key:r.key}; }); } });
@@ -1816,8 +1853,13 @@ function reconGroups(){
       plans.forEach(e=>covered[_eid(e)]=1);
     }
   });
-  allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id]){ const pd=paid[id]||0, plan=planAmt(e); if(plan<=0 && pd<=0) return;   // 予定額0円（回収予定なし）は一覧に出さない ※0円以外は全部出す
-    const sp=pendShare[normPayee(e.請求先)]||null; const nr=sp?null:(reviewByEid[id]||null); groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||'', sharePend:sp, needReview:nr, denbaiKey:'e:'+id}); } });
+  allEntries().forEach(e=>{ const id=_eid(e); if(!covered[id] && !heldEids.has(id)){ const pd=paid[id]||0, plan=planAmt(e); if(plan<=0 && pd<=0) return;   // 予定額0円（回収予定なし）は一覧に出さない ※0円以外は全部出す。保留中の工事は専用行で出す
+    const sp=pendShare[normPayee(e.請求先)]||null; const nr=sp?null:(reviewByEid[id]||null);
+    groups.push({kind:'plan', dept:deptOf(e), plans:[e], inp:null, st:(pd<=0?'none':'part'), planTot:plan, paidTot:pd, zan:plan-pd, last:lastd[id]||'', sharePend:sp, needReview:nr, denbaiKey:'e:'+id}); } });
+  // 保留：予定表一覧に必ず1行（工事が消込済み/別月/どの状態でも見えるように）
+  heldList.forEach(({r,ri,e})=>{ const h=r.hold||{}; const plan=e?planAmt(e):(h.plan||0);
+    const pe = e?e:{請求先:h.payee,工事名:h.工事名,工事番号:h.工事番号,type:h.type||'土木',dept:h.dept};
+    groups.push({kind:'held', ri:ri, dept:(e?deptOf(e):(h.dept||'土木')), plans:[pe], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'part', planTot:plan, paidTot:r.d.amount, zan:plan-r.d.amount, heldAmt:r.d.amount}); });
   (results||[]).forEach((r,ri)=>{ if(r.status==='review' && !(isMulti(r)&&multiOk(r)) && !(isShared(r)&&splitOkAll(r))){ groups.push({kind:'inp', ri:ri, dept:(resultDepts(r)[0]||''), plans:[], inp:{who:r.d.name,date:r.d.date,amt:r.d.amount,bank:r.d.bank,dkind:r.d.kind}, st:'extra', planTot:0, paidTot:0, zan:0}); } });
   return {groups, paid, lastd};
 }
@@ -1880,13 +1922,15 @@ function renderCollect(){
   const inSel=g=> g.plans && g.plans.some(e=>deptOf(e)===selDept);
   const es=allEntries().filter(e=>deptOf(e)===selDept);
   if(!allEntries().length && !(results||[]).some(r=>r.status==='review')){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表を取り込むと、ここに入金状況が出ます</div>'; return; }
-  let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && inSel(g));   // 選んだ部門に関わる行だけ（一本振込は土木/営業 両方の画面に自分の分が出る）。予定にどこにも無い入金＝無関係なので出さない
+  let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && (g.kind==='held' || inSel(g)));   // 選んだ部門に関わる行だけ。保留は部門/月に関係なく必ず出す
   // 電債で確認済み（残が大きい一部入金を「電債で入金＝消込済み」にした）判定
   const isDb=g=> g.denbaiKey && denbaiSet.has(g.denbaiKey);
-  const dbQual=g=> g.st==='part' && !g.sharePend && !g.needReview && g.planTot>0 && g.zan>=g.planTot*0.4;   // 残が予定の40%以上の一部入金にだけ「電債ですか？」を出す
+  const isHeld=g=> g.kind==='held';
+  const dbQual=g=> g.st==='part' && g.kind!=='held' && !g.sharePend && !g.needReview && g.planTot>0 && g.zan>=g.planTot*0.4;   // 残が予定の40%以上の一部入金にだけ「電債ですか？」を出す（保留は除く）
   // KPI（選んだ部門の予定側で集計）
   const planTot=es.reduce((a,e)=>a+planAmt(e),0);
-  const noneN=groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview&&!isDb(g)).length, partN=groups.filter(g=>g.st==='part'&&!g.sharePend&&!g.needReview&&!isDb(g)).length;   // 一本振込あり・入金あり未確認は「未入金」に数えない（入金は来ている＝要確認側）。電債で確認済も除く
+  const heldN=groups.filter(isHeld).length;
+  const noneN=groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview&&!isDb(g)).length, partN=groups.filter(g=>g.st==='part'&&!isHeld(g)&&!g.sharePend&&!g.needReview&&!isDb(g)).length;   // 一本振込あり・入金あり未確認は「未入金」に数えない。保留・電債で確認済も除く
   const okN=groups.filter(g=>isDb(g)||g.st==='ok'||g.st==='fee'||g.st==='multi'||g.st==='over').length;
   // 未入金の内訳：入金が来ている（名義未登録/金額違い＝要処理）と、本当に入金が見つからない を分ける
   let noneMaybe=0; groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview&&!isDb(g)).forEach(g=>{ try{ const w=computeWhy(g); if(w&&w.act) noneMaybe++; }catch(e){} });
@@ -1902,9 +1946,9 @@ function renderCollect(){
   ['all','土木','営業','環境'].forEach(d=>{ const el=$('ck-'+d); if(!el)return; const n=(d==='all'?groups:groups.filter(g=>g.dept===d)).filter(isNG).length; el.textContent=n?('要'+n):''; });
   let list=groups.slice();
   if(collectDept!=='all') list=list.filter(g=>g.dept===collectDept);
-  if(collectMonth!=='all') list=list.filter(g=> g.inp ? (ymOf(g.inp.date)===collectMonth) : (g.st==='none'||g.st==='part'));  // 入金月で絞る。未入金・一部（入金なし）は常に表示＝取りっぱぐれを見逃さない
-  // 状態タブ：未入金／要確認（一部・過入金・予定外・一本振込あり）／一致・回収済（一致・手数料差・まとめ払い）
-  const csBucket=g=> isDb(g) ? 'ok' : (g.sharePend||g.needReview) ? 'check' : (g.st==='none' ? 'none' : (g.st==='part'||g.st==='over'||g.st==='extra') ? 'check' : 'ok');
+  if(collectMonth!=='all') list=list.filter(g=> isHeld(g) ? true : (g.inp ? (ymOf(g.inp.date)===collectMonth) : (g.st==='none'||g.st==='part')));  // 入金月で絞る。未入金・一部・保留は常に表示＝取りっぱぐれを見逃さない
+  // 状態タブ：未入金／要確認（一部・過入金・予定外・一本振込あり・保留）／一致・回収済
+  const csBucket=g=> isDb(g) ? 'ok' : isHeld(g) ? 'check' : (g.sharePend||g.needReview) ? 'check' : (g.st==='none' ? 'none' : (g.st==='part'||g.st==='over'||g.st==='extra') ? 'check' : 'ok');
   const scnt={none:0,check:0,ok:0}; list.forEach(g=>scnt[csBucket(g)]++);
   const setcs=(id,n)=>{const el=$(id);if(el)el.textContent=n?('('+n+')'):'';};
   setcs('cs-all',list.length); setcs('cs-none',scnt.none); setcs('cs-check',scnt.check); setcs('cs-ok',scnt.ok);
@@ -1939,6 +1983,7 @@ function renderCollect(){
         if(g.sharePend){ ctrHtml='<button type="button" class="pill '+pillCls+' goshare" data-goshare="'+g.sharePend.ri+'" title="クリックで内訳へジャンプ">'+pillLab+'</button><div class="sharehint">'+esc(g.sharePend.who)+' の一本振込。<u>クリックで内訳へ</u></div>'; }
         else if(g.needReview){ const nlab=g.needReview.matome?'🟡 まとめ入金かも':'🟡 入金あり・未確認'; ctrHtml='<button type="button" class="pill need goreview" data-goreview="'+g.needReview.ri+'" title="この入金の処理へ移動">'+nlab+'</button><div class="sharehint">'+esc(g.needReview.who)+' から入金。<u>→ ここで処理</u></div>'; }
         else if(isDb(g)){ ctrHtml='<span class="pill ok">✅ 消込済み</span><div class="undohint"><button type="button" class="lk-undo" data-denundo="'+esc(g.denbaiKey)+'" title="電債の確認を取り消す">↩ 電債を取り消し</button></div>'; }
+        else if(isHeld(g)){ ctrHtml='<span class="pill part">⚠️ 一部入金</span><div class="heldtag">🕒 保留 ¥'+yen(g.heldAmt||0)+'</div><div class="undohint"><button type="button" class="lk-undo" data-holdgo2="'+g.ri+'" title="この保留を消込む">確定</button> <button type="button" class="lk-undo" data-holdback2="'+g.ri+'" title="保留を解除して要確認に戻す">↩ 戻す</button></div>'; }
         else { let whyBtn='', whySub=''; if(g.kind==='plan'&&(g.st==='none'||g.st==='part')){ const w=computeWhy(g); const wi=whyStore.push(w)-1; whyBtn='<span class="why" data-why="'+wi+'" title="なぜ？">?</span>';
             if(g.st==='none') whySub = w.act ? '<div class="whysub maybe">🟠 入金あり・要処理</div>' : '<div class="whysub notyet">まだ来てない</div>';   // 未入金の行に内訳を直接表示（入金は来てる＝要処理／本当に来てない）
           }
@@ -1952,7 +1997,9 @@ function renderCollect(){
         else if(g.needReview){ h+='<td class="inp" rowspan="'+rows+'"><div class="who">'+esc(g.needReview.who)+'</div><div class="meta" style="color:#a8600a;font-weight:700">未確認（要処理）</div></td>'
             +'<td class="inp num" rowspan="'+rows+'">¥'+yen(g.needReview.amt)+'</td>'; }
         else { h+='<td class="inp muted" rowspan="'+rows+'">（入金なし）</td><td class="inp num muted" rowspan="'+rows+'">—</td>'; }
-        const zc = isDb(g) ? '<span class="muted">電債で処理</span>' : g.needReview ? '<span class="muted">確認待ち</span>' : (g.st==='extra' ? '<span class="muted">—</span>' : (g.zan>0?'<span class="zan">¥'+yen(g.zan)+'</span>':(g.zan<0?'<span class="pill fee">+¥'+yen(-g.zan)+'</span>':'<span class="muted">0</span>')));
+        const zc = isDb(g) ? '<span class="muted">電債で処理</span>'
+          : isHeld(g) ? (g.zan>0?'<span class="zan">不足 ¥'+yen(g.zan)+'</span><div class="sub2" style="color:#4338ca">🕒保留中</div>':(g.zan<0?'<span class="pill over">超過 ＋¥'+yen(-g.zan)+'</span><div class="sub2" style="color:#4338ca">🕒保留中</div>':'<span class="muted">残0</span><div class="sub2" style="color:#4338ca">🕒保留中</div>'))
+          : g.needReview ? '<span class="muted">確認待ち</span>' : (g.st==='extra' ? '<span class="muted">—</span>' : (g.zan>0?'<span class="zan">¥'+yen(g.zan)+'</span>':(g.zan<0?'<span class="pill fee">+¥'+yen(-g.zan)+'</span>':'<span class="muted">0</span>')));
         h+='<td class="num" rowspan="'+rows+'">'+zc+'</td>';
       }
       h+='</tr>';
@@ -1996,6 +2043,11 @@ function undoFromCollect(ri){
   runMatch(); toast('消込を取り消しました（要確認に戻しました）');
 }
 document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.target.closest('[data-goundo]'); if(b){ undoFromCollect(+b.dataset.goundo); } });
+/* 突合ビューの保留行：確定／戻す */
+document.getElementById('collectBody').addEventListener('click',e=>{
+  const g=e.target.closest('[data-holdgo2]'); if(g){ const r=results[+g.dataset.holdgo2]; const h=holdSet.get(r.key); const e2=h?(findEntryAll(h.eid)||{請求先:h.payee,type:h.type,dept:h.dept,row:h.row,code:h.code,工事番号:h.工事番号,工事名:h.工事名,amount:h.plan}):null; if(!e2){ alert('充当先の工事が見つかりません。'); return; } holdSet.delete(r.key); saveHold(); const near=planAmt(e2)>r.d.amount && tolOK(r.d.amount,planAmt(e2)); confirmMatch(r,e2,near); return; }
+  const b=e.target.closest('[data-holdback2]'); if(b){ const r=results[+b.dataset.holdback2]; holdSet.delete(r.key); saveHold(); scheduleSync(); runMatch(); return; }
+});
 /* 電債チェック：残が大きい一部入金を「電債で確認済＝消込済み」に（取り消し可） */
 document.getElementById('collectBody').addEventListener('change',e=>{ const c=e.target.closest('input[data-denbai]'); if(!c)return;
   const k=c.dataset.denbai; if(c.checked) denbaiSet.add(k); else denbaiSet.delete(k); saveDenbai(); scheduleSync(); renderCollect();
@@ -2039,6 +2091,10 @@ document.getElementById('collectMonth').addEventListener('change',e=>{ collectMo
 function saveMasterLocal(){ localStorage.setItem(MKEY,JSON.stringify(master)); }
 function saveIgnore(){ localStorage.setItem(MIGN,JSON.stringify([...ignoreSet])); }
 function saveIgnoreNames(){ try{ localStorage.setItem(MIGNAME,JSON.stringify([...ignoreNames.entries()])); }catch(e){} }
+function saveHold(){ try{ localStorage.setItem(MHOLD,JSON.stringify([...holdSet.entries()])); }catch(e){} }
+function _wk(e){ return (e.請求先||'')+'|'+(e.工事番号||e.code||''); }   // 工事の識別（月をまたいでも同じ工事なら一致）
+function allEntriesAllMonths(){ const seen=new Set(),a=[]; planSnaps.forEach(s=>{ (s.entries||[]).forEach(e=>{ const k=dispEntry(e); if(!seen.has(k)){ seen.add(k); a.push(e); } }); }); return a; }   // 全月・全部門の予定（別月の工事も候補に）
+function findEntryAll(eid){ return allEntriesAllMonths().find(e=>_eid(e)===eid)||null; }
 function saveNoAuto(){ try{ localStorage.setItem(MNOAUTO,JSON.stringify([...noAutoSet])); }catch(e){} }
 function saveDenbai(){ try{ localStorage.setItem(MDENBAI,JSON.stringify([...denbaiSet])); }catch(e){} }
 /* 取込データの保存（銀行・予定表）：順不同・別日でも残す。予定表はentriesのみ保存（xlsx本体は保存しない＝記入済み出力はセッション内で有効） */
@@ -2401,7 +2457,7 @@ function loadDemo(){
   confirmed[depKey(dps[3])]={payee:'山田建設㈱',type:'土木',row:14,code:null,dept:'土木',工事番号:'12360-01',工事名:'△△護岸工事',fee:0};     // 不足
   confirmed[depKey(dps[4])]={payee:'丸西工業㈱',type:'土木',row:16,code:null,dept:'土木',工事番号:'12388-01',工事名:'○○下水道工事',fee:660}; // 手数料差
   confirmed[depKey(dps[11])]={payee:'ゼロ予定㈱',type:'土木',row:32,code:null,dept:'土木',工事番号:'12700-01',工事名:'追加変更 未確定工事',fee:0}; // 予定0→過入金
-  splitConfirm={}; ignoreSet=new Set(); noAutoSet=new Set(); denbaiSet=new Set(); ignoreNames=new Map();
+  splitConfirm={}; ignoreSet=new Set(); noAutoSet=new Set(); denbaiSet=new Set(); ignoreNames=new Map(); holdSet=new Map();
   setGasState('off'); const gs=$('gasState'); if(gs) gs.textContent='サンプル';
   renderBankFiles(); renderPlanFiles(); renderMaster(); runMatch();
   const host=document.querySelector('main');
@@ -2426,6 +2482,7 @@ else {
   try{ const tj=JSON.parse(localStorage.getItem(MTOKUI)||'null'); if(tj&&Array.isArray(tj.master)) mergeTokui(tj.master, null); }catch(e){}
   try{ (JSON.parse(localStorage.getItem(MIGN)||'[]')||[]).forEach(k=>ignoreSet.add(k)); }catch(e){}
   try{ (JSON.parse(localStorage.getItem(MIGNAME)||'[]')||[]).forEach(p=>{ if(Array.isArray(p)) ignoreNames.set(p[0],p[1]); }); }catch(e){}
+  try{ (JSON.parse(localStorage.getItem(MHOLD)||'[]')||[]).forEach(p=>{ if(Array.isArray(p)) holdSet.set(p[0],p[1]); }); }catch(e){}
   try{ (JSON.parse(localStorage.getItem(MNOAUTO)||'[]')||[]).forEach(k=>noAutoSet.add(k)); }catch(e){}
   try{ (JSON.parse(localStorage.getItem(MDENBAI)||'[]')||[]).forEach(k=>denbaiSet.add(k)); }catch(e){}
   try{ bankFiles=JSON.parse(localStorage.getItem(MBANK)||'[]')||[]; bankFiles.forEach(bf=>(bf.deposits||[]).forEach(d=>{ d.date=normDate(d.date); if(d.importedAt) d.importedAt=normDate(d.importedAt); })); }catch(e){ bankFiles=[]; }  // 先に取り込んでおいた銀行を復元（日付GMT表記を正規化）
