@@ -2527,11 +2527,14 @@ else {
 /* ？使い方 パネル開閉 */
 (function(){
   var $=function(id){return document.getElementById(id);};
-  function openHelp(){ $('helpMask').classList.add('open'); $('helpPanel').classList.add('open'); }
-  function closeHelp(){ $('helpMask').classList.remove('open'); $('helpPanel').classList.remove('open'); }
-  var hb=$('helpBtn'); if(hb) hb.addEventListener('click',openHelp);
-  ['helpClose','helpMask'].forEach(function(id){ var el=$(id); if(el) el.addEventListener('click',closeHelp); });
-  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeHelp(); });
+  function openHelp(){ var m=$('helpMask'),p=$('helpPanel'); if(m)m.classList.add('open'); if(p)p.classList.add('open'); }
+  function closeHelp(){ var m=$('helpMask'),p=$('helpPanel'); if(m)m.classList.remove('open'); if(p)p.classList.remove('open'); }
+  function bind(){
+    var hb=$('helpBtn'); if(hb) hb.addEventListener('click',openHelp);
+    ['helpClose','helpMask'].forEach(function(id){ var el=$(id); if(el) el.addEventListener('click',closeHelp); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeHelp(); });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
 })();
 </script>
 
