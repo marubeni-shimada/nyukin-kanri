@@ -461,6 +461,25 @@ button.pill.goshare:active{transform:translateY(0)}
 /* 🅐 自動採用バッジ */
 .tag.auto{background:color-mix(in srgb,#0a8a5f 14%,#fff);color:#0a8a5f;border:1px solid color-mix(in srgb,#0a8a5f 34%,#fff);border-radius:6px;padding:0 6px;font-size:10.5px;font-weight:700}
 @media (prefers-color-scheme:dark){.tag.auto{background:color-mix(in srgb,#3ecf9a 18%,#161c25);color:#3ecf9a;border-color:color-mix(in srgb,#3ecf9a 40%,#161c25)}}
+/* ？使い方 パネル */
+.helpmask{position:fixed;inset:0;background:rgba(20,22,35,.28);z-index:80;display:none}
+.helpmask.open{display:block}
+.helppanel{position:fixed;top:0;right:0;height:100%;width:min(560px,96vw);background:var(--card,#fff);box-shadow:-16px 0 46px rgba(20,22,35,.22);z-index:81;transform:translateX(102%);transition:transform .24s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+.helppanel.open{transform:translateX(0)}
+.helppanel .dhead{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line,#e6e8ef)}
+.helppanel .dhead h3{margin:0;font-size:16px}
+.helppanel .hp-body{padding:18px 20px;overflow:auto}
+.hp-step{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-bottom:1px dashed var(--line,#e6e8ef)}
+.hp-step .hp-n{flex:0 0 26px;height:26px;border-radius:50%;background:color-mix(in srgb,#7c3aed 14%,#fff);color:#7c3aed;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.hp-step .hp-t{flex:1;font-size:13px;line-height:1.6}
+.hp-step .hp-t b{font-size:13.5px}
+.hp-mut{color:var(--muted,#6b7280);font-size:12px}
+.hp-tip{margin-top:14px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,#0a8a5f 8%,#fff);border:1px solid color-mix(in srgb,#0a8a5f 24%,#fff);font-size:12.5px;line-height:1.7}
+@media (prefers-color-scheme:dark){
+.helppanel{background:#161c25}
+.hp-step .hp-n{background:color-mix(in srgb,#a78bfa 22%,#161c25);color:#c4b5fd}
+.hp-tip{background:color-mix(in srgb,#3ecf9a 12%,#161c25);border-color:color-mix(in srgb,#3ecf9a 32%,#161c25)}
+}
 </style>
 </head>
 <body>
@@ -469,6 +488,7 @@ button.pill.goshare:active{transform:translateY(0)}
     <div class="logo">¥</div>
     <div class="title"><h1>入金確認 <span class="muted" style="font-size:11px;font-weight:600">v0.6</span></h1><p>予定（売掛）に入金が来たかを一目で確認。当たらない時だけ「要確認」で処理します。</p></div>
     <div class="sp"></div>
+    <button class="btn sub mini" id="helpBtn" style="margin-right:10px">？ 使い方</button>
     <div class="gas" title="名義マスタ・入金を全員で自動共有します。誰か1人が名義を登録すれば、次回から全員の画面で自動的に消し込めます。">
       <input id="gasUrl" type="hidden">
       <span class="muted" style="font-size:12px">👥 みんなで共有</span>
@@ -2504,6 +2524,28 @@ else {
   if(GAS_URL) connectGas(); else setGasState('off');  // 埋め込みURLへ自動接続＋ローカルと統合（消さない）
 }
 })();
+/* ？使い方 パネル開閉 */
+(function(){
+  var $=function(id){return document.getElementById(id);};
+  function openHelp(){ $('helpMask').classList.add('open'); $('helpPanel').classList.add('open'); }
+  function closeHelp(){ $('helpMask').classList.remove('open'); $('helpPanel').classList.remove('open'); }
+  var hb=$('helpBtn'); if(hb) hb.addEventListener('click',openHelp);
+  ['helpClose','helpMask'].forEach(function(id){ var el=$(id); if(el) el.addEventListener('click',closeHelp); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeHelp(); });
+})();
 </script>
+
+<!-- ？使い方 パネル -->
+<div class="helpmask" id="helpMask"></div>
+<aside class="helppanel" id="helpPanel" aria-label="使い方">
+  <div class="dhead"><h3>？ 使い方</h3><span class="sp" style="flex:1"></span><button class="btn sub mini" id="helpClose">✕ 閉じる</button></div>
+  <div class="hp-body">
+    <div class="hp-step"><div class="hp-n">1</div><div class="hp-t"><b>取り込む</b><br>「銀行の入金明細」と「予定表（売掛）」のファイルをそれぞれ取り込みます。両方そろうと自動で照合します。<span class="hp-mut">CSV／Excelどちらでも可。</span></div></div>
+    <div class="hp-step"><div class="hp-n">2</div><div class="hp-t"><b>一覧で確認</b><br>予定表の一覧に、入金が来たものは <b>済</b>、来ていないものは <b>未入金</b> と出ます。<span class="hp-mut">未入金の「？」を押すと、なぜ来ていないかの説明が出ます。</span></div></div>
+    <div class="hp-step"><div class="hp-n">3</div><div class="hp-t"><b>要確認を処理</b><br>自動で当たらなかった入金は「要確認」に入ります。相手（請求先／工事）を選んで<b>確定</b>すると消し込めます。<span class="hp-mut">候補が出ないときは、プルダウンから検索して選べます。</span></div></div>
+    <div class="hp-step"><div class="hp-n">4</div><div class="hp-t"><b>控除・一部入金・保留</b><br>手数料や安全協力費などの控除があるときは、各工事に内訳金額を入力。半分だけの入金は<b>電債</b>チェックや<b>保留</b>で処理します。<span class="hp-mut">保留は一覧にも「🕒保留」と差額つきで表示されます。</span></div></div>
+    <div class="hp-tip">💡 <b>みんなで共有</b>がオンなら、名義の紐づけや処理結果が自動で全員に反映されます。1人が登録すれば次回から全員の画面で消し込めます。</div>
+  </div>
+</aside>
 </body>
 </html>
