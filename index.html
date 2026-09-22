@@ -1442,7 +1442,7 @@ function render(){
         // 候補ゼロ：工事を直接プルダウンで選べる（1つの工事）＋ まとめ払い（請求先）
         cell+='<div class="pickblock">'
           +'<div class="picklabel">① 1つの工事に消込（工事を選ぶ）</div>'
-          +'<div class="pick">'+planSelectHtml(di)+'<button class="btn mini" data-fix="'+di+'">確定</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>'
+          +'<div class="pick">'+planSelectHtml(di)+'<button class="btn mini" data-fix="'+di+'">確定</button><button class="btn sub mini" data-hold="'+di+'" title="この工事の一部として保留（後で確定/戻す）">🕒 保留</button></div><div class="pickinfo" data-pickinfo="'+di+'"></div>'
           +'<div class="picklabel" style="margin-top:8px">② 複数工事をまとめて（請求先を選ぶ）</div>'
           +'<div class="acts"><select class="selp" data-mp="'+di+'">'+payeeOptions('')+'</select>'
           +'<button class="btn mini" data-mset="'+di+'" title="この請求先の複数工事をまとめて充当します（まとめ払い）。差額は手数料・協力費として工事別に自動配分します。">🧩 複数工事のまとめ入金</button></div>'
@@ -1453,6 +1453,7 @@ function render(){
           const _df=planAmt(c.e)-r.d.amount;
           cell+='<div class="predA">→ <span class="who2">'+esc(c.payee)+'</span> さんの入金のようです <span class="mut">'+(c.near?'（手数料差 '+yen(_df)+'）':'（金額がピタリ）')+'</span></div>';
           cell+='<div class="acts"><button class="btn mini" data-best="1" data-di="'+di+'" title="この1工事に消し込みます">この工事に消込'+(c.near?'':'（残0）')+'</button>'
+            +'<button class="btn sub mini" data-holdbest="'+di+'" title="この工事の一部として保留（後で確定/戻す）">🕒 保留</button>'
             +'<button class="btn sub mini" data-msetp="'+esc(c.payee)+'" data-mpi="'+di+'" title="この相手の複数工事を合算して充当します">🧩 複数工事のまとめ入金</button>'
             +'<button class="btn sub mini" data-single="'+di+'">'+(sOpen?'閉じる':'ちがう・手で選ぶ')+'</button></div>';
         } else {
@@ -1658,6 +1659,8 @@ $('resBody').addEventListener('click',e=>{
   if(fix){ manualFix(results[+fix.dataset.fix]); return; }
   const hold=e.target.closest('[data-hold]');
   if(hold){ holdFix(results[+hold.dataset.hold]); return; }
+  const hb=e.target.closest('[data-holdbest]');
+  if(hb){ const r=results[+hb.dataset.holdbest]; const b=bestCand(r); if(!b){ alert('保留する工事が特定できません（「ちがう・手で選ぶ」で工事を選んでください）'); return; } holdEntry(r,b.e); return; }
   const hgo=e.target.closest('[data-holdgo]');   // 保留→確定（充当先の工事に消込。差は一部入金として残る）
   if(hgo){ const r=results[+hgo.dataset.holdgo]; const h=holdSet.get(r.key); const e2=h?(findEntryAll(h.eid)||{請求先:h.payee,type:h.type,dept:h.dept,row:h.row,code:h.code,工事番号:h.工事番号,工事名:h.工事名,amount:h.plan}):null; if(!e2){ alert('充当先の工事が見つかりません（予定表を取り込み直してください）。'); return; } holdSet.delete(r.key); saveHold(); const near=planAmt(e2)>r.d.amount && tolOK(r.d.amount,planAmt(e2)); confirmMatch(r,e2,near); return; }
   const hback=e.target.closest('[data-holdback]');   // 保留→戻す（要確認へ）
@@ -1688,11 +1691,15 @@ function manualFix(r){
   const near = planAmt(e)>r.d.amount && tolOK(r.d.amount,planAmt(e));
   confirmMatch(r,e,near);   // 選んだ予定に紐づけ＋名義を学習（差額は手数料へ）
 }
-function holdFix(r){   // 選んだ工事の「一部・保留」に置く（確定しないで退避）
-  const e=_pickedEntry(r);
-  if(!e){ alert('プルダウンから請求先／工事を選んでください（この工事の一部として保留します）'); return; }
+function holdEntry(r,e){   // 指定した工事の「一部・保留」に置く（確定しないで退避）
+  if(!e){ alert('保留する工事が特定できません'); return; }
   holdSet.set(r.key,{eid:_eid(e), wk:_wk(e), payee:e.請求先, disp:dispEntry(e), plan:planAmt(e), type:e.type, dept:e.dept, row:e.row||null, code:e.code||null, 工事番号:e.工事番号||null, 工事名:e.工事名||null});
   saveHold(); scheduleSync(); runMatch(); toast('「'+trunc(e.工事名||e.請求先,14)+'」の一部として保留にしました（保留タブ）');
+}
+function holdFix(r){   // プルダウンで選んだ工事を保留
+  const e=_pickedEntry(r);
+  if(!e){ alert('プルダウンから請求先／工事を選んでください（この工事の一部として保留します）'); return; }
+  holdEntry(r,e);
 }
 /* 要確認：請求先/工事を選ぶと、その工事の予定額・入金・差を確定前に表示（誤確定の予防） */
 function updatePickInfo(s){
