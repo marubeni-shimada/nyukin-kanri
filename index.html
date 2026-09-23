@@ -480,6 +480,51 @@ button.pill.goshare:active{transform:translateY(0)}
 .hp-step .hp-n{background:color-mix(in srgb,#a78bfa 22%,#161c25);color:#c4b5fd}
 .hp-tip{background:color-mix(in srgb,#3ecf9a 12%,#161c25);border-color:color-mix(in srgb,#3ecf9a 32%,#161c25)}
 }
+/* 支払通知書 読取結果プレビュー */
+.tsmask{position:fixed;inset:0;background:rgba(20,22,35,.45);z-index:120;display:none}
+.tsmask.open{display:block}
+.tsmodal{position:fixed;z-index:121;top:50%;left:50%;transform:translate(-50%,-50%);width:min(760px,95vw);max-height:90vh;overflow:auto;background:var(--card,#fff);border-radius:16px;box-shadow:0 30px 80px rgba(20,22,35,.4);display:none}
+.tsmodal.open{display:block}
+.tsmodal .tshd{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line,#e6e8ef)}
+.tsmodal .tshd h3{margin:0;font-size:15px}
+.tsbody{padding:16px 20px}
+.tskv{font-size:13px;margin:2px 0}
+.tsmatch{margin:12px 0;padding:11px 14px;border-radius:10px;font-size:13px;font-weight:600}
+.tsmatch.ok{background:color-mix(in srgb,#0a8a5f 12%,#fff);border:1px solid color-mix(in srgb,#0a8a5f 30%,#fff);color:#0a8a5f}
+.tsmatch.ng{background:color-mix(in srgb,#b7791f 14%,#fff);border:1px solid color-mix(in srgb,#b7791f 30%,#fff);color:#b7791f}
+.tsmatch select{margin-top:8px;width:100%;padding:8px 10px;border:1px solid var(--line,#e6e8ef);border-radius:8px;font:inherit}
+.tstbl{width:100%;border-collapse:collapse;margin-top:8px}
+.tstbl th,.tstbl td{border-bottom:1px solid var(--line,#e6e8ef);padding:7px 9px;text-align:left;font-size:12.5px;vertical-align:top}
+.tstbl th{background:#fafbff;color:var(--muted,#6b7280);font-size:11.5px;font-weight:600}
+.tstbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tsdk{display:inline-block;padding:0 7px;border-radius:999px;font-size:10.5px;font-weight:700;background:color-mix(in srgb,#c2410c 12%,#fff);color:#c2410c}
+.tswk{font-size:11.5px}
+.tswk.ok{color:#0a8a5f;font-weight:700}
+.tswk.ng{color:var(--muted,#6b7280)}
+.tsfoot{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line,#e6e8ef)}
+.tspick-btn{font:inherit;font-size:12px;border:1px solid var(--line,#e6e8ef);background:#fff;border-radius:8px;padding:4px 9px;cursor:pointer}
+.tspick-btn.ok{color:#0a8a5f;border-color:color-mix(in srgb,#0a8a5f 35%,#fff);background:color-mix(in srgb,#0a8a5f 8%,#fff)}
+.tspick-btn.ng{color:#b7791f;border-color:color-mix(in srgb,#b7791f 35%,#fff);background:color-mix(in srgb,#b7791f 10%,#fff);font-weight:700}
+.tspick-btn:hover{filter:brightness(.97)}
+.tscar{opacity:.6;font-size:10px}
+.tsdetail td{background:color-mix(in srgb,#7c3aed 5%,#fff)}
+.tscands{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tscl{font-size:11.5px;color:var(--muted,#6b7280)}
+.tscand{font:inherit;font-size:12px;border:1px solid var(--line,#e6e8ef);background:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;text-align:left}
+.tscand:hover{border-color:#7c3aed}
+.tscand.clr{color:#b91c1c;border-color:color-mix(in srgb,#b91c1c 30%,#fff)}
+.tsc-sub{color:var(--muted,#6b7280);font-size:10.5px}
+.tscard{border:1px solid var(--line,#e6e8ef);border-radius:12px;margin:10px 0;overflow:hidden}
+.tscard-h{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#fafbff;border-bottom:1px solid var(--line,#e6e8ef);font-size:13px}
+.tscard-h .conf{color:var(--muted,#6b7280);font-size:11.5px}
+.tscard-f{padding:7px 12px;font-size:11.5px;border-top:1px solid var(--line,#e6e8ef)}
+.tscard-f.ok{background:color-mix(in srgb,#0a8a5f 7%,#fff);color:#0a8a5f}
+.tscard-f.ng{background:color-mix(in srgb,#c2410c 8%,#fff);color:#c2410c}
+.bbadge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+.bbadge.ok{background:color-mix(in srgb,#0a8a5f 14%,#fff);color:#0a8a5f}
+.bbadge.ng{background:color-mix(in srgb,#b7791f 16%,#fff);color:#b7791f}
+.bdep{margin-left:6px;padding:4px 8px;border:1px solid var(--line,#e6e8ef);border-radius:8px;font:inherit;font-size:12px}
+@media (prefers-color-scheme:dark){.tsmodal{background:#161c25}.tstbl th,.tscard-h{background:#1b222d}.tspick-btn,.tscand,.bdep{background:#161c25}.tsdetail td{background:color-mix(in srgb,#a78bfa 10%,#161c25)}.tscard-f.ok{background:color-mix(in srgb,#3ecf9a 10%,#161c25)}.tscard-f.ng{background:color-mix(in srgb,#f0a36b 12%,#161c25)}}
 </style>
 </head>
 <body>
@@ -515,6 +560,12 @@ button.pill.goshare:active{transform:translateY(0)}
     </div>
     <input type="file" id="fileBank" accept=".csv" multiple hidden>
     <input type="file" id="filePlan" accept=".xlsx" multiple hidden>
+  </div>
+  <!-- ③ 支払通知書（AI・任意）：投げると該当入金を特定→工事ごとの控除を自動入力 -->
+  <div class="ibox tsuchi" id="dropTsuchi" style="margin-top:10px;cursor:pointer;border-style:dashed">
+    <div class="ibox-h"><span class="ibox-ic">🤖</span><span class="ibox-t">③ 支払通知書を読む（AI・任意）</span></div>
+    <div class="ibox-n" id="aiStat" style="font-size:11px;margin-top:2px"></div>
+    <div class="ibox-s">元請の支払通知書（画像/PDF）を入れると、AIが<b>該当入金を特定</b>し<b>工事ごとの控除を自動入力</b>。<b>複数まとめてドロップOK</b>→一覧で確認して<b>まとめて反映</b>できます。同じファイルは自動スキップ（API節約）。</div>
   </div>
   <div class="istrip-ctl">
     <button class="btn sub mini" id="runMatch" disabled>再照合</button>
@@ -1204,6 +1255,385 @@ function _dedToLines(v){   // 控除の値を「[{kind,amt},...]」配列に正�
   return null;
 }
 function _linesSum(ls){ return (ls||[]).reduce((a,l)=>a+(l.amt||0),0); }
+
+/* ============================================================
+   AI（Gemini）で支払通知書を読む → 控除を自動入力
+   ・読取＝Gemini（無料枠可）／照合＝会社名＋工事名＋金額（番号は使わない）
+   ・最終確定は人。金額計算・検算はコード側。
+   ============================================================ */
+/* ★APIキー・モデルは固定（利用者は変更不可）。埋め込みキーは前払い¥1,000で上限固定＝被害限定。作り直したら下記を差し替える。 */
+const GEMINI_KEY='AQ.Ab8RN6JNYuSVWy37qd-ORFQxYQCubdFSq0AfxjESwvpIC14sgQ';   // 固定
+const GEMINI_MODEL='gemini-3.5-flash-lite';   // 固定（画面から変更できない）
+/* AI利用状況（今月の回数・トークン・概算費用）を記録・表示 */
+function _aiMonth(){ const d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
+let AI_STATS=(function(){ try{ const s=JSON.parse(localStorage.getItem('nyukin_ai_stats')||'null'); if(s&&s.month===_aiMonth()) return s; }catch(e){} return {month:_aiMonth(),count:0,inTok:0,outTok:0}; })();
+function bumpAiStats(inTok,outTok){ if(AI_STATS.month!==_aiMonth()) AI_STATS={month:_aiMonth(),count:0,inTok:0,outTok:0}; AI_STATS.count++; AI_STATS.inTok+=(inTok||0); AI_STATS.outTok+=(outTok||0); try{ localStorage.setItem('nyukin_ai_stats',JSON.stringify(AI_STATS)); }catch(e){} updateAiBadge(); }
+function _aiYen(){ const y=(AI_STATS.inTok/1e6*0.10 + AI_STATS.outTok/1e6*0.40)*150; return y<1?('約¥'+y.toFixed(2)):('約¥'+Math.round(y)); }
+function updateAiBadge(){ const el=document.getElementById('aiStat'); if(!el) return;
+  el.innerHTML='🤖 モデル <b>'+esc(GEMINI_MODEL)+'</b>　｜　今月 <b>'+AI_STATS.count+'</b>回・'+(AI_STATS.inTok+AI_STATS.outTok).toLocaleString()+'トークン・<b>'+_aiYen()+'</b>'; }
+function ensureGeminiKey(){ return !!GEMINI_KEY; }   // キーは固定埋め込み（利用者は変更不可）
+/* 重複読込の防止（同じファイルは再度AIに投げない＝API節約）。キー＝ファイル名＋サイズ */
+let AI_READ=(function(){ try{ return new Set(JSON.parse(localStorage.getItem('nyukin_ai_read')||'[]')); }catch(e){ return new Set(); } })();
+function saveAiRead(){ try{ localStorage.setItem('nyukin_ai_read',JSON.stringify([...AI_READ])); }catch(e){} }
+function _fileKey(f){ return (f.name||'')+'|'+(f.size||0); }
+function alreadyRead(f){ return AI_READ.has(_fileKey(f)); }
+function markRead(f){ AI_READ.add(_fileKey(f)); saveAiRead(); }
+function _pickFile(accept){ return new Promise(res=>{ const i=document.createElement('input'); i.type='file'; i.accept=accept||'image/*,application/pdf'; i.onchange=()=>res(i.files[0]||null); i.click(); }); }
+function _fileToB64(f){ return new Promise((ok,ng)=>{ const r=new FileReader(); r.onload=()=>ok(r.result.split(',')[1]); r.onerror=ng; r.readAsDataURL(f); }); }
+async function geminiReadTsuchi(file){
+  const b64=await _fileToB64(file);
+  const mime=file.type||(/\.pdf$/i.test(file.name)?'application/pdf':'image/jpeg');
+  const p=`あなたは建設会社の経理担当です。これは元請からの「支払通知書／支払明細（振込通知書）」です。記載内容を読み取り、次のJSONだけを返してください（説明やマークダウン不要）。
+{"相手先":"支払元(元請)の会社名。無ければ空","明細":[{"工事名":"工事・件名の名称だけ。発注者名/監督員名/現場代理人/事務所名/所長名は工事名に含めない","請求額":数値かnull,"控除内訳":[{"種別":"手数料/相殺/安全協力費/その他","金額":数値}],"差引支払額":数値かnull}]}
+ルール:金額は数値のみ(カンマ¥除去)。控除が無い明細は控除内訳を[]。工事が複数あれば全部。読めない項目は空/null。推測で埋めない。`;
+  const body={contents:[{parts:[{text:p},{inline_data:{mime_type:mime,data:b64}}]}],generationConfig:{temperature:0,response_mime_type:"application/json"}};
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`;
+  let res,data,attempt=0;
+  while(true){
+    res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    data=await res.json();
+    const em=(data&&data.error&&data.error.message)||'';
+    const quota=/quota|RESOURCE_EXHAUSTED|exceeded your current|billing/i.test(em);   // 上限超過はリトライしても無駄
+    const busy=!quota && (res.status===503 || /high demand|overload|UNAVAILABLE|try again later/i.test(em));
+    if(res.ok||!busy||attempt>=3) break;
+    attempt++; await new Promise(r=>setTimeout(r,1500*attempt));
+  }
+  if(!res.ok){ throw new Error((data&&data.error&&data.error.message)||('HTTP '+res.status)); }
+  try{ const u=data.usageMetadata||{}; bumpAiStats(u.promptTokenCount||0, u.candidatesTokenCount||0); }catch(e){}
+  const txt=(((data.candidates||[])[0]||{}).content||{}).parts?.map(x=>x.text).join('')||'';
+  let obj; try{obj=JSON.parse(txt);}catch(e){ const m=txt.match(/(\[[\s\S]*\]|\{[\s\S]*\})/); obj=m?JSON.parse(m[0]):null; }
+  if(!obj) throw new Error('AIの返答をJSONとして読めませんでした');
+  // 複数通知書（別月など＝配列）は1つに統合：相手先は最初、明細は全連結
+  if(Array.isArray(obj)){
+    const merged={相手先:'', 支払日:'', 明細:[]};
+    obj.forEach(s=>{ if(s&&typeof s==='object'){ if(!merged.相手先 && s.相手先) merged.相手先=s.相手先; if(!merged.支払日 && s.支払日) merged.支払日=s.支払日; (s.明細||[]).forEach(m=>merged.明細.push(m)); } });
+    obj=merged;
+  }
+  obj.明細=obj.明細||[];
+  return obj;
+}
+function mapDedKind(k){ k=String(k||''); if(/相殺/.test(k)) return '相殺'; if(/安全|協力/.test(k)) return '安全協力費'; return '手数料'; }
+/* 読取エラーの案内（モデルは固定なので変更はさせず、対処だけ案内） */
+function handleReadError(err){
+  const m=String(err&&err.message||err);
+  if(/quota|RESOURCE_EXHAUSTED|exceeded your current|billing/i.test(m)){
+    alert('AIの利用上限に達しました。\n少し時間をおいて再実行してください（前払い残高が切れている場合はチャージが必要です）。');
+  } else if(/high demand|overload|UNAVAILABLE|try again later|503/i.test(m)){
+    alert('AIが混雑しています。少し待って再実行してください。');
+  } else {
+    alert('読み取りエラー：'+m);
+  }
+}
+function _wknorm(s){ return String(s||'').replace(/[\s　（）()／\/・,，、．.\-ー－]/g,'').toLowerCase(); }
+function workScore(aiName,e){   // 工事名の近さ（0〜1.x）＝会社名＋工事名照合の中核
+  const a=_wknorm(aiName), b=_wknorm(e.工事名||e.請求先||'');
+  if(!a||!b) return 0;
+  if(a===b) return 1;
+  if(b.includes(a)||a.includes(b)) return 0.8;
+  const g=s=>{const o=new Set();for(let i=0;i<s.length-1;i++)o.add(s.slice(i,i+2));return o;};
+  const ga=g(a),gb=g(b); let c=0; ga.forEach(x=>{if(gb.has(x))c++;});
+  return c/Math.max(1,Math.max(ga.size,gb.size));
+}
+/* まとめ払い：通知書の明細を works に割当→控除を自動入力（金額一致を加点） */
+function fillMultiFromTsuchi(r,obj){
+  const mc=ensureMulti(r); mc.dedBy=mc.dedBy||{};
+  const works=entriesByEids(mc.combo);
+  const used=new Set(), rows=[];
+  (obj.明細||[]).forEach(m=>{
+    let best=null,bestSc=-1;
+    works.forEach(e=>{ if(used.has(_eid(e)))return;
+      let sc=workScore(m.工事名,e);
+      if(m.請求額!=null && Math.abs(planAmt(e)-Number(m.請求額))<1) sc+=0.5;   // 金額一致は強い証拠
+      if(sc>bestSc){bestSc=sc;best=e;}
+    });
+    if(best && bestSc>=0.3){
+      const eid=_eid(best); used.add(eid);
+      const lines=(m.控除内訳||[]).filter(d=>Number(d.金額)>0).map(d=>({kind:mapDedKind(d.種別),amt:Math.round(Number(d.金額)||0)}));
+      mc.dedBy[eid]= lines.length?lines:[{kind:'手数料',amt:0}];
+      rows.push({name:fmtEntry(best),lines,sc:bestSc});
+    }
+  });
+  mc.ded=(mc.combo||[]).reduce((a,id)=>a+_linesSum(mc.dedBy[id]),0);
+  return rows;
+}
+async function readTsuchiForMulti(r){
+  if(!ensureGeminiKey()) return;
+  const f=await _pickFile(); if(!f) return;
+  if(alreadyRead(f)){ toast('『'+f.name+'』は読込済みのためスキップしました（重複防止でAPI節約）'); return; }
+  const ri=(results||[]).indexOf(r);
+  showLoading('🤖 支払通知書を読み取り中…');
+  try{ const obj=await geminiReadTsuchi(f); hideLoading(); markRead(f); openTsuchiPreview(obj, ri>=0?ri:null); }
+  catch(err){ hideLoading(); handleReadError(err); }
+}
+
+/* ===== 読取結果プレビュー（投げたら必ず結果が見える＋マッチ状況＋反映） ===== */
+let _tsState={obj:null,ri:-1};
+let _tsMode='single';   // 'single'（要確認パネルから1件）／'batch'（ホームから一括）
+function _depLabel(r){ return yen(r.d.amount)+' ・ '+(r.d.name||'')+(r.d.date?(' ・ '+r.d.date):''); }
+function bestWorkFor(m){ const ents=allEntries(); let best=null,bs=-1; ents.forEach(e=>{ let sc=workScore(m.工事名,e); if(m.請求額!=null&&Math.abs(planAmt(e)-Number(m.請求額))<1)sc+=0.5; if(sc>bs){bs=sc;best=e;} }); return bs>=0.3?best:null; }
+function _tsTotal(obj){ return (obj.明細||[]).reduce((a,m)=>{ let net=(m.差引支払額!=null)?Number(m.差引支払額):(Number(m.請求額||0)-(m.控除内訳||[]).reduce((s,d)=>s+Number(d.金額||0),0)); return a+(net||0); },0); }
+function _entryByEid(eid){ return entriesByEids([eid])[0]||null; }
+function _candWorks(m){ return allEntries().map(e=>{ let sc=workScore(m.工事名,e); if(m.請求額!=null&&Math.abs(planAmt(e)-Number(m.請求額))<1)sc+=0.5; return {e,sc}; }).filter(x=>x.sc>0.12).sort((a,b)=>b.sc-a.sc).slice(0,5); }
+function openTsuchiPreview(obj, fixedRi){
+  const total=_tsTotal(obj);
+  const fixed=(fixedRi!=null && fixedRi>=0);
+  let ri = fixed ? fixedRi : -1;
+  if(ri<0){ (results||[]).forEach((r,i)=>{ if(ri<0 && r.d && Math.abs(r.d.amount-total)<2) ri=i; }); }
+  const map=(obj.明細||[]).map(m=>{ const bw=bestWorkFor(m); return bw?_eid(bw):null; });   // 自動振り分け（不明はnull）
+  _tsMode='single';
+  _tsState={obj,ri,total,map,fixed,expand:new Set()};
+  renderTsuchiBody();
+  $('tsMask').classList.add('open'); $('tsModal').classList.add('open');
+}
+function renderTsuchiBody(){
+  const st=_tsState, obj=st.obj, ri=st.ri, total=st.total, map=st.map;
+  const nOk=map.filter(Boolean).length, nNg=(obj.明細||[]).length-nOk;
+  let h='<div class="tskv">相手先：<b>'+esc(obj.相手先||'（読取なし）')+'</b>　通知書の合計差引：<b>'+yen(total)+'</b></div>';
+  h+='<div class="tskv" style="margin-top:2px">自動振り分け：<b style="color:#0a8a5f">✔ '+nOk+'件一致</b>'+(nNg?'　<b style="color:#b7791f">❓ '+nNg+'件不明</b>（❓を押すと候補）':'')+'</div>';
+  if(ri>=0){ h+='<div class="tsmatch ok">🟢 '+(st.fixed?'対象の入金':'この入金に一致')+'：'+esc(_depLabel(results[ri]))+'</div>'; }
+  else{
+    const opts=(results||[]).map((r,i)=>'<option value="'+i+'">'+esc(_depLabel(r))+'</option>').join('');
+    h+='<div class="tsmatch ng">❓ 合計 '+yen(total)+' に合う入金が自動で見つかりません。入金を選ぶと反映できます。'
+      +'<select id="tsDepSel"><option value="-1">― 入金を選ぶ ―</option>'+opts+'</select></div>';
+  }
+  // 検算裏取り：請求 − 控除 ＝ 差引（通知書の自己整合）＋ 入金一致
+  const reqSum=(obj.明細||[]).reduce((a,m)=>a+(Number(m.請求額)||0),0);
+  const dedSum=(obj.明細||[]).reduce((a,m)=>a+(m.控除内訳||[]).reduce((s,d)=>s+(Number(d.金額)||0),0),0);
+  const selfOk=reqSum>0 && Math.abs(reqSum-dedSum-total)<2;
+  const bankOk=ri>=0 && Math.abs(results[ri].d.amount-total)<2;
+  h+='<div class="tsmatch '+((selfOk&&(ri<0||bankOk))?'ok':'ng')+'" style="font-size:12px">🧮 検算：請求 '+yen(reqSum)+' − 控除 '+yen(dedSum)+' ＝ 差引 '+yen(total)+' '+(selfOk?'✔':'⚠差 '+yen(reqSum-dedSum-total))+(ri>=0?('　／　入金 '+yen(results[ri].d.amount)+' '+(bankOk?'✔一致':'⚠差')):'')+'</div>';
+  h+='<table class="tstbl"><thead><tr><th>工事（通知書）</th><th class="num">請求額</th><th>控除内訳</th><th class="num">差引</th><th>対応工事(予定表)</th></tr></thead><tbody>';
+  (obj.明細||[]).forEach((m,i)=>{
+    const ded=(m.控除内訳||[]).filter(d=>Number(d.金額)>0);
+    const dedH=ded.length?ded.map(d=>'<span class="tsdk">'+esc(mapDedKind(d.種別))+'</span> '+yen(d.金額)).join('<br>'):'<span class="tswk ng">なし</span>';
+    const eid=map[i]; const we=eid?_entryByEid(eid):null;
+    const wk = we
+      ? '<button class="tspick-btn ok" data-tsq="'+i+'">✔ '+esc(we.工事名||we.請求先)+' <span class="tscar">▾</span></button>'
+      : '<button class="tspick-btn ng" data-tsq="'+i+'">❓ 不明 <span class="tscar">▾</span></button>';
+    h+='<tr><td>'+esc(m.工事名||'')+'</td><td class="num">'+yen(m.請求額)+'</td><td>'+dedH+'</td><td class="num">'+yen(m.差引支払額)+'</td><td>'+wk+'</td></tr>';
+    if(st.expand.has(i)){
+      const cands=_candWorks(m);
+      let c='<tr class="tsdetail"><td colspan="5"><div class="tscands"><span class="tscl">候補（押すと割当）：</span>';
+      c+= cands.length? cands.map(x=>'<button class="tscand" data-tsi="'+i+'" data-tse="'+esc(_eid(x.e))+'">'+esc(x.e.工事名||x.e.請求先)+' <span class="tsc-sub">'+esc(x.e.請求先||'')+'／'+yen(planAmt(x.e))+'</span></button>').join('')
+                       : '<span class="tswk ng">候補なし（予定表に該当が見つかりません）</span>';
+      if(eid) c+='<button class="tscand clr" data-tsclr="'+i+'">✕ 割当を外す</button>';
+      c+='</div></td></tr>';
+      h+=c;
+    }
+  });
+  h+='</tbody></table>';
+  h+='<div class="tskv" style="margin-top:10px;color:var(--muted)">※ 反映すると該当入金の要確認に控除が自動入力されます。金額の検算・最終消込は要確認画面で確認してください。</div>';
+  $('tsBody').innerHTML=h;
+  $('tsApply').disabled = !(ri>=0);
+}
+function closeTsuchiPreview(){ $('tsMask').classList.remove('open'); $('tsModal').classList.remove('open'); }
+function applyTsuchiPreview(){
+  const st=_tsState, obj=st.obj, ri=st.ri, map=st.map||[]; if(ri==null||ri<0) return;
+  const r=results[ri];
+  const eids=[...new Set(map.filter(Boolean))];
+  goReviewJump(ri);   // 要確認へ飛ぶ（名義一致ならまとめ払い展開）
+  if(eids.length){
+    if(!r.multi){ r.multi={kind:'deduct',combos:[eids.slice()],poolEids:eids.slice(),manual:true}; delete multiConfirm[r.key]; }
+    else{ r.multi.poolEids=[...new Set([...(r.multi.poolEids||[]),...eids])]; }
+    const mc=ensureMulti(r); mc.combo=eids.slice(); mc.dedBy=mc.dedBy||{};
+    (obj.明細||[]).forEach((m,i)=>{ const eid=map[i]; if(!eid)return;
+      const lines=(m.控除内訳||[]).filter(d=>Number(d.金額)>0).map(d=>({kind:mapDedKind(d.種別),amt:Math.round(Number(d.金額)||0)}));
+      mc.dedBy[eid]= lines.length?lines:[{kind:'手数料',amt:0}];
+    });
+    mc.ded=(mc.combo||[]).reduce((a,id)=>a+_linesSum(mc.dedBy[id]),0);
+  }
+  openDetails.add(r.key); saveMulti(); scheduleSync(); render();
+  closeTsuchiPreview();
+  const nNg=(obj.明細||[]).length-eids.length;
+  toast('✅ '+eids.length+'工事に反映'+(nNg>0?('／'+nNg+'件は不明のまま（要確認で調整）'):'')+'。内容を確認して消込を。');
+}
+
+/* ===== Windows OCR結果(JSON)取り込み：無料・全社。社名判別＋検算裏取りで控除を自動入力 ===== */
+function _despace(s){ return String(s||'').replace(/\s+/g,''); }
+function _numsIn(line){ const out=[]; const re=/\d[\d\s,.、]*\d|\d/g; let m; while((m=re.exec(line))){ const d=m[0].replace(/[^\d]/g,''); if(d) out.push(parseInt(d,10)); } return out; }
+function _allNums(lines){ const a=[]; lines.forEach(l=>_numsIn(l).forEach(n=>a.push(n))); return a; }
+function detectVendor(lines){ const j=lines.map(_despace).join(''); const M=[['東亜','東亜道路'],['大河原','大河原建設'],['鹿島','鹿島道路'],['戸塚','戸塚建設'],['中林','中林建設'],['中村組','中村組'],['日南部','日南部建設'],['日本道路','日本道路']]; for(const[key,pat] of M){ if(j.indexOf(pat)>=0) return key; } // それ以外は社名らしき語
+  const m=j.match(/[一-龠ァ-ヶ]{2,10}(?:建設|工業|道路|組)株式会社|[一-龠ァ-ヶ]{2,10}(?:建設|工業|道路|組)/); return m?m[0]:''; }
+function vendorName(lines){ const j=lines.map(_despace).join(''); const m=j.match(/(?:株式会社)?[一-龠ァ-ヶ]{2,10}(?:建設|工業|道路|組)(?:株式会社)?/g); if(!m)return ''; return (m.find(x=>!/丸紅/.test(x))||'').replace(/^株式会社/,''); }
+function _kname(joined){ for(const j of joined){ if(/(令和|年度|号|マンション|新築|改良|舗装|護岸|立体|整備|補修|工事|自動車道|連絡)/.test(j) && !/会社|工業|協会|手数料|課税|案内|明細|事業所|管轄|問合|営業所|残高|計上|控除|支払|番号|登録|口座|金融|振込|方法|貴社|銀行/.test(j)){ const k=j.replace(/(\d[\d,.、]*)?相殺.*$/,'').replace(/\d[\d,.、]*$/,''); if(k.length>=3) return k; } } return ''; }
+/* 1通知書(=1社の全ページ)を構造化。金額はOCRの綺麗な最大値＋検算で裏取り */
+function parseStatement(lines){
+  const joined=lines.map(_despace);
+  const vendor=vendorName(lines)||detectVendor(lines);
+  // 相殺・協会費・立替・手数料 のキーワード近傍の数字
+  function nearKw(re){ let best=0; joined.forEach((j,i)=>{ if(re.test(j)){ _numsIn(lines[i]).forEach(n=>{ if(n>best&&n<1e8) best=n; }); if(best===0 && i+1<lines.length) _numsIn(lines[i+1]).forEach(n=>{ if(n>best&&n<1e8) best=n; }); } }); return best; }
+  const souSai=nearKw(/相殺/);
+  const cand=_allNums(lines).filter(n=>n>=100000 && n<=999999999 && !/^(19|20)\d{6}$/.test(String(n)));
+  const keijou=Math.max(...cand,0);   // 請求(計上額)候補＝最大
+  return { 相手先:vendor, 明細:[{工事名:_kname(joined), 請求額:keijou, 控除内訳:[], 差引支払額:0, _souSai:souSai}] };
+}
+function parseOcrPages(pages){ // ファイル単位でまとめる
+  const byFile={}; pages.forEach(p=>{ (byFile[p.file]=byFile[p.file]||[]).push(...(p.lines||[])); });
+  return Object.keys(byFile).map(f=>{ const st=parseStatement(byFile[f]); st._file=f; return st; });
+}
+async function importOcrJson(file){
+  const f=file || await _pickFile('application/json,.json'); if(!f) return;
+  if(!(results&&results.length)){ alert('先に「①銀行の入金明細」と「②予定表」を取り込んでください。'); return; }
+  showLoading('通知書OCR結果を取り込み中…');
+  try{
+    let txt=await f.text(); txt=txt.replace(/^﻿/,'');
+    const pages=JSON.parse(txt);
+    const stmts=parseOcrPages(Array.isArray(pages)?pages:[pages]);
+    hideLoading();
+    // 各通知書を入金に紐づけ（請求額≒予定 or 差引≒銀行入金）＋検算で控除確定
+    let okN=0, ngN=0;
+    stmts.forEach(st=>{
+      const m=st.明細[0]; if(!m) { ngN++; return; }
+      // 入金を特定：この社名の予定工事があり、その請求合計−入金が控除範囲に収まるものを探す
+      let matched=null;
+      (results||[]).forEach((r,ri)=>{ if(matched)return;
+        const cand=_candWorks(m).map(x=>x.e); // 名前/金額で近い予定工事
+        // 請求額が予定に一致する入金 or 差引=入金
+        const planHit = cand.some(e=>Math.abs(planAmt(e)-m.請求額)<2);
+        if(planHit || (m.請求額 && r.d && r.d.amount<m.請求額 && (m.請求額-r.d.amount)>=0 && (m.請求額-r.d.amount)<=m.請求額*0.5)){
+          matched={r,ri};
+        }
+      });
+      if(!matched){ ngN++; return; }
+      // 検算：控除合計 = 請求 − 入金
+      const koujo = Math.max(0, m.請求額 - matched.r.d.amount);
+      const ded=[];
+      if(m._souSai>0 && m._souSai<=koujo) ded.push({種別:'相殺', 金額:m._souSai});
+      const rem = koujo - ded.reduce((a,d)=>a+d.金額,0);
+      if(rem>0) ded.push({種別:'手数料', 金額:rem});   // 残りは手数料等へ（内訳未確定分）
+      m.控除内訳=ded; m.差引支払額=matched.r.d.amount;
+      okN++;
+    });
+    // プレビューは1件目を代表表示（複数は順に）。まず最初のマッチをプレビュー
+    const first=stmts.find(s=>s.明細[0]&&s.明細[0].控除内訳.length);
+    if(first){ openTsuchiPreview(first, null); }
+    toast('OCR取込：'+stmts.length+'社を解析（検算OK '+okN+' / 要確認 '+ngN+'）。プレビューで確認してください。');
+  }catch(err){ hideLoading(); alert('OCR結果の取り込みに失敗：'+err.message); }
+}
+
+/* ホーム入口：通知書を投げる→該当入金を金額で特定→まとめ払い準備→控除自動入力→要確認へ */
+function guessPayeeFromTsuchi(obj){
+  const ents=allEntries(); let best=null,bs=-1;
+  (obj.明細||[]).forEach(m=>{ ents.forEach(e=>{ let sc=workScore(m.工事名,e); if(m.請求額!=null&&Math.abs(planAmt(e)-Number(m.請求額))<1)sc+=0.5; if(sc>bs){bs=sc;best=e;} }); });
+  return best? best.請求先 : '';
+}
+function _pickFiles(){ return new Promise(res=>{ const i=document.createElement('input'); i.type='file'; i.accept='image/*,application/pdf'; i.multiple=true; i.onchange=()=>res([...i.files]); i.click(); }); }
+async function readTsuchiFromHome(files){
+  if(!ensureGeminiKey()) return;
+  let list = Array.isArray(files) ? files : (files ? [files] : null);
+  if(!list){ list = await _pickFiles(); }
+  if(!list || !list.length) return;
+  if(!(results&&results.length)){ alert('先に「①銀行の入金明細」と「②予定表」を取り込んでください。'); return; }
+  const valid = list.filter(f => /\.pdf$/i.test(f.name) || /^image\//.test(f.type||'') || /\.(png|jpe?g|webp)$/i.test(f.name));
+  if(!valid.length){ alert('画像またはPDFを入れてください。'); return; }
+  const skipped=[], toRead=[];
+  valid.forEach(f=>{ if(alreadyRead(f)) skipped.push(f.name); else toRead.push(f); });
+  if(!toRead.length){ toast('全て読込済みのためスキップしました（重複防止でAPI節約）'); return; }
+  const items=[];
+  for(let i=0;i<toRead.length;i++){
+    const f=toRead[i];
+    showLoading('🤖 支払通知書を読み取り中… '+(i+1)+'/'+toRead.length);
+    try{ const obj=await geminiReadTsuchi(f); markRead(f); items.push({obj,file:f}); }
+    catch(err){ hideLoading(); handleReadError(err); break; }   // 上限/エラーはそこで停止（読めた分は表示）
+  }
+  hideLoading();
+  if(!items.length) return;
+  openTsuchiBatch(items, skipped);
+}
+/* ===== 一括プレビュー（複数通知書を一覧→まとめて反映） ===== */
+let _tsBatch=[];
+function openTsuchiBatch(items, skipped){
+  _tsMode='batch';
+  _tsBatch = items.map(it=>{
+    const total=_tsTotal(it.obj);
+    let ri=-1; (results||[]).forEach((r,i)=>{ if(ri<0 && r.d && Math.abs(r.d.amount-total)<2) ri=i; });
+    const map=(it.obj.明細||[]).map(m=>{ const bw=bestWorkFor(m); return bw?_eid(bw):null; });
+    return {obj:it.obj, file:it.file, total, ri, map, expand:new Set()};
+  });
+  renderTsuchiBatch(skipped||[]);
+  $('tsMask').classList.add('open'); $('tsModal').classList.add('open');
+}
+function renderTsuchiBatch(skipped){
+  const okCount=_tsBatch.filter(b=>b.ri>=0).length;
+  let h='';
+  if(skipped&&skipped.length) h+='<div class="tskv" style="color:var(--muted)">🔁 重複でスキップ '+skipped.length+'件（'+esc(skipped.slice(0,3).join('、'))+(skipped.length>3?' …':'')+'）</div>';
+  h+='<div class="tskv" style="margin-bottom:8px">読取 <b>'+_tsBatch.length+'</b>件　／　入金一致 <b style="color:#0a8a5f">✔ '+okCount+'</b>　不明 <b style="color:#b7791f">❓ '+(_tsBatch.length-okCount)+'</b>（❓は入金/工事を選んでください）</div>';
+  _tsBatch.forEach((b,bi)=>{ h+=_batchCard(b,bi); });
+  $('tsBody').innerHTML=h;
+  const ap=$('tsApply'); ap.disabled = okCount===0; ap.textContent='✔ '+okCount+'件をまとめて反映';
+}
+function _batchCard(b,bi){
+  const obj=b.obj;
+  const reqSum=(obj.明細||[]).reduce((a,m)=>a+(Number(m.請求額)||0),0);
+  const dedSum=(obj.明細||[]).reduce((a,m)=>a+(m.控除内訳||[]).reduce((s,d)=>s+(Number(d.金額)||0),0),0);
+  const selfOk=reqSum>0 && Math.abs(reqSum-dedSum-b.total)<2;
+  let h='<div class="tscard">';
+  h+='<div class="tscard-h"><b>'+esc(obj.相手先||'（相手先不明）')+'</b> <span class="conf">'+esc(obj.支払日||'')+'</span><span style="flex:1"></span>';
+  if(b.ri>=0){ h+='<span class="bbadge ok">🟢 入金一致 '+yen(results[b.ri].d.amount)+'</span>'; }
+  else{ const opts=(results||[]).map((r,i)=>'<option value="'+i+'">'+esc(_depLabel(r))+'</option>').join('');
+    h+='<span class="bbadge ng">❓ 入金</span><select class="bdep" data-bdep data-bi="'+bi+'"><option value="-1">― 入金を選ぶ ―</option>'+opts+'</select>'; }
+  h+='</div><table class="tstbl"><tbody>';
+  (obj.明細||[]).forEach((m,i)=>{
+    const eid=b.map[i]; const we=eid?_entryByEid(eid):null;
+    const ded=(m.控除内訳||[]).filter(d=>Number(d.金額)>0).map(d=>'<span class="tsdk">'+esc(mapDedKind(d.種別))+'</span>'+yen(d.金額)).join(' ');
+    const wk = we? '<button class="tspick-btn ok" data-bq data-bi="'+bi+'" data-mi="'+i+'">✔ '+esc(we.工事名||we.請求先)+' ▾</button>'
+                 : '<button class="tspick-btn ng" data-bq data-bi="'+bi+'" data-mi="'+i+'">❓ 工事 ▾</button>';
+    h+='<tr><td>'+esc(m.工事名||'')+'</td><td class="num">'+yen(m.請求額)+'</td><td>'+(ded||'<span class="tswk ng">控除なし</span>')+'</td><td class="num">'+yen(m.差引支払額)+'</td><td>'+wk+'</td></tr>';
+    if(b.expand.has(i)){
+      const cands=_candWorks(m);
+      let c='<tr class="tsdetail"><td colspan="5"><div class="tscands"><span class="tscl">候補：</span>';
+      c+= cands.length? cands.map(x=>'<button class="tscand" data-bpick data-bi="'+bi+'" data-mi="'+i+'" data-eid="'+esc(_eid(x.e))+'">'+esc(x.e.工事名||x.e.請求先)+' <span class="tsc-sub">'+yen(planAmt(x.e))+'</span></button>').join('') : '<span class="tswk ng">候補なし</span>';
+      if(eid) c+='<button class="tscand clr" data-bclr data-bi="'+bi+'" data-mi="'+i+'">✕外す</button>';
+      c+='</div></td></tr>'; h+=c;
+    }
+  });
+  h+='</tbody></table>';
+  h+='<div class="tscard-f '+(selfOk?'ok':'ng')+'">🧮 請求 '+yen(reqSum)+' − 控除 '+yen(dedSum)+' ＝ 差引 '+yen(b.total)+' '+(selfOk?'✔':'⚠差 '+yen(reqSum-dedSum-b.total))+'</div></div>';
+  return h;
+}
+function applyTsuchiBatch(){
+  let done=0, ng=0;
+  _tsBatch.forEach(b=>{
+    if(b.ri==null||b.ri<0){ ng++; return; }
+    const r=results[b.ri], map=b.map||[], obj=b.obj;
+    const eids=[...new Set(map.filter(Boolean))];
+    if(!eids.length){ ng++; return; }
+    if(!r.multi){ r.multi={kind:'deduct',combos:[eids.slice()],poolEids:eids.slice(),manual:true}; delete multiConfirm[r.key]; }
+    else{ r.multi.poolEids=[...new Set([...(r.multi.poolEids||[]),...eids])]; }
+    const mc=ensureMulti(r); mc.combo=eids.slice(); mc.dedBy=mc.dedBy||{};
+    (obj.明細||[]).forEach((m,i)=>{ const eid=map[i]; if(!eid)return; const lines=(m.控除内訳||[]).filter(d=>Number(d.金額)>0).map(d=>({kind:mapDedKind(d.種別),amt:Math.round(Number(d.金額)||0)})); mc.dedBy[eid]=lines.length?lines:[{kind:'手数料',amt:0}]; });
+    mc.ded=(mc.combo||[]).reduce((a,id)=>a+_linesSum(mc.dedBy[id]),0);
+    openDetails.add(r.key); done++;
+  });
+  saveMulti(); scheduleSync(); render(); closeTsuchiPreview();
+  toast('✅ '+done+'件を反映しました'+(ng>0?('／'+ng+'件は要確認（入金/工事を選択）'):'')+'。要確認で内容を確認して消込を。');
+}
+
+/* 簡易トースト（未定義だったため定義。hold/undo等でも使用） */
+let _toastT=null;
+function toast(msg){
+  let el=document.getElementById('__toast');
+  if(!el){ el=document.createElement('div'); el.id='__toast';
+    el.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1f2430;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:200;box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:90vw;text-align:center;opacity:0;transition:opacity .2s';
+    document.body.appendChild(el); }
+  el.textContent=msg; el.style.opacity='1';
+  clearTimeout(_toastT); _toastT=setTimeout(()=>{el.style.opacity='0';},3600);
+}
+
+/* 読取中のローディング（小さめ・画面が固まった感じを避ける） */
+function showLoading(msg){
+  let el=document.getElementById('__load');
+  if(!el){ el=document.createElement('div'); el.id='__load';
+    el.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#1f2430;color:#fff;padding:11px 18px;border-radius:12px;font-size:13px;z-index:210;box-shadow:0 8px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .18s';
+    el.innerHTML='<span class="__spin" style="width:16px;height:16px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;display:inline-block;animation:__spin .8s linear infinite"></span><span id="__loadmsg"></span>';
+    document.body.appendChild(el);
+    if(!document.getElementById('__spinkf')){ const s=document.createElement('style'); s.id='__spinkf'; s.textContent='@keyframes __spin{to{transform:rotate(360deg)}}'; document.head.appendChild(s); }
+  }
+  document.getElementById('__loadmsg').textContent=msg||'AIが読み取り中…';
+  el.style.display='flex'; requestAnimationFrame(()=>{el.style.opacity='1';});
+}
+function hideLoading(){ const el=document.getElementById('__load'); if(el){ el.style.opacity='0'; setTimeout(()=>{ if(el) el.style.display='none'; },220); } }
+
 /* 控除を「工事ごと（複数種別＝配列）」で保持。dedBy[eid]=[{kind,amt},...]。mc.dedは合計として同期。旧形式は移行 */
 function ensureDedBy(mc){
   mc.dedBy=mc.dedBy||{};
@@ -1338,6 +1768,7 @@ function multiPanelHtml(r,di){
     h+='<div class="mdedchk'+(sumDed===sysDed?'':' bad')+'"><span>控除の想定合計 <b data-sysded>'+yen(sysDed)+'</b>（予定−入金）</span><span>入力の控除計 <b data-inpded>'+yen(sumDed)+'</b></span><span class="mdcklb" data-dedlb>'+(sumDed===sysDed?'一致 ✓':'差 '+yen(Math.abs(sumDed-sysDed)))+'</span></div>'; }
   h+='<div class="meqsum'+(diff===0?'':' bad')+'"><span>実入金 <b>'+yen(deposit)+'</b></span><span>充当合計 <b data-eqsum>'+yen(sumAssign)+'</b></span><span class="mdifflb" data-eqlb>'+(diff===0?'✅ 残0':(diff>0?'不足 '+yen(diff):'超過 '+yen(-diff)))+'</span></div>';
   h+='<div class="eqacts"><button class="btn primary" data-mgo="'+di+'"'+(diff!==0?' disabled':'')+'>この内容で消込</button>'
+    +(showDed?'<button class="btn sub mini" data-mtsuchi="'+di+'" title="支払通知書をAIで読み、各工事の控除を自動入力">📄 支払通知書を読む(AI)</button>':'')
     +'<button class="btn sub mini" data-adj="'+di+'">'+(adj?'工事を閉じる ▾':'工事を直す ▸')+'</button></div>';
   // ── 工事の増減（チェック表） ──
   if(adj){
@@ -1649,6 +2080,8 @@ $('resBody').addEventListener('click',e=>{
     const i=mc.combo.indexOf(eid); if(i>=0)mc.combo.splice(i,1); else mc.combo.push(eid);
     mc.ded=Math.max(0, multiSumPlan(mc.combo)-r.d.amount); delete mc.dedBy;   // 工事が変わったので控除は入れ直し（自動按分から）
     openDetails.add(r.key); saveMulti(); scheduleSync(); render(); return; }
+  const mts=e.target.closest('[data-mtsuchi]');
+  if(mts){ const r=results[+mts.dataset.mtsuchi]; readTsuchiForMulti(r); return; }
   const mgo=e.target.closest('[data-mgo]');
   if(mgo){ const r=results[+mgo.dataset.mgo]; const mc=ensureMulti(r); if(!mc.combo.length){ alert('工事を1つ以上選んでください。'); return; }
     if(multiSumAssign(mc)!==r.d.amount){ alert('工事ごとの（予定−控除）の合計が入金額と一致していません。'); return; }
@@ -2339,6 +2772,37 @@ $('bankFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-bde
 $('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pdel]'); if(d){ const sid=d.dataset.pdel; planSnaps=planSnaps.filter(s=>s.sid!==sid); selDate='latest'; applyPlanSel(); renderPlanFiles(); results=[]; render(); scheduleSync(); return; }
   const t=e.target.closest('[data-tdel]'); if(t){ if(!confirm('取り込んだ得意先マスタを消しますか？（名前での自動確定が無効になります）'))return; tokuiMaster=[]; tokuiInfo=null; _inPlanSet=null; saveTokui(); renderPlanFiles(); results=[]; autoMatch(); render(); } });
 $('clearPlan').addEventListener('click',()=>{ if(planSnaps.length && !confirm('取り込んだ予定表を全部消しますか？'))return; planSnaps=[]; selDate='latest'; applyPlanSel(); results=[]; renderPlanFiles(); render(); scheduleSync(); });
+/* ③ 支払通知書（AI）ホーム入口：クリック／ドラッグ&ドロップ */
+try{ updateAiBadge(); }catch(e){}   // モデル・利用状況を初期表示
+(function(){ const box=$('dropTsuchi'); if(!box)return;
+  box.addEventListener('click',()=>readTsuchiFromHome());
+  box.addEventListener('dragover',e=>{e.preventDefault();box.classList.add('drag');});
+  box.addEventListener('dragleave',()=>box.classList.remove('drag'));
+  box.addEventListener('drop',e=>{e.preventDefault();box.classList.remove('drag'); const fs=e.dataTransfer.files&&[...e.dataTransfer.files]; if(fs&&fs.length) readTsuchiFromHome(fs);});
+})();
+/* 読取結果プレビューのボタン（モーダルHTMLは後方にあるためDOM構築後にバインド＝閉じるが効くように） */
+function _bindTsModal(){
+['tsClose','tsCancel','tsMask'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('click',closeTsuchiPreview); });
+(function(){ const a=$('tsApply'); if(a) a.addEventListener('click',()=>{ if(_tsMode==='batch') applyTsuchiBatch(); else applyTsuchiPreview(); }); })();
+(function(){ const b=$('tsBody'); if(!b) return;
+  b.addEventListener('click',e=>{
+    // 一括モード
+    const bq=e.target.closest('[data-bq]'); if(bq){ const bi=+bq.dataset.bi, mi=+bq.dataset.mi; const ex=_tsBatch[bi].expand; if(ex.has(mi))ex.delete(mi); else ex.add(mi); renderTsuchiBatch([]); return; }
+    const bp=e.target.closest('[data-bpick]'); if(bp){ const bi=+bp.dataset.bi, mi=+bp.dataset.mi; _tsBatch[bi].map[mi]=bp.dataset.eid; _tsBatch[bi].expand.delete(mi); renderTsuchiBatch([]); return; }
+    const bc=e.target.closest('[data-bclr]'); if(bc){ const bi=+bc.dataset.bi, mi=+bc.dataset.mi; _tsBatch[bi].map[mi]=null; renderTsuchiBatch([]); return; }
+    // 単一モード
+    const q=e.target.closest('[data-tsq]'); if(q){ const i=+q.dataset.tsq; if(_tsState.expand.has(i))_tsState.expand.delete(i); else _tsState.expand.add(i); renderTsuchiBody(); return; }
+    const p=e.target.closest('[data-tse]'); if(p){ const i=+p.dataset.tsi; _tsState.map[i]=p.dataset.tse; _tsState.expand.delete(i); renderTsuchiBody(); return; }
+    const c=e.target.closest('[data-tsclr]'); if(c){ const i=+c.dataset.tsclr; _tsState.map[i]=null; renderTsuchiBody(); return; }
+  });
+  b.addEventListener('change',e=>{
+    const bd=e.target.closest('[data-bdep]'); if(bd){ const bi=+bd.dataset.bi; _tsBatch[bi].ri=+bd.value; renderTsuchiBatch([]); return; }
+    const s=e.target.closest('#tsDepSel'); if(s){ _tsState.ri=+s.value; $('tsApply').disabled=_tsState.ri<0; }
+  });
+})();
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeTsuchiPreview(); });
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_bindTsModal); else _bindTsModal();
 
 /* ドロップ＆選択 */
 function wire(dropId,inputId,handler,after){
@@ -2550,5 +3014,16 @@ else {
     <div class="hp-tip">💡 <b>みんなで共有</b>がオンなら、名義の紐づけや処理結果が自動で全員に反映されます。1人が登録すれば次回から全員の画面で消し込めます。</div>
   </div>
 </aside>
+
+<!-- 支払通知書 読取結果プレビュー -->
+<div class="tsmask" id="tsMask"></div>
+<div class="tsmodal" id="tsModal" aria-label="支払通知書の読取結果">
+  <div class="tshd"><h3>📄 支払通知書の読取結果</h3><span style="flex:1"></span><button class="btn sub mini" id="tsClose">✕ 閉じる</button></div>
+  <div class="tsbody" id="tsBody"></div>
+  <div class="tsfoot">
+    <button class="btn sub" id="tsCancel">閉じる</button>
+    <button class="btn primary" id="tsApply" disabled>この内容で反映して要確認へ</button>
+  </div>
+</div>
 </body>
 </html>
