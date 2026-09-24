@@ -620,7 +620,7 @@ button.pill.goshare:active{transform:translateY(0)}
   <div class="step">
     <h2>名義の紐づけ（銀行の振込名義 → 請求先）</h2>
     <p class="desc">銀行の振込名義を請求先に1回結びつけると、次回から自動で消し込めます。金額から請求先を自動提案します（一括採用も可）。同じ名義に支店違いなど複数の請求先を付けてもOK。※「消込」タブで銀行CSV・予定表を読み込むと一覧が出ます。</p>
-    <div class="row" style="margin-bottom:10px"><label style="font-size:12.5px;display:flex;align-items:center;gap:5px"><input type="checkbox" id="onlyUnlinked" checked>未紐づけだけ表示</label><button class="btn" id="bulkLink" disabled>提案を一括採用</button><span class="muted" id="linkInfo"></span></div>
+    <div class="row" style="margin-bottom:10px"><label style="font-size:12.5px;display:flex;align-items:center;gap:5px"><input type="checkbox" id="onlyUnlinked" checked>未紐づけだけ表示</label><button class="btn" id="bulkLink" disabled>提案を一括採用</button><button class="btn primary" id="aiNayoseBtn" title="未紐づけの振込名義を、AIが予定表・得意先マスタの正式名に対応付けます（確度高は自動紐づけ→即再突合）">🤖 AIで名寄せ</button><span class="muted" id="linkInfo"></span></div>
     <div id="linkBody"><div class="empty">「消込」タブで銀行CSVと予定表を読み込むと、ここに名義一覧が出ます</div></div>
     <datalist id="payeeList"></datalist>
   </div>
@@ -1333,12 +1333,11 @@ function openAiLog(filterKey){
     const idx=AI_LOG.indexOf(e);
     const ri=e.key?riForKey(e.key):-1;
     const applied=ri>=0;
-    const reqSum=(e.rows||[]).reduce((a,r)=>a+(r.req||0),0);
-    const dedSum=(e.obj? (e.obj.明細||[]).reduce((a,m)=>a+(m.控除内訳||[]).reduce((s,d)=>s+(Number(d.金額)||0),0),0) : 0);
-    const selfOk=reqSum>0 && Math.abs(reqSum-dedSum-(e.total||0))<2;
+    const selfOk=e.obj?_tsKensan(e.obj).ok:false;
+    const kubun=(e.obj&&e.obj.区分)?'<span style="font-size:10.5px;padding:0 7px;border-radius:999px;background:color-mix(in srgb,#2563eb 12%,#fff);color:#2563eb;font-weight:700">'+esc(e.obj.区分)+'</span>':'';
     h+='<div style="border:1px solid '+(applied?'color-mix(in srgb,#0a8a5f 40%,#fff)':'color-mix(in srgb,#b7791f 45%,#fff)')+';border-left-width:4px;border-radius:10px;margin-bottom:12px;overflow:hidden">';
     h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#fafbff;font-size:12.5px">'
-      +'<b>'+esc(e.aite||'（相手先不明）')+'</b>　'+esc(e.pay||'')+'　差引 <b>'+yen(e.total)+'</b>'
+      +'<b>'+esc(e.aite||'（相手先不明）')+'</b>'+kubun+'　'+esc(e.pay||'')+'　差引 <b>'+yen(e.total)+'</b>'
       +'<span style="font-size:11px;padding:1px 8px;border-radius:999px;'+(selfOk?'background:color-mix(in srgb,#0a8a5f 12%,#fff);color:#0a8a5f':'background:color-mix(in srgb,#c2410c 12%,#fff);color:#c2410c')+'">🧮 '+(selfOk?'検算✔':'検算⚠')+'</span>'
       +'<span style="flex:1"></span>'
       +(e.fkey?'<button class="btn sub mini" data-ailogsrc="'+esc(e.fkey)+'" title="読み取った通知書PDFの原本を開く" style="padding:1px 8px;font-size:11px">📄 原本を見る</button>':'')
@@ -1366,9 +1365,13 @@ function _fileToB64(f){ return new Promise((ok,ng)=>{ const r=new FileReader(); 
 async function geminiReadTsuchi(file){
   const b64=await _fileToB64(file);
   const mime=file.type||(/\.pdf$/i.test(file.name)?'application/pdf':'image/jpeg');
-  const p=`あなたは建設会社の経理担当です。これは元請からの「支払通知書／支払明細（振込通知書）」です。記載内容を読み取り、次のJSONだけを返してください（説明やマークダウン不要）。
-{"相手先":"支払元(元請)の会社名。無ければ空","明細":[{"工事名":"工事・件名の名称だけ。発注者名/監督員名/現場代理人/事務所名/所長名は工事名に含めない","請求額":数値かnull,"控除内訳":[{"種別":"手数料/相殺/安全協力費/その他","金額":数値}],"差引支払額":数値かnull}]}
-ルール:金額は数値のみ(カンマ¥除去)。控除が無い明細は控除内訳を[]。工事が複数あれば全部。読めない項目は空/null。推測で埋めない。`;
+  const p=`あなたは建設会社の経理担当です。これは元請からの「支払通知書／支払明細書」です。記載内容を読み取り、JSON配列のみを返してください（説明やマークダウン不要）。
+[{"相手先":"支払元(元請)の会社名","支払日":"支払日。空欄なら発行日(右上の日付)","区分":"外注|材料|null ― 宛先が「〇〇外注御中」「〇〇材料御中」のように分かれる場合の区分","小計":数値かnull(税抜の明細合計),"消費税":数値かnull,"全体控除":[{"種別":"安全協力費/手数料/相殺/その他","金額":数値}],"支払金額":数値かnull(最終的な振込額),"明細":[{"工事名":"工事・件名の名称だけ。発注者名/監督員名/事務所名/所長名は含めない","請求額":数値かnull(記載のまま。税抜表記なら税抜のまま),"控除内訳":[{"種別":"手数料/相殺/安全協力費/その他","金額":数値}],"差引支払額":数値かnull}]}]
+重要ルール:
+- 1つのPDFに複数の支払明細書（月違い・宛先区分違い）が含まれる場合、支払明細書ごとに別オブジェクトとして配列で全部返す。
+- 途中に挟まる「請求書」（安全協力費等をこちらが元請へ請求する書式）は独立の通知書として扱わない（無視。対応する明細書の控除の裏付けにすぎない）。
+- 控除が明細書全体で一括（工事別でない）の場合は全体控除に入れ、明細ごとに按分しない。工事別に控除が書かれている場合のみ控除内訳に入れる。
+- 金額は数値のみ(カンマ¥除去)。マイナス行(諸経費等)は請求額をマイナスのまま。読めない項目は空/null。推測で埋めない。`;
   const body={contents:[{parts:[{text:p},{inline_data:{mime_type:mime,data:b64}}]}],generationConfig:{temperature:0,response_mime_type:"application/json"}};
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`;
   let res,data,attempt=0;
@@ -1386,16 +1389,54 @@ async function geminiReadTsuchi(file){
   const txt=(((data.candidates||[])[0]||{}).content||{}).parts?.map(x=>x.text).join('')||'';
   let obj; try{obj=JSON.parse(txt);}catch(e){ const m=txt.match(/(\[[\s\S]*\]|\{[\s\S]*\})/); obj=m?JSON.parse(m[0]):null; }
   if(!obj) throw new Error('AIの返答をJSONとして読めませんでした');
-  // 複数通知書（別月など＝配列）は1つに統合：相手先は最初、明細は全連結
-  if(Array.isArray(obj)){
-    const merged={相手先:'', 支払日:'', 明細:[]};
-    obj.forEach(s=>{ if(s&&typeof s==='object'){ if(!merged.相手先 && s.相手先) merged.相手先=s.相手先; if(!merged.支払日 && s.支払日) merged.支払日=s.支払日; (s.明細||[]).forEach(m=>merged.明細.push(m)); } });
-    obj=merged;
-  }
-  obj.明細=obj.明細||[];
-  return obj;
+  // 支払明細書ごとの配列で返す（1PDFに複数月・複数区分が束ねられていても、明細書単位で別々に突合する）
+  let list=Array.isArray(obj)?obj:[obj];
+  list=list.filter(s=>s&&typeof s==='object').map(s=>{ s.明細=s.明細||[]; s.全体控除=s.全体控除||[]; return s; });
+  if(!list.length) throw new Error('通知書を読み取れませんでした');
+  return list;
 }
 function mapDedKind(k){ k=String(k||''); if(/相殺/.test(k)) return '相殺'; if(/安全|協力/.test(k)) return '安全協力費'; return '手数料'; }
+
+/* ===== AI名寄せ：未紐づけの振込名義を、AIで請求先（正式名）に対応付け＝突合率を直接上げる ===== */
+let AI_NAYOSE=(function(){ try{ return JSON.parse(localStorage.getItem('nyukin_ai_nayose')||'{}'); }catch(e){ return {}; } })();
+function saveAiNayose(){ try{ localStorage.setItem('nyukin_ai_nayose',JSON.stringify(AI_NAYOSE)); }catch(e){} }
+async function aiNayose(){
+  const names=uniqueBankNames();
+  const targets=Object.keys(names).filter(nk=>!(master[nk]||[]).length && !ignoreNames.has(nk)).map(nk=>({nk,name:names[nk].name}));
+  if(!targets.length){ toast('未紐づけの名義はありません。'); return; }
+  const cands=[...new Set(uniquePayees().concat(tokuiMaster.map(m=>m.kanji)))];
+  if(!cands.length){ alert('先に予定表を読み込んでください（候補となる請求先が必要です）。'); return; }
+  showLoading('🤖 AIが名義を名寄せ中…（'+targets.length+'件）');
+  const p='あなたは日本の建設会社の経理担当です。銀行の振込名義（カタカナ・略記。「ｶ)」=株式会社等）を、下の会社名リストの正式名に対応付けてください。\n'
+    +'振込名義: '+JSON.stringify(targets.map(t=>t.name))+'\n'
+    +'会社名リスト: '+JSON.stringify(cands)+'\n'
+    +'JSONのみで回答: [{"名義":"(入力のまま)","請求先":"リスト内の正式名 または null","確度":"高|中|低"}]\n'
+    +'ルール: 確信できる対応だけ請求先を入れる。リストに無い会社・税金・保険・給与・組合費など会社名でないものはnull。推測で無理に埋めない。同名レベルの一致=高、略記の展開で妥当=中、あやしい=低。';
+  const body={contents:[{parts:[{text:p}]}],generationConfig:{temperature:0,response_mime_type:"application/json"}};
+  const url='https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent?key='+encodeURIComponent(GEMINI_KEY);
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(!res.ok){ hideLoading(); handleReadError(new Error((data&&data.error&&data.error.message)||('HTTP '+res.status))); return; }
+    try{ const u=data.usageMetadata||{}; bumpAiStats(u.promptTokenCount||0,u.candidatesTokenCount||0); }catch(e){}
+    const txt=(((data.candidates||[])[0]||{}).content||{}).parts?.map(x=>x.text).join('')||'';
+    let arr; try{ arr=JSON.parse(txt); }catch(e){ const m=txt.match(/\[[\s\S]*\]/); arr=m?JSON.parse(m[0]):null; }
+    hideLoading();
+    if(!Array.isArray(arr)){ alert('AIの回答を解析できませんでした。'); return; }
+    const byName={}; targets.forEach(t=>{ byName[t.name]=t.nk; });
+    const candSet=new Set(cands.map(c=>normPayee(c)));
+    let auto=0, sug=0;
+    arr.forEach(a=>{
+      const nk=byName[a&&a.名義]; const py=a&&a.請求先;
+      if(!nk || !py || !candSet.has(normPayee(py))) return;   // リスト外の回答は捨てる（勝手な創作を防ぐ）
+      if(a.確度==='高'){ master[nk]=master[nk]||[]; if(!master[nk].some(x=>normPayee(x)===normPayee(py))){ master[nk].push(py); auto++; } }
+      else { AI_NAYOSE[nk]=AI_NAYOSE[nk]||[]; if(!AI_NAYOSE[nk].some(x=>normPayee(x.payee)===normPayee(py))){ AI_NAYOSE[nk].push({payee:py,conf:a.確度||'中'}); sug++; } }
+    });
+    saveAiNayose();
+    if(auto){ afterMaster(); } else { renderLink(); }
+    toast('🤖 名寄せ完了：確度高 '+auto+'件を自動紐づけ'+(sug?('／提案 '+sug+'件（紐づけタブで🤖ボタンから採用）'):'')+(auto?'。突合し直しました。':''));
+  }catch(err){ hideLoading(); alert('名寄せエラー：'+err.message); }
+}
 /* 読取エラーの案内（モデルは固定なので変更はさせず、対処だけ案内） */
 function handleReadError(err){
   const m=String(err&&err.message||err);
@@ -1447,9 +1488,15 @@ async function readTsuchiForMulti(r){
   const ri=(results||[]).indexOf(r);
   showLoading('🤖 支払通知書を読み取り中…');
   try{
-    const obj=await geminiReadTsuchi(f); hideLoading(); markRead(f); const ent=logAiRead(obj,f.name,_fileKey(f));
+    const list=await geminiReadTsuchi(f); hideLoading(); markRead(f);
+    // 複数の明細書が含まれる場合、この入金の金額に一番近い明細書を反映（他は📋に未反映で残す）
+    let best=null, bd=Infinity; const ents=[];
+    list.forEach(part=>{ const ent=logAiRead(part,f.name,_fileKey(f)); ents.push({part,ent});
+      const d=(r&&r.d)?Math.abs(_tsTotal(part)-r.d.amount):0; if(d<bd){ bd=d; best={part,ent}; } });
+    const obj=best?best.part:list[0];
     const map=(obj.明細||[]).map(m=>{ const bw=bestWorkFor(m); return bw?_eid(bw):null; });
-    if(_applyStmt(obj, ri, map)){ if(ent&&ri>=0&&results[ri]){ ent.key=results[ri].key; saveAiLog(); } saveMulti(); scheduleSync(); render(); toast('✅ 通知書を反映しました。内容を確認して消込を（📋読取結果一覧でも見られます）。'); }
+    if(_applyStmt(obj, ri, map)){ if(best&&best.ent&&ri>=0&&results[ri]){ best.ent.key=results[ri].key; saveAiLog(); } saveMulti(); scheduleSync(); render();
+      toast('✅ 通知書を反映しました'+(list.length>1?('（他'+(list.length-1)+'件の明細書は📋に未反映で保存）'):'')+'。内容を確認して消込を。'); }
     else{ toast('❓ 工事を特定できませんでした。📋読取結果一覧で内容を確認し、手で入力してください。'); }
   }
   catch(err){ hideLoading(); handleReadError(err); }
@@ -1459,10 +1506,26 @@ async function readTsuchiForMulti(r){
 let _tsState={obj:null,ri:-1};
 let _tsMode='single';   // 'single'（要確認パネルから1件）／'batch'（ホームから一括）
 function _depLabel(r){ return yen(r.d.amount)+' ・ '+(r.d.name||'')+(r.d.date?(' ・ '+r.d.date):''); }
-function bestWorkFor(m){ const ents=allEntries(); let best=null,bs=-1; ents.forEach(e=>{ let sc=workScore(m.工事名,e); if(m.請求額!=null&&Math.abs(planAmt(e)-Number(m.請求額))<1)sc+=0.5; if(sc>bs){bs=sc;best=e;} }); return bs>=0.3?best:null; }
-function _tsTotal(obj){ return (obj.明細||[]).reduce((a,m)=>{ let net=(m.差引支払額!=null)?Number(m.差引支払額):(Number(m.請求額||0)-(m.控除内訳||[]).reduce((s,d)=>s+Number(d.金額||0),0)); return a+(net||0); },0); }
+function _kubunDept(m){ const k=m&&m.区分; return k==='外注'?'土木' : k==='材料'?'営業' : null; }   // 通知書の宛先区分→部門（日南部建設等：外注御中=土木／材料御中=営業）
+function _kubunBoost(m,e){ const kd=_kubunDept(m); if(!kd) return 0; return deptOf(e)===kd ? 0.3 : -0.4; }
+function _amtHit(plan, req){ if(req==null||isNaN(req)) return false; req=Number(req); return Math.abs(plan-req)<2 || Math.abs(plan-Math.round(req*1.1))<3; }   // 通知書が税抜表記でも税込(×1.1)で予定表と照合
+function bestWorkFor(m){ const ents=allEntries(); let best=null,bs=-1; ents.forEach(e=>{ let sc=workScore(m.工事名,e)+_kubunBoost(m,e); if(_amtHit(planAmt(e), m.請求額))sc+=0.5; if(sc>bs){bs=sc;best=e;} }); return bs>=0.3?best:null; }
+function _tsTotal(obj){
+  if(obj && obj.支払金額!=null && !isNaN(obj.支払金額)) return Number(obj.支払金額);   // 明細書の最終振込額があれば最優先
+  return (obj.明細||[]).reduce((a,m)=>{ let net=(m.差引支払額!=null)?Number(m.差引支払額):(Number(m.請求額||0)-(m.控除内訳||[]).reduce((s,d)=>s+Number(d.金額||0),0)); return a+(net||0); },0);
+}
+/* 検算：税抜小計+消費税−控除＝支払金額（南部型）／なければ 請求合計−控除＝差引（東亜・戸塚型） */
+function _tsKensan(obj){
+  const dedAll=(obj.全体控除||[]).reduce((a,d)=>a+(Number(d.金額)||0),0)
+    +(obj.明細||[]).reduce((a,m)=>a+(m.控除内訳||[]).reduce((s,d)=>s+(Number(d.金額)||0),0),0);
+  const total=_tsTotal(obj);
+  let req;
+  if(obj.小計!=null && !isNaN(obj.小計)) req=Number(obj.小計)+(Number(obj.消費税)||0);
+  else req=(obj.明細||[]).reduce((a,m)=>a+(Number(m.請求額)||0),0);
+  return { req, ded:dedAll, total, ok: req>0 && Math.abs(req-dedAll-total)<2 };
+}
 function _entryByEid(eid){ return entriesByEids([eid])[0]||null; }
-function _candWorks(m){ return allEntries().map(e=>{ let sc=workScore(m.工事名,e); if(m.請求額!=null&&Math.abs(planAmt(e)-Number(m.請求額))<1)sc+=0.5; return {e,sc}; }).filter(x=>x.sc>0.12).sort((a,b)=>b.sc-a.sc).slice(0,5); }
+function _candWorks(m){ return allEntries().map(e=>{ let sc=workScore(m.工事名,e)+_kubunBoost(m,e); if(_amtHit(planAmt(e), m.請求額))sc+=0.5; return {e,sc}; }).filter(x=>x.sc>0.12).sort((a,b)=>b.sc-a.sc).slice(0,5); }
 /* 入金候補を「金額(差引)＋振込名義/会社名＋支払日」で予測スコア化 */
 function _pdate(s){ if(!s)return null; const m=String(s).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/); return m?new Date(+m[1],+m[2]-1,+m[3]):null; }
 function _nm(s){ return String(s||'').replace(/[\s　\(\)（）株式会社有限会社ｶ)ｱ-ﾝ]/g,''); }
@@ -1502,12 +1565,10 @@ function renderTsuchiBody(){
                       : (exact ? '🟢 この入金に一致（確認して反映）：' : '🟡 予測（確認して選択）：');
     h+='<div class="tsmatch '+cls+'">'+lead+(ri>=0?esc(_depLabel(results[ri])):'')+'<br><span style="font-size:11px;color:var(--muted,#6b7280)">候補（金額＋名義＋支払日で予測・上が有力）</span> <select id="tsDepSel">'+opts+'</select></div>';
   }
-  // 検算裏取り：請求 − 控除 ＝ 差引（通知書の自己整合）＋ 入金一致
-  const reqSum=(obj.明細||[]).reduce((a,m)=>a+(Number(m.請求額)||0),0);
-  const dedSum=(obj.明細||[]).reduce((a,m)=>a+(m.控除内訳||[]).reduce((s,d)=>s+(Number(d.金額)||0),0),0);
-  const selfOk=reqSum>0 && Math.abs(reqSum-dedSum-total)<2;
+  // 検算裏取り：請求(税込) − 控除 ＝ 支払金額（通知書の自己整合）＋ 入金一致
+  const kz=_tsKensan(obj);
   const bankOk=ri>=0 && Math.abs(results[ri].d.amount-total)<2;
-  h+='<div class="tsmatch '+((selfOk&&(ri<0||bankOk))?'ok':'ng')+'" style="font-size:12px">🧮 検算：請求 '+yen(reqSum)+' − 控除 '+yen(dedSum)+' ＝ 差引 '+yen(total)+' '+(selfOk?'✔':'⚠差 '+yen(reqSum-dedSum-total))+(ri>=0?('　／　入金 '+yen(results[ri].d.amount)+' '+(bankOk?'✔一致':'⚠差')):'')+'</div>';
+  h+='<div class="tsmatch '+((kz.ok&&(ri<0||bankOk))?'ok':'ng')+'" style="font-size:12px">🧮 検算：請求 '+yen(kz.req)+' − 控除 '+yen(kz.ded)+' ＝ 支払 '+yen(kz.total)+' '+(kz.ok?'✔':'⚠差 '+yen(kz.req-kz.ded-kz.total))+(ri>=0?('　／　入金 '+yen(results[ri].d.amount)+' '+(bankOk?'✔一致':'⚠差')):'')+'</div>';
   h+='<table class="tstbl"><thead><tr><th>工事（通知書）</th><th class="num">請求額</th><th>控除内訳</th><th class="num">差引</th><th>対応工事(予定表)</th></tr></thead><tbody>';
   (obj.明細||[]).forEach((m,i)=>{
     const ded=(m.控除内訳||[]).filter(d=>Number(d.金額)>0);
@@ -1642,7 +1703,8 @@ async function readTsuchiFromHome(files){
   for(let i=0;i<toRead.length;i++){
     const f=toRead[i];
     showLoading('🤖 支払通知書を読み取り中… '+(i+1)+'/'+toRead.length);
-    try{ const obj=await geminiReadTsuchi(f); markRead(f); const ent=logAiRead(obj,f.name,_fileKey(f)); items.push({obj,file:f,ent}); }
+    try{ const list=await geminiReadTsuchi(f); markRead(f);
+      list.forEach(part=>{ const ent=logAiRead(part,f.name,_fileKey(f)); items.push({obj:part,file:f,ent}); }); }
     catch(err){ hideLoading(); handleReadError(err); break; }   // 上限/エラーはそこで停止（読めた分は表示）
   }
   hideLoading();
@@ -1673,9 +1735,8 @@ function renderTsuchiBatch(skipped){
 }
 function _batchCard(b,bi){
   const obj=b.obj;
-  const reqSum=(obj.明細||[]).reduce((a,m)=>a+(Number(m.請求額)||0),0);
-  const dedSum=(obj.明細||[]).reduce((a,m)=>a+(m.控除内訳||[]).reduce((s,d)=>s+(Number(d.金額)||0),0),0);
-  const selfOk=reqSum>0 && Math.abs(reqSum-dedSum-b.total)<2;
+  const kz=_tsKensan(obj);
+  const reqSum=kz.req, dedSum=kz.ded, selfOk=kz.ok;
   let h='<div class="tscard">';
   h+='<div class="tscard-h"><b>'+esc(obj.相手先||'（相手先不明）')+'</b> <span class="conf">'+esc(obj.支払日||'')+'</span><span style="flex:1"></span>';
   { const rk=rankDeposits(obj); const exact=b.ri>=0&&Math.abs(results[b.ri].d.amount-b.total)<2;
@@ -1710,6 +1771,10 @@ function _applyStmt(obj, ri, map){
   else{ r.multi.poolEids=[...new Set([...(r.multi.poolEids||[]),...eids])]; }
   const mc=ensureMulti(r); mc.combo=eids.slice(); mc.dedBy=mc.dedBy||{};
   (obj.明細||[]).forEach((m,i)=>{ const eid=map[i]; if(!eid)return; const lines=(m.控除内訳||[]).filter(d=>Number(d.金額)>0).map(d=>({kind:mapDedKind(d.種別),amt:Math.round(Number(d.金額)||0)})); mc.dedBy[eid]=lines.length?lines:[{kind:'手数料',amt:0}]; });
+  // 明細書全体の一括控除（南部型の安全協力費等）→ 予定額が一番大きい工事にまとめて付ける（内訳は要確認で調整可）
+  const gl=(obj.全体控除||[]).filter(d=>Number(d.金額)>0).map(d=>({kind:mapDedKind(d.種別),amt:Math.round(Number(d.金額)||0)}));
+  if(gl.length){ let big=eids[0], bp=-1; eids.forEach(id=>{ const e=entriesByEids([id])[0]; const p=e?planAmt(e):0; if(p>bp){bp=p; big=id;} });
+    const cur=(mc.dedBy[big]||[]).filter(l=>(l.amt||0)>0); mc.dedBy[big]=cur.concat(gl); }
   mc.ded=(mc.combo||[]).reduce((a,id)=>a+_linesSum(mc.dedBy[id]),0);
   openDetails.add(r.key);
   return true;
@@ -1720,8 +1785,18 @@ function applyTsuchiBatch(){
   saveMulti(); scheduleSync(); render(); closeTsuchiPreview();
   toast('✅ '+done+'件を反映しました'+(ng>0?('／'+ng+'件は要確認（入金/工事を選択）'):'')+'。要確認で内容を確認して消込を。');
 }
+/* 区分（外注御中/材料御中）が複数ある通知書は、区分ごとに分割して別々の入金と突合（日南部建設等：外注=土木の振込／材料=営業の振込） */
+function splitByKubun(obj){
+  const groups={};
+  (obj.明細||[]).forEach(m=>{ const k=(m&&m.区分)||''; (groups[k]=groups[k]||[]).push(m); });
+  const keys=Object.keys(groups);
+  if(keys.length<=1) return [obj];
+  return keys.map(k=>({ 相手先:obj.相手先, 支払日:obj.支払日, 区分:k, 明細:groups[k] }));
+}
 /* 読んだら即反映：自動で当たった分はモーダルなしで反映、当たらない分だけ画面で選ぶ */
-function autoApplyTsuchi(items, skipped){
+function autoApplyTsuchi(rawItems, skipped){
+  const items=[];   // 区分が複数ある通知書は区分ごとに展開（それぞれの差引で入金を探す）
+  rawItems.forEach(it=>{ splitByKubun(it.obj).forEach(pobj=>items.push({obj:pobj, file:it.file, ent:it.ent})); });
   let done=0; const pend=[];
   items.forEach(it=>{
     let ri=-1; const rk=rankDeposits(it.obj); if(rk.length && rk[0].sc>=15) ri=rk[0].i;
@@ -2741,6 +2816,7 @@ function renderLink(){
   keys.forEach(nk=>{ const it=names[nk]; const cur=(master[nk]||[]).slice();
     let props=proposalsFor(it.amts).filter(p=>!cur.some(c=>normPayee(c)===normPayee(p.payee)));
     resolveByTokui(it.name).forEach(py=>{ if(!cur.some(c=>normPayee(c)===normPayee(py)) && !props.some(pp=>normPayee(pp.payee)===normPayee(py))) props.push({payee:py, plan:0, near:false, tokui:true}); });   // 得意先マスタ由来の提案（金額で出なくても、フリガナで特定した相手を提案）
+    (AI_NAYOSE[nk]||[]).forEach(s=>{ if(!cur.some(c=>normPayee(c)===normPayee(s.payee)) && !props.some(pp=>normPayee(pp.payee)===normPayee(s.payee))) props.push({payee:s.payee, plan:0, near:false, ai:true, conf:s.conf}); });   // AI名寄せの提案（確度中/低はここでワンクリック採用）
     if(cur.length)linked++; if(!cur.length&&props.length)proposable++;
     _linkRows.push({nk,name:it.name,amts:[...it.amts].sort((a,b)=>b-a),count:it.count,cur,props}); });
   const view=_linkRows.map((r,i)=>({r,i})).filter(x=>!ignoreNames.has(x.r.nk) && (onlyUn? x.r.cur.length===0 : true));   // 除外名義は「除外名義」タブへ（ここには出さない）
@@ -2754,7 +2830,7 @@ function renderLink(){
       let c=''; r.cur.forEach((p,ci)=>c+='<span class="fchip">'+esc(p)+' <span class="x" data-uli="'+i+'" data-uci="'+ci+'">×</span></span> ');
       if(!r.cur.length) c='<span class="tag d">未紐づけ</span>';
       h+='<td>'+c+'</td>';
-      let p=''; r.props.slice(0,4).forEach((pp,pi)=>p+='<button class="'+(pp.tokui?'btn mini plink':(pp.near?'btn sub mini':'btn mini plink'))+'" data-li="'+i+'" data-pi="'+pi+'" style="margin:0 5px 4px 0" title="'+(pp.tokui?'得意先マスタ（フリガナ）で特定した相手':'金額から提案')+'">＋ '+esc(pp.payee)+(pp.tokui?'（得意先マスタ）':'（¥'+yen(pp.plan)+(pp.near?'/手数料差':'')+'）')+'</button>');
+      let p=''; r.props.slice(0,5).forEach((pp,pi)=>p+='<button class="'+(pp.tokui||pp.ai?'btn mini plink':(pp.near?'btn sub mini':'btn mini plink'))+'" data-li="'+i+'" data-pi="'+pi+'" style="margin:0 5px 4px 0" title="'+(pp.ai?'AI名寄せの提案（確度'+esc(pp.conf||'中')+'）':(pp.tokui?'得意先マスタ（フリガナ）で特定した相手':'金額から提案'))+'">'+(pp.ai?'🤖 ':'＋ ')+esc(pp.payee)+(pp.ai?'（AI・確度'+esc(pp.conf||'中')+'）':(pp.tokui?'（得意先マスタ）':'（¥'+yen(pp.plan)+(pp.near?'/手数料差':'')+'）'))+'</button>');
       if(!r.props.length) p+='<span class="muted" style="font-size:11px">提案なし　</span>';
       p+='<span style="display:inline-flex;gap:4px"><input class="selp" list="payeeList" data-add="'+i+'" placeholder="請求先を検索" style="min-width:150px"><button class="btn mini" data-addi="'+i+'">追加</button></span>';
       h+='<td>'+p+'</td>';
@@ -2779,6 +2855,7 @@ $('bulkLink').addEventListener('click',()=>{
   if(n) afterMaster(); alert(n+'件の名義を自動で紐づけました（提案が1件に絞れたものだけ）。');
 });
 $('onlyUnlinked').addEventListener('change',renderLink);
+(function(){ const b=$('aiNayoseBtn'); if(b) b.addEventListener('click',aiNayose); })();
 $('masterReload').addEventListener('click',()=>loadMaster(true));
 $('masterSave').addEventListener('click',pushMaster);
 
