@@ -1048,9 +1048,14 @@ let _dmap={};
 function buildDeptMap(){ _dmap={}; allEntries().forEach(e=>{ const k=normPayee(e.請求先); (_dmap[k]=_dmap[k]||new Set()).add(e.dept||(e.type==='土木'?'土木':'弥生')); }); }
 function crossDepts(payee){ const s=_dmap[normPayee(payee)]; return s?[...s]:[]; }
 function isCross(payee){ return crossDepts(payee).length>1; }
-function findEntry(cf){ const es=allEntries();
+function _findEntryIn(es,cf){
   if(cf.type==='土木') return es.find(e=>e.type==='土木'&&e.row===cf.row) || es.find(e=>e.type==='土木'&&e.請求先===cf.payee&&e.工事番号===cf.工事番号);
   return es.find(e=>e.type==='弥生'&&e.請求先===cf.payee&&(cf.code?e.code===cf.code:true)); }
+function findEntry(cf){ return _findEntryIn(allEntries(),cf) || _findEntryIn(allEntriesAllMonths(),cf); }   // 全月横断：別月の予定に消し込んだ分も再表示できる
+/* 選択中の月に無い（他の取込月の）予定エントリ＝月またぎ入金の突合用 */
+function entriesOtherMonths(){ const cur=new Set(allEntries().map(_eid)); const out=[]; (typeof planSnaps!=='undefined'?planSnaps:[]).forEach(s=>(s.entries||[]).forEach(e=>{ if(!cur.has(_eid(e))) out.push(e); })); return out; }
+/* 全月の予定（選択月＋他月・重複なし）＝AIの工事照合などに使用 */
+function allEntriesX(){ const seen=new Set(); const out=[]; allEntries().concat(allEntriesAllMonths()).forEach(e=>{ const id=_eid(e); if(seen.has(id))return; seen.add(id); out.push(e); }); return out; }
 function saveConfirmed(){ localStorage.setItem(MCONF,JSON.stringify(confirmed)); }
 function addMaster(name,payee){ const k=normName(name); master[k]=master[k]||[]; if(!master[k].some(p=>normPayee(p)===normPayee(payee))) master[k].push(payee); saveMasterLocal(); }
 
@@ -1095,9 +1100,39 @@ function runMatch(){
         }
       }
     }
+    // ★全月横断オート：選択月に金額一致が無いとき、他の取込月の予定と突合（前月請求分の入金＝月またぎ対応）
+    if(!noAutoSet.has(key) && entries.filter(e=>amtMatch(e,d.amount)).length===0){
+      const others=entriesOtherMonths();
+      if(others.length){
+        const poolX = payeeList.length ? others.filter(e=>payeeList.some(p=>normPayee(p)===normPayee(e.請求先))) : others;
+        const exX = poolX.filter(e=>amtMatch(e,d.amount));
+        if(exX.length===1){
+          const e0=exX[0];
+          confirmed[key]={payee:e0.請求先,type:e0.type,row:e0.row||null,code:e0.code||null,dept:e0.dept||null,工事番号:e0.工事番号||null,工事名:e0.工事名||null,fee:0,auto:true,cross:true};
+          if(!payeeList.length) addMaster(d.name, e0.請求先);
+          autoLearned=true;
+          results.push({d,key,status:'matched',entry:e0,fee:0,auto:true,cross:true}); return;
+        }
+        if(exX.length===0 && payeeList.length){   // 手数料差の別月自動は「名前が特定できている相手」だけ（金額が近いだけの他人に誤学習しない）
+          const nearX=poolX.filter(e=>tolOK(d.amount, planAmt(e)) && (planAmt(e)-d.amount)<=FEEMAX);
+          if(nearX.length===1){
+            const e1=nearX[0], fee1=Math.max(0, planAmt(e1)-d.amount);
+            confirmed[key]={payee:e1.請求先,type:e1.type,row:e1.row||null,code:e1.code||null,dept:e1.dept||null,工事番号:e1.工事番号||null,工事名:e1.工事名||null,fee:fee1,auto:true,cross:true};
+            if(!payeeList.length) addMaster(d.name, e1.請求先);
+            autoLearned=true;
+            results.push({d,key,status:'matched',entry:e1,fee:fee1,auto:true,cross:true}); return;
+          }
+        }
+      }
+    }
     // 要確認：候補（金額ピタリ→残0／近い→手数料差）
-    const exactCands = entries.filter(e=>amtMatch(e,d.amount));
-    const nearCands  = (payeeList.length?pool:entries).filter(e=>tolOK(d.amount,planAmt(e)));
+    let exactCands = entries.filter(e=>amtMatch(e,d.amount));
+    let nearCands  = (payeeList.length?pool:entries).filter(e=>tolOK(d.amount,planAmt(e)));
+    if(!exactCands.length && !nearCands.length){   // 選択月に候補ゼロ→別月の候補も出す（人が選ぶ手間を減らす）
+      const oth=entriesOtherMonths();
+      exactCands = oth.filter(e=>amtMatch(e,d.amount));
+      if(!exactCands.length) nearCands = (payeeList.length? oth.filter(e=>payeeList.some(p=>normPayee(p)===normPayee(e.請求先))) : oth).filter(e=>tolOK(d.amount,planAmt(e)));
+    }
     let reason;
     if(!payeeList.length) reason = exactCands.length?'名義未登録（残高0の候補あり）':(nearCands.length?'名義未登録（手数料差の候補あり）':'名義未登録');
     else if(byTokui && payeeList.length>1) reason='得意先マスタで複数該当（支店/同名）→ 相手を選ぶ';
@@ -1112,10 +1147,20 @@ function runMatch(){
       if(em.length>=1){ multi={kind:'exact', combos:em.slice(0,6).map(x=>x.items), poolEids:pool.map(_eid)}; }
       else if(!(nearCands&&nearCands.length)){ const dm=subsetCombos(pool,d.amount,{exact:false}); if(dm.length){ multi={kind:'deduct', combos:[dm[0].items], poolEids:pool.map(_eid)}; } }
     }
-    if(multi) reason='複数工事に充当'+(multi.kind==='deduct'?'（控除あり）':(multi.combos.length>1?'（候補'+multi.combos.length+'通り）':'（候補確定）'));
+    // ★全月横断まとめ払い：選択月のプールで組めないとき、同じ請求先の別月の予定も足して組合せを探す（例：6月請求2件＋7月請求1件＝1本の振込）
+    if(!multi && payeeList.length && exact.length===0){
+      const othersP=entriesOtherMonths().filter(e=>payeeList.some(p=>normPayee(p)===normPayee(e.請求先)));
+      const poolAll=pool.concat(othersP);
+      if(othersP.length && poolAll.length>=2){
+        const em=subsetCombos(poolAll,d.amount,{exact:true});
+        if(em.length>=1){ multi={kind:'exact', combos:em.slice(0,6).map(x=>x.items), poolEids:poolAll.map(_eid), cross:true}; }
+        else{ const dm=subsetCombos(poolAll,d.amount,{exact:false}); if(dm.length){ multi={kind:'deduct', combos:[dm[0].items], poolEids:poolAll.map(_eid), cross:true}; } }
+      }
+    }
+    if(multi) reason='複数工事に充当'+(multi.cross?'（別月含む）':'')+(multi.kind==='deduct'?'（控除あり）':(multi.combos.length>1?'（候補'+multi.combos.length+'通り）':'（候補確定）'));
     // ② 自動確定（リスク許容）：名前が特定できた相手で、まとめ払いの組合せが一つに決まるなら自動で消込（誤りは「戻す」で取消せる）
     if(multi && !multiConfirm[key] && !noAutoSet.has(key)){
-      const poolPayees=new Set(pool.map(e=>normPayee(e.請求先)));
+      const poolPayees=new Set((multi.cross? entriesByEids(multi.poolEids):pool).map(e=>normPayee(e.請求先)));
       const decisive=(multi.kind==='exact' && multi.combos.length===1) || multi.kind==='deduct';   // 残0が一意 or 控除が一つに決まる
       if(poolPayees.size===1 && decisive){
         const comboEids=(multi.combos[0]||[]).map(_eid);
@@ -1232,7 +1277,7 @@ function subsetCombos(pool,target,opt){   // 予定額の部分集合（size>=2�
   if(!opt.exact) out.sort((a,b)=>(a.sum-target)-(b.sum-target));
   return out;
 }
-function entriesByEids(eids){ if(!eids||!eids.length) return []; const s=new Set(eids); return allEntries().filter(e=>s.has(_eid(e))); }
+function entriesByEids(eids){ if(!eids||!eids.length) return []; const s=new Set(eids); return allEntriesX().filter(e=>s.has(_eid(e))); }   // 全月横断（別月の工事もまとめ払いに使えるように）
 let _mcandCache=null, _payeeIdx=null;
 function _resetMcand(){ _mcandCache=null; _payeeIdx=null; }   // renderのたびにクリア
 function matomeCandidates(dep){   // 入金額を「複数工事の合算(残0)」or「合算−控除(手数料/協力費)」で説明できる請求先を提示
@@ -1527,7 +1572,7 @@ function _depLabel(r){ return yen(r.d.amount)+' ・ '+(r.d.name||'')+(r.d.date?(
 function _kubunDept(m){ const k=m&&m.区分; return k==='外注'?'土木' : k==='材料'?'営業' : null; }   // 通知書の宛先区分→部門（日南部建設等：外注御中=土木／材料御中=営業）
 function _kubunBoost(m,e){ const kd=_kubunDept(m); if(!kd) return 0; return deptOf(e)===kd ? 0.3 : -0.4; }
 function _amtHit(plan, req){ if(req==null||isNaN(req)) return false; req=Number(req); return Math.abs(plan-req)<2 || Math.abs(plan-Math.round(req*1.1))<3; }   // 通知書が税抜表記でも税込(×1.1)で予定表と照合
-function bestWorkFor(m){ const ents=allEntries(); let best=null,bs=-1; ents.forEach(e=>{ let sc=workScore(m.工事名,e)+_kubunBoost(m,e); if(_amtHit(planAmt(e), m.請求額))sc+=0.5; if(sc>bs){bs=sc;best=e;} }); return bs>=0.3?best:null; }
+function bestWorkFor(m){ const ents=allEntriesX(); let best=null,bs=-1; ents.forEach(e=>{ let sc=workScore(m.工事名,e)+_kubunBoost(m,e); if(_amtHit(planAmt(e), m.請求額))sc+=0.5; if(sc>bs){bs=sc;best=e;} }); return bs>=0.3?best:null; }
 function _tsTotal(obj){
   if(obj && obj.支払金額!=null && !isNaN(obj.支払金額)) return Number(obj.支払金額);   // 明細書の最終振込額があれば最優先
   return (obj.明細||[]).reduce((a,m)=>{ let net=(m.差引支払額!=null)?Number(m.差引支払額):(Number(m.請求額||0)-(m.控除内訳||[]).reduce((s,d)=>s+Number(d.金額||0),0)); return a+(net||0); },0);
@@ -1543,7 +1588,7 @@ function _tsKensan(obj){
   return { req, ded:dedAll, total, ok: req>0 && Math.abs(req-dedAll-total)<2 };
 }
 function _entryByEid(eid){ return entriesByEids([eid])[0]||null; }
-function _candWorks(m){ return allEntries().map(e=>{ let sc=workScore(m.工事名,e)+_kubunBoost(m,e); if(_amtHit(planAmt(e), m.請求額))sc+=0.5; return {e,sc}; }).filter(x=>x.sc>0.12).sort((a,b)=>b.sc-a.sc).slice(0,5); }
+function _candWorks(m){ return allEntriesX().map(e=>{ let sc=workScore(m.工事名,e)+_kubunBoost(m,e); if(_amtHit(planAmt(e), m.請求額))sc+=0.5; return {e,sc}; }).filter(x=>x.sc>0.12).sort((a,b)=>b.sc-a.sc).slice(0,5); }
 /* 入金候補を「金額(差引)＋振込名義/会社名＋支払日」で予測スコア化 */
 function _pdate(s){ if(!s)return null; const m=String(s).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/); return m?new Date(+m[1],+m[2]-1,+m[3]):null; }
 function _nm(s){ return String(s||'').replace(/[\s　\(\)（）株式会社有限会社ｶ)ｱ-ﾝ]/g,''); }
@@ -1562,7 +1607,7 @@ function openTsuchiPreview(obj, fixedRi){
   const total=_tsTotal(obj);
   const fixed=(fixedRi!=null && fixedRi>=0);
   let ri = fixed ? fixedRi : -1;
-  if(ri<0){ const rk=rankDeposits(obj); if(rk.length && rk[0].sc>=15) ri=rk[0].i; }   // 予測：金額+名義+支払日の最有力を初期選択
+  if(ri<0){ const rk=rankDeposits(obj); if(rk.length && rk[0].sc>=60) ri=rk[0].i; }   // 予測：金額+名義+支払日の最有力を初期選択
   const map=(obj.明細||[]).map(m=>{ const bw=bestWorkFor(m); return bw?_eid(bw):null; });   // 自動振り分け（不明はnull）
   _tsMode='single';
   _tsState={obj,ri,total,map,fixed,expand:new Set()};
@@ -1698,7 +1743,7 @@ async function importOcrJson(file){
 
 /* ホーム入口：通知書を投げる→該当入金を金額で特定→まとめ払い準備→控除自動入力→要確認へ */
 function guessPayeeFromTsuchi(obj){
-  const ents=allEntries(); let best=null,bs=-1;
+  const ents=allEntriesX(); let best=null,bs=-1;
   (obj.明細||[]).forEach(m=>{ ents.forEach(e=>{ let sc=workScore(m.工事名,e); if(m.請求額!=null&&Math.abs(planAmt(e)-Number(m.請求額))<1)sc+=0.5; if(sc>bs){bs=sc;best=e;} }); });
   return best? best.請求先 : '';
 }
@@ -1735,7 +1780,7 @@ function openTsuchiBatch(items, skipped){
   _tsMode='batch';
   _tsBatch = items.map(it=>{
     const total=_tsTotal(it.obj);
-    let ri=-1; const rk=rankDeposits(it.obj); if(rk.length && rk[0].sc>=15) ri=rk[0].i;   // 予測（金額+名義+支払日）
+    let ri=-1; const rk=rankDeposits(it.obj); if(rk.length && rk[0].sc>=60) ri=rk[0].i;   // 予測（金額+名義+支払日）
     const map=(it.obj.明細||[]).map(m=>{ const bw=bestWorkFor(m); return bw?_eid(bw):null; });
     return {obj:it.obj, file:it.file, total, ri, map, expand:new Set()};
   });
@@ -1817,7 +1862,7 @@ function autoApplyTsuchi(rawItems, skipped){
   rawItems.forEach(it=>{ splitByKubun(it.obj).forEach(pobj=>items.push({obj:pobj, file:it.file, ent:it.ent})); });
   let done=0; const pend=[];
   items.forEach(it=>{
-    let ri=-1; const rk=rankDeposits(it.obj); if(rk.length && rk[0].sc>=15) ri=rk[0].i;
+    let ri=-1; const rk=rankDeposits(it.obj); if(rk.length && rk[0].sc>=60) ri=rk[0].i;
     const map=(it.obj.明細||[]).map(m=>{ const bw=bestWorkFor(m); return bw?_eid(bw):null; });
     if(_applyStmt(it.obj, ri, map)){ done++; if(it.ent&&results[ri]) it.ent.key=results[ri].key; }
     else pend.push(it);
@@ -2975,7 +3020,9 @@ function readPlan(file){
     const pk=per?per.key:'', pl=per?per.label:'';
     let dep;
     if(cls==='土木'){ dep='土木'; dropSameMonth('土木',pk); addSnap({dept:'土木', name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, entries:parseDoboku(x.grid), importedAt:stampDate(), periodKey:pk, periodLabel:pl}); }
-    else if(cls==='弥生'){ dep=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':'弥生'; dropSameMonth(dep,pk); addSnap({dept:dep, name:file.name, entries:parseYayoi(x.grid,dep), importedAt:stampDate(), periodKey:pk, periodLabel:pl}); }
+    else if(cls==='弥生'){ dep=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':null;
+      if(!dep){ dep = confirm('「'+file.name+'」はどの部門の予定表ですか？\n\nOK ＝ 営業　／　キャンセル ＝ 環境\n（ファイル名に「営業」or「環境」を入れておくと次回から自動判定されます）') ? '営業' : '環境'; }
+      dropSameMonth(dep,pk); addSnap({dept:dep, name:file.name, entries:parseYayoi(x.grid,dep), importedAt:stampDate(), periodKey:pk, periodLabel:pl}); }
     else { alert('予定表の種類を判別できませんでした：'+file.name); return; }
     viewMode='予定表'; selDept=dep; selDate=pk?('P'+pk):'latest'; applyPlanSel();   // 取り込んだ部門・対象月を表示（過去は貯まる・予定表/累積→部門→対象月で選べる）
   });
