@@ -947,13 +947,31 @@ function parseDoboku(grid){
 }
 function parseYayoi(grid, dept){
   const rows=Object.keys(grid).map(Number).sort((a,b)=>a-b);
+  // ヘッダー行を探して列を動的に特定（旧形式=A:コード/B:名/C:要回収/J:当月予定、新形式=1列右にズレ＋ヘッダー5行目 の両対応）
+  let hr=null, cols=null;
+  for(const r of rows){
+    const row=grid[r];
+    for(const c in row){ if(String(row[c]||'').indexOf('請求先コード')>=0){ hr=r; cols={code:c}; break; } }
+    if(hr!=null){
+      const hrow=grid[hr];
+      for(const c in hrow){ const v=String(hrow[c]||'');
+        if(v.indexOf('請求先名')>=0) cols.name=c;
+        else if(v.indexOf('当月要回収額')>=0) cols.alt=c;
+        else if(v.indexOf('当月予定')>=0) cols.amt=c;
+      }
+      break;
+    }
+  }
+  if(!cols || !cols.name || !cols.amt){ cols={code:'A',name:'B',alt:'C',amt:'J'}; hr=null; }   // 見つからなければ従来の固定列
+  if(!cols.alt) cols.alt=cols.amt;
   const entries=[];
   for(const r of rows){
-    const row=grid[r]; const A=row.A, B=row.B;
-    if(!B || /請求先コード|請求先別回収状況/.test(String(A)+String(B))) continue;
-    const amtJ=toInt(row.J), amtC=toInt(row.C);
+    if(hr!=null && r<=hr) continue;   // ヘッダーより上（タイトル・期間行）は読まない
+    const row=grid[r]; const code=row[cols.code], name=row[cols.name];
+    if(!name || /請求先コード|請求先別回収状況/.test(String(code)+String(name))) continue;
+    const amtJ=toInt(row[cols.amt]), amtC=toInt(row[cols.alt]);
     if(amtJ==null && amtC==null) continue;
-    entries.push({type:'弥生', dept, 請求先:String(B).trim(), code:String(A||'').trim(), amount:amtJ||0, altAmount:amtC||0, row:r});
+    entries.push({type:'弥生', dept, 請求先:String(name).trim(), code:String(code||'').trim(), amount:amtJ||0, altAmount:amtC||0, row:r});
   }
   return entries.filter(e=>e.amount>0||e.altAmount>0);
 }
