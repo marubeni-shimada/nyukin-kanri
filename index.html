@@ -1442,7 +1442,8 @@ function fillMultiFromTsuchi(r,obj){
 async function readTsuchiForMulti(r){
   if(!ensureGeminiKey()) return;
   const f=await _pickFile(); if(!f) return;
-  if(alreadyRead(f)){ toast('『'+f.name+'』は読込済みのためスキップしました（重複防止でAPI節約）'); return; }
+  if(alreadyRead(f)){ idbPutFile(_fileKey(f), f); let tied=false; AI_LOG.forEach(e=>{ if(!e.fkey && e.file===f.name){ e.fkey=_fileKey(f); tied=true; } }); if(tied) saveAiLog();
+    toast('『'+f.name+'』は読込済みのためスキップしました（原本は保存しました・📋から見られます）'); return; }
   const ri=(results||[]).indexOf(r);
   showLoading('🤖 支払通知書を読み取り中…');
   try{
@@ -1632,7 +1633,10 @@ async function readTsuchiFromHome(files){
   const valid = list.filter(f => /\.pdf$/i.test(f.name) || /^image\//.test(f.type||'') || /\.(png|jpe?g|webp)$/i.test(f.name));
   if(!valid.length){ alert('画像またはPDFを入れてください。'); return; }
   const skipped=[], toRead=[];
-  valid.forEach(f=>{ if(alreadyRead(f)) skipped.push(f.name); else toRead.push(f); });
+  valid.forEach(f=>{ if(alreadyRead(f)){ skipped.push(f.name);
+      idbPutFile(_fileKey(f), f);   // 読取済みでも原本は保存（API消費ゼロ）＝過去に読んだPDFの原本も後から見られるように
+      let tied=false; AI_LOG.forEach(e=>{ if(!e.fkey && e.file===f.name){ e.fkey=_fileKey(f); tied=true; } }); if(tied) saveAiLog();
+    } else toRead.push(f); });
   if(!toRead.length){ toast('全て読込済みのためスキップしました（重複防止でAPI節約）'); return; }
   const items=[];
   for(let i=0;i<toRead.length;i++){
@@ -2802,6 +2806,11 @@ function mergeShared(d){
   multiConfirm=Object.assign({},(d&&d.multi)||{},multiConfirm);
   if(d && Array.isArray(d.denbai)) d.denbai.forEach(k=>denbaiSet.add(k));   // 電債確認済（残が大きい一部入金）を共有マージ（ローカルも保持）
   if(d && Array.isArray(d.tokui) && d.tokui.length){ mergeTokui(d.tokui, null); }   // 中央共有の得意先マスタ追加分（内蔵との差分）を取り込む
+  if(d && Array.isArray(d.ailog) && d.ailog.length){   // AI読取履歴を共有マージ（t+fileで重複排除・ローカル優先）
+    const seen=new Set(AI_LOG.map(e=>(e.t||'')+'|'+(e.file||''))); let addedAi=false;
+    d.ailog.forEach(e=>{ if(e && !seen.has((e.t||'')+'|'+(e.file||''))){ AI_LOG.push(e); addedAi=true; } });
+    if(addedAi) saveAiLog();
+  }
   // 予定表：ローカルに無ければ中央共有から取り込む（別PCでも照合できるように）＝スナップショットとして受け入れ
   if(d && d.plan && !planSnaps.length){
     if(d.plan.doboku && d.plan.doboku.entries && d.plan.doboku.entries.length) addSnap({dept:'土木', name:d.plan.doboku.name||'（中央共有）予定表', entries:d.plan.doboku.entries, importedAt:''});
@@ -2811,7 +2820,7 @@ function mergeShared(d){
 }
 function planShare(){ return {doboku: planDoboku?{name:planDoboku.name,entries:planDoboku.entries}:null, yayoi: planYayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries}))}; }
 function hasPlanData(){ return !!((planDoboku&&planDoboku.entries&&planDoboku.entries.length)||planYayoi.some(p=>p.entries&&p.entries.length)); }
-function sharedBody(){ const o={master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm,multi:multiConfirm}; if(denbaiSet.size) o.denbai=[...denbaiSet]; if(hasPlanData()) o.plan=planShare(); const tx=tokuiExtras(); if(tx.length) o.tokui=tx; return JSON.stringify(o); }  // 予定表があるときだけ共有／得意先マスタは内蔵との差分だけ共有（全PCで同じ結果）
+function sharedBody(){ const o={master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm,multi:multiConfirm}; if(denbaiSet.size) o.denbai=[...denbaiSet]; if(hasPlanData()) o.plan=planShare(); const tx=tokuiExtras(); if(tx.length) o.tokui=tx; if(AI_LOG.length) o.ailog=AI_LOG; return JSON.stringify(o); }  // 予定表があるときだけ共有／得意先マスタは内蔵との差分だけ共有／AI読取履歴も共有（全PCで同じ結果）
 function pushShared(){ if(!GAS_URL)return; setGasState('loading');
   fetch(GAS_URL,{method:'POST',mode:'no-cors',body:sharedBody()})
     .then(()=>{ setGasState('on'); if($('masterInfo')) $('masterInfo').textContent='中央へ保存：名義 '+Object.keys(master).length+' ／ 入金 '+leanDeposits().length+'件'; })
