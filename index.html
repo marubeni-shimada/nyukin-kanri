@@ -563,7 +563,7 @@ button.pill.goshare:active{transform:translateY(0)}
   </div>
   <!-- ③ 支払通知書（AI・任意）：投げると該当入金を特定→工事ごとの控除を自動入力 -->
   <div class="ibox tsuchi" id="dropTsuchi" style="margin-top:10px;cursor:pointer;border-style:dashed">
-    <div class="ibox-h"><span class="ibox-ic">🤖</span><span class="ibox-t">③ 支払通知書を読む（AI・任意）</span></div>
+    <div class="ibox-h"><span class="ibox-ic">🤖</span><span class="ibox-t">③ 支払通知書を読む（AI・任意）</span><a href="#" id="aiLogBtn" style="font-size:11px;margin-left:10px;color:var(--ac,#7c3aed)">📋 読取結果一覧</a></div>
     <div class="ibox-n" id="aiStat" style="font-size:11px;margin-top:2px"></div>
     <div class="ibox-s">元請の支払通知書（画像/PDF）を入れると、AIが<b>該当入金を特定</b>し<b>工事ごとの控除を自動入力</b>。<b>複数まとめてドロップOK</b>→一覧で確認して<b>まとめて反映</b>できます。同じファイルは自動スキップ（API節約）。</div>
   </div>
@@ -1278,6 +1278,40 @@ function saveAiRead(){ try{ localStorage.setItem('nyukin_ai_read',JSON.stringify
 function _fileKey(f){ return (f.name||'')+'|'+(f.size||0); }
 function alreadyRead(f){ return AI_READ.has(_fileKey(f)); }
 function markRead(f){ AI_READ.add(_fileKey(f)); saveAiRead(); }
+/* AI読取結果の履歴（いつでも閲覧） */
+let AI_LOG=(function(){ try{ return JSON.parse(localStorage.getItem('nyukin_ai_log')||'[]'); }catch(e){ return []; } })();
+function saveAiLog(){ try{ localStorage.setItem('nyukin_ai_log',JSON.stringify(AI_LOG.slice(0,300))); }catch(e){} }
+function logAiRead(obj, fileName){
+  try{
+    const rows=(obj.明細||[]).map(m=>({
+      k:m.工事名||'', req:Number(m.請求額)||null,
+      ded:(m.控除内訳||[]).filter(d=>Number(d.金額)>0).map(d=>mapDedKind(d.種別)+'¥'+Number(d.金額).toLocaleString('ja-JP')).join('／'),
+      net:Number(m.差引支払額)||null
+    }));
+    AI_LOG.unshift({ t:new Date().toLocaleString('ja-JP'), file:fileName||'', aite:obj.相手先||'', pay:obj.支払日||'', total:_tsTotal(obj), rows });
+    saveAiLog();
+  }catch(e){}
+}
+function openAiLog(){
+  let m=document.getElementById('aiLogMask');
+  if(!m){ m=document.createElement('div'); m.id='aiLogMask'; m.style.cssText='position:fixed;inset:0;background:rgba(20,22,35,.45);z-index:130'; document.body.appendChild(m);
+    m.addEventListener('click',e=>{ if(e.target===m||e.target.id==='aiLogClose') closeAiLog(); }); }
+  const yen=n=>(n==null||isNaN(n))?'—':'¥'+Number(n).toLocaleString('ja-JP');
+  let h='<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(820px,95vw);max-height:88vh;overflow:auto;background:var(--card,#fff);border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.4)">';
+  h+='<div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line,#e6e8ef)"><b>📋 AI読取結果 一覧</b><span style="flex:1"></span><button class="btn sub mini" id="aiLogClose">✕ 閉じる</button></div>';
+  h+='<div style="padding:14px 18px">';
+  if(!AI_LOG.length){ h+='<div style="color:var(--muted,#6b7280)">まだ読取結果はありません。</div>'; }
+  AI_LOG.forEach(e=>{
+    h+='<div style="border:1px solid var(--line,#e6e8ef);border-radius:10px;margin-bottom:10px;overflow:hidden">';
+    h+='<div style="padding:8px 12px;background:#fafbff;font-size:12.5px"><b>'+esc(e.aite||'（相手先不明）')+'</b>　'+esc(e.pay||'')+'　差引 <b>'+yen(e.total)+'</b>　<span style="color:var(--muted,#6b7280)">'+esc(e.t)+'／'+esc(e.file)+'</span></div>';
+    h+='<table class="tstbl"><tbody>';
+    (e.rows||[]).forEach(r=>{ h+='<tr><td>'+esc(r.k)+'</td><td class="num">'+yen(r.req)+'</td><td>'+(r.ded||'控除なし')+'</td><td class="num">'+yen(r.net)+'</td></tr>'; });
+    h+='</tbody></table></div>';
+  });
+  h+='</div></div>';
+  m.innerHTML=h; m.style.display='block';
+}
+function closeAiLog(){ const m=document.getElementById('aiLogMask'); if(m) m.style.display='none'; }
 function _pickFile(accept){ return new Promise(res=>{ const i=document.createElement('input'); i.type='file'; i.accept=accept||'image/*,application/pdf'; i.onchange=()=>res(i.files[0]||null); i.click(); }); }
 function _fileToB64(f){ return new Promise((ok,ng)=>{ const r=new FileReader(); r.onload=()=>ok(r.result.split(',')[1]); r.onerror=ng; r.readAsDataURL(f); }); }
 async function geminiReadTsuchi(file){
@@ -1362,7 +1396,7 @@ async function readTsuchiForMulti(r){
   if(alreadyRead(f)){ toast('『'+f.name+'』は読込済みのためスキップしました（重複防止でAPI節約）'); return; }
   const ri=(results||[]).indexOf(r);
   showLoading('🤖 支払通知書を読み取り中…');
-  try{ const obj=await geminiReadTsuchi(f); hideLoading(); markRead(f); openTsuchiPreview(obj, ri>=0?ri:null); }
+  try{ const obj=await geminiReadTsuchi(f); hideLoading(); markRead(f); logAiRead(obj,f.name); openTsuchiPreview(obj, ri>=0?ri:null); }
   catch(err){ hideLoading(); handleReadError(err); }
 }
 
@@ -1533,7 +1567,7 @@ async function readTsuchiFromHome(files){
   for(let i=0;i<toRead.length;i++){
     const f=toRead[i];
     showLoading('🤖 支払通知書を読み取り中… '+(i+1)+'/'+toRead.length);
-    try{ const obj=await geminiReadTsuchi(f); markRead(f); items.push({obj,file:f}); }
+    try{ const obj=await geminiReadTsuchi(f); markRead(f); logAiRead(obj,f.name); items.push({obj,file:f}); }
     catch(err){ hideLoading(); handleReadError(err); break; }   // 上限/エラーはそこで停止（読めた分は表示）
   }
   hideLoading();
@@ -2774,6 +2808,7 @@ $('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pde
 $('clearPlan').addEventListener('click',()=>{ if(planSnaps.length && !confirm('取り込んだ予定表を全部消しますか？'))return; planSnaps=[]; selDate='latest'; applyPlanSel(); results=[]; renderPlanFiles(); render(); scheduleSync(); });
 /* ③ 支払通知書（AI）ホーム入口：クリック／ドラッグ&ドロップ */
 try{ updateAiBadge(); }catch(e){}   // モデル・利用状況を初期表示
+(function(){ const b=$('aiLogBtn'); if(b) b.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); openAiLog(); }); })();
 (function(){ const box=$('dropTsuchi'); if(!box)return;
   box.addEventListener('click',()=>readTsuchiFromHome());
   box.addEventListener('dragover',e=>{e.preventDefault();box.classList.add('drag');});
