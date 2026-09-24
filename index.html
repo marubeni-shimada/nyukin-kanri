@@ -1050,8 +1050,11 @@ function crossDepts(payee){ const s=_dmap[normPayee(payee)]; return s?[...s]:[];
 function isCross(payee){ return crossDepts(payee).length>1; }
 function _findEntryIn(es,cf){
   if(cf.type==='土木') return es.find(e=>e.type==='土木'&&e.row===cf.row) || es.find(e=>e.type==='土木'&&e.請求先===cf.payee&&e.工事番号===cf.工事番号);
-  return es.find(e=>e.type==='弥生'&&e.請求先===cf.payee&&(cf.code?e.code===cf.code:true)); }
-function findEntry(cf){ return _findEntryIn(allEntries(),cf) || _findEntryIn(allEntriesAllMonths(),cf); }   // 全月横断：別月の予定に消し込んだ分も再表示できる
+  // 弥生：請求先コードがあればコードで復元（新旧形式で請求先名の表記が違っても一致）。無ければ名前（前方一致も許容＝新形式は名前の後ろに工事名が付くため）
+  if(cf.code){ const byCode=es.find(e=>e.type==='弥生'&&e.code===cf.code); if(byCode) return byCode; }
+  return es.find(e=>e.type==='弥生'&&(e.請求先===cf.payee || (cf.payee&&(String(e.請求先).indexOf(cf.payee)===0||String(cf.payee).indexOf(e.請求先)===0)))); }
+function findEntry(cf){ const a=_findEntryIn(allEntries(),cf); if(a) return a;
+  return (cf&&cf.cross)? _findEntryIn(allEntriesAllMonths(),cf) : null; }   // 全月フォールバックは「別月に消し込んだ(cross)記録」だけ。通常の記録は選択月で見つからなければ再照合に回す（古い記録が別月の同名請求先を横取りしてKPIから消えるのを防ぐ）
 /* 選択中の月に無い（他の取込月の）予定エントリ＝月またぎ入金の突合用 */
 function entriesOtherMonths(){ const cur=new Set(allEntries().map(_eid)); const out=[]; (typeof planSnaps!=='undefined'?planSnaps:[]).forEach(s=>(s.entries||[]).forEach(e=>{ if(!cur.has(_eid(e))) out.push(e); })); return out; }
 /* 全月の予定（選択月＋他月・重複なし）＝AIの工事照合などに使用 */
