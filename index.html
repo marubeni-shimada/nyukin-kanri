@@ -2546,6 +2546,16 @@ function collectPaid(){
       }});
     }
   });
+  // ★弥生は繰越型（未回収の債権は翌月ファイルにも同額で載る）→ 同一債権（同部門・同コード・同金額）は全月に消込を波及
+  //   例：7月の行に消し込んだ入金は、6月の同じ債権の行も「回収済み」にする（どの月で見ても回収率が正しくなる）
+  const yMatched=[];
+  (results||[]).forEach(r=>{ if(r.status==='matched' && r.entry && r.entry.type==='弥生'){ yMatched.push({dept:r.entry.dept, code:String(r.entry.code||''), amt:planAmt(r.entry), pay:(r.d.amount||0)+(r.fee||0), dt:r.d.date}); } });
+  if(yMatched.length && typeof planSnaps!=='undefined'){
+    planSnaps.forEach(s=>(s.entries||[]).forEach(x=>{
+      if(x.type!=='弥生') return; const id=_eid(x); if(paid[id]) return;
+      yMatched.forEach(m=>{ if(!paid[id] && x.dept===m.dept && String(x.code||'')===m.code && planAmt(x)===m.amt){ add(id, m.pay, m.dt); } });
+    }));
+  }
   return {paid,lastd};
 }
 function _ckpi(l,v,sub,cls){ return '<div class="ckpi '+(cls||'')+'"><div class="l">'+l+'</div><div class="v">'+v+(sub?' <small>'+sub+'</small>':'')+'</div></div>'; }
