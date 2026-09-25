@@ -2838,7 +2838,8 @@ function renderCollect(){
   const inSel=g=> g.plans && g.plans.some(e=>deptOf(e)===selDept && selIds.has(_eid(e)));
   const es=allEntries().filter(e=>deptOf(e)===selDept);
   if(!allEntries().length && !(results||[]).some(r=>r.status==='review')){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表を取り込むと、ここに入金状況が出ます</div>'; return; }
-  let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && (g.kind==='held' || inSel(g)));   // 選んだ部門に関わる行だけ。保留は部門/月に関係なく必ず出す
+  const rg=reconGroups();
+  let groups=rg.groups.filter(g=>g.kind!=='inp' && (g.kind==='held' || inSel(g)));   // 選んだ部門に関わる行だけ。保留は部門/月に関係なく必ず出す
   // 電債で確認済み（残が大きい一部入金を「電債で入金＝消込済み」にした）判定
   const isDb=g=> g.denbaiKey && denbaiSet.has(g.denbaiKey);
   const isHeld=g=> g.kind==='held';
@@ -2851,7 +2852,10 @@ function renderCollect(){
   // 未入金の内訳：入金が来ている（名義未登録/金額違い＝要処理）と、本当に入金が見つからない を分ける
   let noneMaybe=0; groups.filter(g=>g.st==='none'&&!g.sharePend&&!g.needReview&&!isDb(g)).forEach(g=>{ try{ const w=computeWhy(g); if(w&&w.act) noneMaybe++; }catch(e){} });
   const noneReal=Math.max(0, noneN-noneMaybe);
-  const zansum=groups.reduce((a,g)=>a+((!isDb(g)&&g.zan>0)?g.zan:0),0);   // 電債で確認済は残0扱い
+  // 回収額＝選択月の予定行ごとに入金充当(paid)を直接集計（📄予定表ビューと同じ計算）。
+  // ※旧方式(表の行グループの残を合計)は、保留行や月またぎまとめ払い(6月+7月を束ねた行)の残が混入し、選択月の予定合計を超えると0%に張り付くバグがあった
+  const dbPaid=new Set(); groups.forEach(g=>{ if(isDb(g)) (g.plans||[]).forEach(e=>dbPaid.add(_eid(e))); });   // 電債で確認済は残0扱い
+  let zansum=0; es.forEach(e=>{ const id=_eid(e); if(dbPaid.has(id))return; const z=planAmt(e)-(rg.paid[id]||0); if(z>0)zansum+=z; });
   const paidsum=Math.max(0, planTot-zansum);
   $('collectSum').innerHTML = _ckpi('予定 合計','¥'+yen(planTot),'')
     + _ckpi('入金（回収）','¥'+yen(paidsum), planTot?(Math.round(paidsum/planTot*100)+'%'):'', 'ok')
