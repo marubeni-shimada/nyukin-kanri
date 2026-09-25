@@ -2651,7 +2651,8 @@ function renderCollect(){
   const bar=$('collectBar');
   renderPlanSelector();
   // 表示は選んだ部門のみ（突合は全部門で実施済み＝一本振込を検出）。selDeptに関わる行だけ出す（一本振込は関与部門に表示）
-  const inSel=g=> g.plans && g.plans.some(e=>deptOf(e)===selDept);
+  const selIds=new Set(allEntries().map(_eid));   // 表示は「選んだ部門＋選んだ対象月」の予定に関わる行だけ（別月の予定に消し込んだ行は、その月の表示に出る）
+  const inSel=g=> g.plans && g.plans.some(e=>deptOf(e)===selDept && selIds.has(_eid(e)));
   const es=allEntries().filter(e=>deptOf(e)===selDept);
   if(!allEntries().length && !(results||[]).some(r=>r.status==='review')){ $('collectSum').innerHTML=''; if(bar)bar.style.width='0'; ['all','土木','営業','環境'].forEach(d=>{const el=$('ck-'+d);if(el)el.textContent='';}); host.innerHTML='<div class="empty">予定表を取り込むと、ここに入金状況が出ます</div>'; return; }
   let groups=reconGroups().groups.filter(g=>g.kind!=='inp' && (g.kind==='held' || inSel(g)));   // 選んだ部門に関わる行だけ。保留は部門/月に関係なく必ず出す
