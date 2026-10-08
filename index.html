@@ -832,7 +832,7 @@ function normName(s){
   return String(s==null?'':s).normalize('NFKC').replace(/[\s　]/g,'').replace(/[（）()]/g,m=>({'（':'(','）':')'}[m]||m)).toUpperCase();
 }
 function normPayee(s){
-  return String(s==null?'':s).normalize('NFKC').replace(/[\s　]/g,'').replace(/㈱/g,'(株)').replace(/㈲/g,'(有)').toUpperCase();
+  return String(s==null?'':s).normalize('NFKC').replace(/[\s　]/g,'').replace(/株式会社/g,'(株)').replace(/有限会社/g,'(有)').replace(/㈱/g,'(株)').replace(/㈲/g,'(有)').toUpperCase();
 }
 
 /* ===== CSV 1行パース（"..."対応）===== */
@@ -1563,7 +1563,7 @@ function handleReadError(err){
     alert('読み取りエラー：'+m);
   }
 }
-function _wknorm(s){ return String(s||'').replace(/[\s　（）()／\/・,，、．.\-ー－]/g,'').toLowerCase(); }
+function _wknorm(s){ return String(s||'').replace(/[\s　（）()／\/・,，、．.\-ー－]/g,'').replace(/(工事|仮称|様邸|一式|その他|第[0-9一二三四五六七八九十]+期)/g,'').toLowerCase(); }
 function workScore(aiName,e){   // 工事名の近さ（0〜1.x）＝会社名＋工事名照合の中核
   const a=_wknorm(aiName), b=_wknorm(e.工事名||e.請求先||'');
   if(!a||!b) return 0;
@@ -1646,10 +1646,15 @@ function _pdate(s){ if(!s)return null; const m=String(s).match(/(\d{4})\D+(\d{1,
 function _nm(s){ return String(s||'').replace(/[\s　\(\)（）株式会社有限会社ｶ)ｱ-ﾝ]/g,''); }
 function depScore(obj, r){
   const total=_tsTotal(obj); let sc=0;
-  const diff=Math.abs((r.d.amount||0)-total);
+  const dep=r.d.amount||0;
+  // 金額：税抜/税込どちらの表記でも一致を拾う（通知書=税抜・入金=税込 等）
+  const diff=Math.min(Math.abs(dep-total), Math.abs(dep-Math.round(total*1.1)), total?Math.abs(dep-Math.round(total/1.1)):Infinity);
   if(diff<2) sc+=100; else sc+=Math.max(0, 45 - diff/2000);   // 金額が近いほど加点
-  const a=_nm(obj.相手先), b=_nm(r.d.name);
-  if(a&&b&&(a.indexOf(b)>=0||b.indexOf(a)>=0)) sc+=20;         // 名義/会社名が寄る
+  // 相手先(通知書・漢字) ↔ 振込名義(銀行・カナ) を名義マスタ/得意先マスタで解決して加点
+  let nameHit=false;
+  try{ if(obj.相手先 && _resolvesTo(r.d.name, obj.相手先)) nameHit=true; }catch(e){}
+  if(!nameHit){ const a=_nm(obj.相手先), b=_nm(r.d.name); if(a&&b&&(a.indexOf(b)>=0||b.indexOf(a)>=0)) nameHit=true; }
+  if(nameHit) sc+=20;
   const d1=_pdate(obj.支払日), d2=_pdate(r.d.date);
   if(d1&&d2){ const days=Math.abs((d1-d2)/86400000); if(days<=3) sc+=15; else if(days<=10) sc+=6; }  // 支払日≒入金日
   return sc;
