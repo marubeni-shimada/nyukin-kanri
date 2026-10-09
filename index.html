@@ -2863,11 +2863,11 @@ function _svSnap(s,paid,lastd){
   for(const r of rows){ const row=grid[r]; for(const c in row){ const v=String(row[c]||''); if(v.indexOf('請求先コード')>=0 || v==='請求先'){ hr=r; break; } } if(hr!=null)break; }
   if(hr==null) hr=rows[0];
   const hrow=grid[hr]||{}; const hprev=(s.dept==='土木'?grid[hr-1]:null)||{};
-  const cols=[...new Set([...Object.keys(hprev),...Object.keys(hrow)])].sort((a,b)=>a.length-b.length||(a<b?-1:1));
-  // 土木：工事名・請求先名は C列にあるがヘッダー(B=工事/請求先)に C が無く表示落ちする→ C を B の直後に補う
-  if(s.dept==='土木' && !cols.includes('C')){ const bi=cols.indexOf('B'); cols.splice(bi>=0?bi+1:0, 0, 'C'); }
+  let cols=[...new Set([...Object.keys(hprev),...Object.keys(hrow)])].sort((a,b)=>a.length-b.length||(a<b?-1:1));
+  // 土木は見やすさ優先で主要列だけ表示（工事番号/締日・工事名/請求先・回収予定日）。回収予定額以降は右の固定欄へ。生Excelの全列はファイルで確認
+  if(s.dept==='土木') cols=['B','C','F'];
   const htext={}; cols.forEach(c=>{ htext[c]=((hprev[c]!=null?hprev[c]+' ':'')+(hrow[c]!=null?hrow[c]:'')).trim(); });
-  if(s.dept==='土木' && !htext['C']) htext['C']='工事名／請求先';   // C列の見出し（元帳票は空欄）
+  if(s.dept==='土木'){ htext['B']='工事番号／締日'; htext['C']='工事名／請求先'; htext['F']='回収予定日'; }   // 見出しを読みやすく上書き
   const isDateCol={}; cols.forEach(c=>{ isDateCol[c]=/日/.test(htext[c])&&!/日付以外/.test(htext[c]); });
   let h=head+'<div class="svwrap"><table class="sv"><tr>'
     +cols.map(c=>'<th'+(/[額高残率]|予定$|以降/.test(htext[c])?' class="num"':'')+'>'+esc(htext[c])+'</th>').join('')+'<th class="sv-ov num">回収予定額</th>'+ovh+'</tr>';   // v1.0 固定欄に回収予定額を追加（予定⟷実入金を並べて表示）
