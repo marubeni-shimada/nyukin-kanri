@@ -2870,7 +2870,7 @@ function _svSnap(s,paid,lastd){
   if(s.dept==='土木' && !htext['C']) htext['C']='工事名／請求先';   // C列の見出し（元帳票は空欄）
   const isDateCol={}; cols.forEach(c=>{ isDateCol[c]=/日/.test(htext[c])&&!/日付以外/.test(htext[c]); });
   let h=head+'<div class="svwrap"><table class="sv"><tr>'
-    +cols.map(c=>'<th'+(/[額高残率]|予定$|以降/.test(htext[c])?' class="num"':'')+'>'+esc(htext[c])+'</th>').join('')+ovh+'</tr>';
+    +cols.map(c=>'<th'+(/[額高残率]|予定$|以降/.test(htext[c])?' class="num"':'')+'>'+esc(htext[c])+'</th>').join('')+'<th class="sv-ov num">回収予定額</th>'+ovh+'</tr>';   // v1.0 固定欄に回収予定額を追加（予定⟷実入金を並べて表示）
   const isKojiRow=v=>/^\d{5,6}-\d{2}$/.test(String(v||'').trim());
   // v1.0 予定表ビューは「本物のデータ行」だけ描画。再掲ヘッダー・小計・総合計・空行は形式を問わず除外（構造判定）。消込/金額の計算には無関係＝表示のみ
   const _svMeta=/請求一覧|回収予定日|表示順|期間[:：]|小計|合計|総合計|締日|株式会社丸紅|^工事$|^請求先$|^請求先コード|^請求先名/;
@@ -2893,20 +2893,20 @@ function _svSnap(s,paid,lastd){
     const e=byRow[r];
     h+='<tr'+(koji?' class="sv-koji"':(e?'':' class="sv-skip"'))+'>'
       +cols.map(c=>{ const v=row[c]; return '<td'+(typeof v==='number'?' class="num"':'')+'>'+esc(_svFmt(v,isDateCol[c]))+'</td>'; }).join('');
-    if(koji) h+='<td class="sv-ov" colspan="3"></td>';
-    else if(e){ const x=stOf(e); h+='<td class="sv-ov">'+_svPill(x.plan,x.pd)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td>'; }
-    else h+='<td class="sv-ov"><span class="sv-pill sv-na">— 対象外</span></td><td class="sv-ov"></td><td class="sv-ov"></td>';
+    if(koji) h+='<td class="sv-ov" colspan="4"></td>';
+    else if(e){ const x=stOf(e); h+='<td class="sv-ov num">'+(x.plan>0?'¥'+yen(x.plan):'')+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td>'; }
+    else h+='<td class="sv-ov num"></td><td class="sv-ov"><span class="sv-pill sv-na">— 対象外</span></td><td class="sv-ov"></td><td class="sv-ov"></td>';
     h+='</tr>';
   }
   // 同月累積で引き継いだ行（最新ファイルのExcelに無い行）を最後に表示
   const gset=new Set(rows);
   const extra=(s.entries||[]).filter(e=>e.row!=null && !gset.has(e.row));
   if(extra.length){
-    h+='<tr><td colspan="'+(cols.length+3)+'" style="background:#f8f9fb;color:#6b7684;font-size:11px;font-weight:800;padding:6px 9px">▼ 同じ月の前回取込から引き継いだ行（最新ファイルに無い行・累積 '+extra.length+'行）</td></tr>';
+    h+='<tr><td colspan="'+(cols.length+4)+'" style="background:#f8f9fb;color:#6b7684;font-size:11px;font-weight:800;padding:6px 9px">▼ 同じ月の前回取込から引き継いだ行（最新ファイルに無い行・累積 '+extra.length+'行）</td></tr>';
     extra.forEach(e=>{ const x=stOf(e);
       const lab=(e.type==='土木')?((e.工事番号?e.工事番号+'　':'')+(e.工事名?e.工事名+'　':'')+e.請求先):((e.code?e.code+'　':'')+e.請求先);
       h+='<tr><td colspan="'+(cols.length-1)+'">'+esc(lab)+'</td><td class="num">'+yen(x.plan)+'</td>'
-        +'<td class="sv-ov">'+_svPill(x.plan,x.pd)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td></tr>'; });
+        +'<td class="sv-ov num">'+(x.plan>0?'¥'+yen(x.plan):'')+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td></tr>'; });
   }
   return h+'</table></div>';
 }
