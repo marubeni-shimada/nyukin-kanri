@@ -419,6 +419,25 @@ details.needhelp .nb .stp .n{flex:none;width:18px;height:18px;border-radius:50%;
 
 .actbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
 .actbar .sp{flex:1;}
+
+/* ===== v1.0 外枠タブ（取込›消込›出力＋設定）：対等・順路は強制しない ===== */
+.maintabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:2px 0 16px;}
+.maintabs .mtab{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:9px 16px;cursor:pointer;font:inherit;font-weight:800;font-size:14px;color:var(--ink);transition:.14s;}
+.maintabs .mtab:hover{border-color:var(--ac);}
+.maintabs .mtab.on{border-color:var(--ac);background:var(--ac-soft);color:var(--ac);}
+.maintabs .msep{color:var(--muted);font-size:16px;opacity:.5;padding:0 3px;user-select:none;}
+.maintabs .mspacer{flex:1;}
+.maintabs .mcnt{font-weight:700;font-size:11px;color:var(--muted);background:var(--line2);border-radius:999px;padding:1px 9px;}
+.maintabs .mtab.on .mcnt{background:#fff;}
+.maintabs .mcnt.warn{color:var(--warn);}
+.maintabs .mcnt:empty{display:none;}
+.maintabs .setbtn{font-weight:700;color:var(--muted);}
+.maintabs .setbtn:hover{color:var(--ac);}
+.mpane{display:none;animation:mfade .2s both;}
+.mpane.on{display:block;}
+@keyframes mfade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.panehd{display:flex;align-items:center;gap:10px;margin:0 0 12px;flex-wrap:wrap;}
+@media(max-width:560px){ .maintabs .mtab{padding:8px 12px;font-size:13px;} }
 .rvbtn{display:inline-flex;align-items:center;gap:9px;border:1px solid #f0d9b5;background:var(--warn-bg,#fdf3e6);color:var(--warn,#b45309);font:inherit;font-weight:800;font-size:13.5px;padding:10px 16px;border-radius:11px;cursor:pointer;transition:.12s;}
 .rvbtn:hover{transform:translateY(-1px);box-shadow:0 4px 14px -6px rgba(180,83,9,.5);}
 .rvbtn b{font-size:15px;}
@@ -535,7 +554,7 @@ button.pill.goshare:active{transform:translateY(0)}
 <header>
   <div class="head">
     <div class="logo">¥</div>
-    <div class="title"><h1>入金確認 <span class="muted" style="font-size:11px;font-weight:600">v0.9</span></h1><p>予定（売掛）に入金が来たかを一目で確認。当たらない時だけ「要確認」で処理します。</p></div>
+    <div class="title"><h1>入金確認 <span class="muted" style="font-size:11px;font-weight:600">v1.0</span></h1><p>予定（売掛）に入金が来たかを一目で確認。当たらない時だけ「要確認」で処理します。</p></div>
     <div class="sp"></div>
     <button class="btn sub mini" id="helpBtn" style="margin-right:10px">？ 使い方</button>
     <div class="gas" title="名義マスタ・入金を全員で自動共有します。誰か1人が名義を登録すれば、次回から全員の画面で自動的に消し込めます。">
@@ -548,6 +567,19 @@ button.pill.goshare:active{transform:translateY(0)}
 </header>
 
 <main>
+  <!-- ===== 外枠タブ（取込 › 消込 › 出力 ／ ⚙設定）。対等＝いつでも即移動 ===== -->
+  <nav class="maintabs" id="mainTabs">
+    <button class="mtab on" data-pane="torikomi">取込 <span class="mcnt" id="mcTorikomi"></span></button>
+    <span class="msep">›</span>
+    <button class="mtab" data-pane="shokomi">消込 <span class="mcnt warn" id="mcShokomi"></span></button>
+    <span class="msep">›</span>
+    <button class="mtab" data-pane="shutsuryoku">出力</button>
+    <span class="mspacer"></span>
+    <button class="mtab setbtn" id="openMaster">⚙ 設定</button>
+  </nav>
+
+  <!-- ===== ペイン：取込 ===== -->
+  <section class="mpane on" id="pane-torikomi">
   <!-- 取込：銀行と予定表で入れ口を分ける -->
   <div class="istrip2">
     <div class="ibox bank" id="dropBank">
@@ -577,16 +609,57 @@ button.pill.goshare:active{transform:translateY(0)}
     <button class="btn sub mini" id="clearPlan">予定表クリア</button>
     <span class="muted" id="matchInfo" style="font-size:11.5px"></span>
   </div>
+  <div class="muted" style="font-size:11.5px;margin-top:4px">※ データは全員でクラウド共有。誰かが取り込んでいれば、上の <b>消込</b> タブからでOK。</div>
+  </section><!-- /pane-torikomi -->
 
-  <!-- アクションバー：要確認＋出力＋名義マスタ -->
-  <div class="actbar">
+  <!-- ===== ペイン：消込 ===== -->
+  <section class="mpane" id="pane-shokomi">
+  <div class="panehd">
     <button class="rvbtn clear" id="openReview"><span id="reviewLabel">✓ 要確認はありません</span></button>
-    <span class="sp"></span>
-    <button class="btn g" id="outDoboku" disabled>③ 記入済み予定表</button>
-    <button class="btn sub" id="outList" disabled>消込リストCSV</button>
-    <button class="btn sub" id="outImport" disabled>④ 会計取込CSV（暫定）</button>
-    <button class="btn sub" id="openMaster">⚙ 名義マスタ</button>
   </div>
+  <div id="tabCollect">
+  <div class="step">
+    <h2>入金状況</h2>
+    <p class="desc">取り込んだ予定表の1件ごとに、入金が来たかを表示。<b>一致／合算で一致／要確認／一本の振込／未入金</b>。銀行入金は裏で累積し、予定表の各行に突き合わせます。</p>
+    <div class="scopetabs" id="scopeWrap">
+      <label class="scope-l">📄 表示：</label>
+      <select id="viewMode" class="planselect"><option value="予定表">予定表（1枚）</option><option value="累積">累積（その部門の全部）</option></select>
+      <span class="scope-sub">部門</span> <select id="selDept" class="planselect"></select>
+      <span id="dateWrap"><span class="scope-sub">対象月</span> <select id="selDate" class="planselect"></select></span>
+      <button type="button" id="sheetViewBtn" class="svbtn" title="元のExcel予定表そのままの並びに回収状況を重ねて、別タブで開きます">📄 予定表ビュー <span style="font-weight:400;opacity:.7">↗ 別タブ</span></button>
+    </div>
+    <div class="cksummary" id="collectSum"></div>
+    <div class="ckbar"><i id="collectBar"></i></div>
+    <div class="cktabs" id="collectTabs" style="display:none">
+      <button data-ck="all" class="on">全部 <span class="cc" id="ck-all"></span></button>
+      <button data-ck="土木">土木 <span class="cc" id="ck-土木"></span></button>
+      <button data-ck="営業">営業 <span class="cc" id="ck-営業"></span></button>
+      <button data-ck="環境">環境 <span class="cc" id="ck-環境"></span></button>
+      <select id="collectMonth" class="ckmonth" title="入金月で絞り込み"><option value="all">全期間</option></select>
+    </div>
+    <div class="ckstatus" id="collectStatus">
+      <button data-cs="all" class="on">すべて <span class="cs-n" id="cs-all"></span></button>
+      <button data-cs="none">🔴 未入金 <span class="cs-n" id="cs-none"></span></button>
+      <button data-cs="check">🟡 要確認（入金あり） <span class="cs-n" id="cs-check"></span></button>
+      <button data-cs="ok">✅ 消込済み <span class="cs-n" id="cs-ok"></span></button>
+    </div>
+    <div id="collectBody"><div class="empty">予定表（STEP2）を読み込むと、突合状況が出ます</div></div>
+  </div>
+  </div><!-- /tabCollect -->
+  </section><!-- /pane-shokomi -->
+
+  <!-- ===== ペイン：出力 ===== -->
+  <section class="mpane" id="pane-shutsuryoku">
+  <div class="step">
+    <h2>出力</h2>
+    <p class="desc">消込の結果を、いつもの形で書き出します。</p>
+    <div class="actbar" style="margin:0">
+      <button class="btn g" id="outDoboku" disabled>③ 記入済み予定表</button>
+      <button class="btn sub" id="outList" disabled>消込リストCSV</button>
+      <button class="btn sub" id="outImport" disabled>④ 会計取込CSV（暫定）</button>
+    </div>
+  </div>
+  </section><!-- /pane-shutsuryoku -->
 
   <!-- ===== 引き出し：要確認（消込） ===== -->
   <div class="scrim" id="scrim"></div>
@@ -758,35 +831,6 @@ button.pill.goshare:active{transform:translateY(0)}
   .sv-head b{color:var(--ink,#1f2733)}
   .sv-note{margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.6}
   </style>
-  <div id="tabCollect">
-  <div class="step">
-    <h2>入金状況</h2>
-    <p class="desc">取り込んだ予定表の1件ごとに、入金が来たかを表示。<b>一致／合算で一致／要確認／一本の振込／未入金</b>。銀行入金は裏で累積し、予定表の各行に突き合わせます。</p>
-    <div class="scopetabs" id="scopeWrap">
-      <label class="scope-l">📄 表示：</label>
-      <select id="viewMode" class="planselect"><option value="予定表">予定表（1枚）</option><option value="累積">累積（その部門の全部）</option></select>
-      <span class="scope-sub">部門</span> <select id="selDept" class="planselect"></select>
-      <span id="dateWrap"><span class="scope-sub">対象月</span> <select id="selDate" class="planselect"></select></span>
-      <button type="button" id="sheetViewBtn" class="svbtn" title="元のExcel予定表そのままの並びに回収状況を重ねて、別タブで開きます">📄 予定表ビュー <span style="font-weight:400;opacity:.7">↗ 別タブ</span></button>
-    </div>
-    <div class="cksummary" id="collectSum"></div>
-    <div class="ckbar"><i id="collectBar"></i></div>
-    <div class="cktabs" id="collectTabs" style="display:none">
-      <button data-ck="all" class="on">全部 <span class="cc" id="ck-all"></span></button>
-      <button data-ck="土木">土木 <span class="cc" id="ck-土木"></span></button>
-      <button data-ck="営業">営業 <span class="cc" id="ck-営業"></span></button>
-      <button data-ck="環境">環境 <span class="cc" id="ck-環境"></span></button>
-      <select id="collectMonth" class="ckmonth" title="入金月で絞り込み"><option value="all">全期間</option></select>
-    </div>
-    <div class="ckstatus" id="collectStatus">
-      <button data-cs="all" class="on">すべて <span class="cs-n" id="cs-all"></span></button>
-      <button data-cs="none">🔴 未入金 <span class="cs-n" id="cs-none"></span></button>
-      <button data-cs="check">🟡 要確認（入金あり） <span class="cs-n" id="cs-check"></span></button>
-      <button data-cs="ok">✅ 消込済み <span class="cs-n" id="cs-ok"></span></button>
-    </div>
-    <div id="collectBody"><div class="empty">予定表（STEP2）を読み込むと、突合状況が出ます</div></div>
-  </div>
-  </div><!-- /tabCollect -->
 </main>
 
 <script>/* fflate 0.8.2 (MIT) 埋め込み */
@@ -2167,6 +2211,9 @@ function render(){
   const totalReview=results.filter(r=>r.status==='review' && !isDone(r) && !isOrphan(r)).length;   // 「予定表にない」は要確認件数から除外（無関係）
   const _rvb=$('openReview'), _rvl=$('reviewLabel');
   if(_rvb&&_rvl){ if(totalReview){ _rvb.classList.remove('clear'); _rvl.innerHTML='⚠️ 要確認 <b>'+totalReview+'</b> 件 → 処理する'; } else { _rvb.classList.add('clear'); _rvl.textContent='✓ 要確認はありません'; } }
+  // v1.0 外枠タブのバッジ（消込＝要確認件数／取込＝銀行ファイル数）。表示だけ・精度には無関係
+  const _mcs=document.getElementById('mcShokomi'); if(_mcs){ _mcs.textContent=totalReview?('要確認 '+totalReview):''; }
+  const _mct=document.getElementById('mcTorikomi'); if(_mct){ const _bf=(typeof bankFiles!=='undefined'&&bankFiles)?bankFiles.length:0; _mct.textContent=_bf?String(_bf):''; }
   const depLabel = deptTab==='all'?'全部':deptTab==='share'?'一本の振込':deptTab==='nodept'?'未分類':deptTab;
   $('matchInfo').textContent=depLabel+'：未処理 '+pending.length+'／消込済み '+done.length+(ign.length?('／対象外 '+ign.length):'')+'　（全体 '+results.length+'件）';
   const pl=document.getElementById('planList'); if(pl) pl.innerHTML=allEntries().map(e=>'<option value="'+esc(dispEntry(e))+'">').join('');
@@ -2570,6 +2617,19 @@ document.getElementById('openMaster').addEventListener('click',()=>openDrawer('m
 document.getElementById('scrim').addEventListener('click',closeDrawer);
 document.querySelectorAll('.dclose').forEach(b=>b.addEventListener('click',closeDrawer));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
+
+/* ===== v1.0 外枠タブ切替（取込/消込/出力）。対等＝どれでもいつでも即移動 ===== */
+(function(){
+  const tabs=document.querySelectorAll('.maintabs .mtab[data-pane]');
+  const panes=document.querySelectorAll('.mpane');
+  function showPane(p){
+    panes.forEach(x=>x.classList.toggle('on', x.id==='pane-'+p));
+    tabs.forEach(x=>x.classList.toggle('on', x.dataset.pane===p));
+    try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(_){}
+  }
+  tabs.forEach(t=>t.addEventListener('click',()=>showPane(t.dataset.pane)));
+  window._showPane=showPane;   // 他所から呼べるように
+})();
 /* ページ上部ヘッダー(固定)の高さを測り、突合ビューの固定ヘッダー位置に反映 */
 function setHeadH(){ const hd=document.querySelector('header'); if(hd) document.documentElement.style.setProperty('--headh', hd.offsetHeight+'px'); }
 setHeadH(); window.addEventListener('resize',setHeadH); window.addEventListener('load',setHeadH);
