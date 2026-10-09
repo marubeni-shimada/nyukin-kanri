@@ -2864,14 +2864,31 @@ function _svSnap(s,paid,lastd){
   if(hr==null) hr=rows[0];
   const hrow=grid[hr]||{}; const hprev=(s.dept==='土木'?grid[hr-1]:null)||{};
   const cols=[...new Set([...Object.keys(hprev),...Object.keys(hrow)])].sort((a,b)=>a.length-b.length||(a<b?-1:1));
+  // 土木：工事名・請求先名は C列にあるがヘッダー(B=工事/請求先)に C が無く表示落ちする→ C を B の直後に補う
+  if(s.dept==='土木' && !cols.includes('C')){ const bi=cols.indexOf('B'); cols.splice(bi>=0?bi+1:0, 0, 'C'); }
   const htext={}; cols.forEach(c=>{ htext[c]=((hprev[c]!=null?hprev[c]+' ':'')+(hrow[c]!=null?hrow[c]:'')).trim(); });
+  if(s.dept==='土木' && !htext['C']) htext['C']='工事名／請求先';   // C列の見出し（元帳票は空欄）
   const isDateCol={}; cols.forEach(c=>{ isDateCol[c]=/日/.test(htext[c])&&!/日付以外/.test(htext[c]); });
   let h=head+'<div class="svwrap"><table class="sv"><tr>'
     +cols.map(c=>'<th'+(/[額高残率]|予定$|以降/.test(htext[c])?' class="num"':'')+'>'+esc(htext[c])+'</th>').join('')+ovh+'</tr>';
   const isKojiRow=v=>/^\d{5,6}-\d{2}$/.test(String(v||'').trim());
+  // v1.0 予定表ビューは「本物のデータ行」だけ描画。再掲ヘッダー・小計・総合計・空行は形式を問わず除外（構造判定）。消込/金額の計算には無関係＝表示のみ
+  const _svMeta=/請求一覧|回収予定日|表示順|期間[:：]|小計|合計|総合計|締日|株式会社丸紅|^工事$|^請求先$|^請求先コード|^請求先名/;
+  const _svNoise=(row,dept)=>{
+    const vals=Object.keys(row).map(k=>String(row[k]==null?'':row[k]).trim());
+    if(!vals.join('')) return true;                                         // 空行
+    if(dept==='土木'){
+      const B=String(row.B==null?'':row.B).trim(), C=String(row.C==null?'':row.C).trim();
+      if(/^\d{5,6}-\d{2}$/.test(B)) return false;                           // 工事行＝残す
+      if(/^\d{1,2}$/.test(B) && C) return false;                            // 請求先データ行（0円＝対象外も含む）＝残す
+      return true;                                                          // それ以外（再掲ヘッダー/小計/総合計など）＝除外
+    }
+    return vals.some(v=>_svMeta.test(v));                                   // 弥生等：メタ語を含む再掲ヘッダー/合計行だけ落とす
+  };
   for(const r of rows){
     if(r<=hr) continue;
     const row=grid[r]; if(!row || !Object.keys(row).length) continue;
+    if(_svNoise(row,s.dept)) continue;                                      // ← ゴミ行をスキップ
     const koji=(s.dept==='土木')&&isKojiRow(row.B);
     const e=byRow[r];
     h+='<tr'+(koji?' class="sv-koji"':(e?'':' class="sv-skip"'))+'>'
