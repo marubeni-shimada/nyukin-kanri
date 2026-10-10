@@ -772,20 +772,20 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .rc .pill.extra,#tabCollect .rc .pill.multi{background:#eef0ff;color:#4f46e5}
   #tabCollect .rc .pill.over{background:#fef2f8;color:#be185d}
   #tabCollect .rc tr.g-over td.inp{box-shadow:inset -4px 0 0 #be185d}
-  /* 行クリックで開く詳細（表に無い情報：回収予定日・種別/銀行・差額） */
+  /* 行クリックで開く詳細（表に無い情報：回収予定日・種別/銀行・差額）。短い3行＋枠内marginで列幅に影響させず＝開いても列がずれない */
   #tabCollect .rc tr.crow{cursor:pointer}
   #tabCollect .rc tr.crow:hover td.plan{background:color-mix(in srgb,var(--ac,#4f46e5) 8%,#fff)}
   #tabCollect .rc tr.cexpo td.plan,#tabCollect .rc tr.cexpo td.inp,#tabCollect .rc tr.cexpo td.ctr{background:color-mix(in srgb,var(--ac,#4f46e5) 7%,#fff)}
   #tabCollect .rc .car{display:inline-block;width:14px;color:#9aa3b2;font-size:11px}
-  #tabCollect .rc tr.cdetail td{padding:0;background:color-mix(in srgb,var(--ac,#4f46e5) 4%,#fff)}
-  #tabCollect .rc .cdet{padding:9px 16px 10px 32px;font-size:12px;color:var(--ink,#16202e);overflow-wrap:anywhere}
+  #tabCollect .rc tr.cdetail td{padding:0}
+  #tabCollect .rc .cdet{margin:2px 10px 9px;padding:9px 13px;background:#eef0fe;border:1px solid #d4d8f7;border-left:3px solid var(--ac,#4f46e5);border-radius:9px;font-size:12px;color:var(--ink,#16202e);overflow-wrap:anywhere}
+  #tabCollect .rc .cdet .cl{padding:2px 0}
   #tabCollect .rc .cdet b{font-weight:800}
-  #tabCollect .rc .cdet .ct{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:1px 8px;margin-right:7px}
-  #tabCollect .rc .cdet .ct.plan{background:#eef0ff;color:#4f46e5}
-  #tabCollect .rc .cdet .ct.bank{background:#e9f7ee;color:#0f9d6b}
-  #tabCollect .rc .cdet .ct.diff{background:#fff7ed;color:#b45309}
+  #tabCollect .rc .cdet .ct{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:1px 8px;margin-right:8px}
+  #tabCollect .rc .cdet .ct.plan{background:#e2e4fb;color:#4f46e5}
+  #tabCollect .rc .cdet .ct.bank{background:#d9f3e4;color:#0f9d6b}
+  #tabCollect .rc .cdet .ct.diff{background:#fdeccf;color:#b45309}
   #tabCollect .rc .cdet .sep{color:#9aa3b2;margin:0 7px}
-  #tabCollect .rc .cdet .sep.big{margin:0 12px;color:#d7dbe3}
   #tabCollect .ckstatus{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   #tabCollect .ckstatus button{border:1px solid var(--line,#e7e9ee);background:#fff;border-radius:99px;padding:6px 15px;font-size:12.5px;font-weight:700;cursor:pointer;color:inherit}
   #tabCollect .ckstatus button.on{background:var(--grad);border-color:transparent;color:#fff}
@@ -3001,9 +3001,9 @@ function collectDetailHtml(g){
     diffPart='予定 ¥'+yen(g.planTot||0)+' − 入金 ¥'+yen(g.inp.amt||0)+' ＝ <b>'+(d===0?'ぴったり ±0':(d<0?'入金が ¥'+yen(-d)+' 少ない（手数料など）':'入金が ¥'+yen(d)+' 多い'))+'</b>'; }
   else diffPart='予定 ¥'+yen(g.planTot||0)+'（入金待ち）';
   return '<div class="cdet">'
-    +'<span class="ct plan">📋 予定</span>'+planPart
-    +'<span class="sep big">｜</span><span class="ct bank">🏦 入金</span>'+bankPart
-    +'<span class="sep big">｜</span><span class="ct diff">⚖ 差額</span>'+diffPart
+    +'<div class="cl"><span class="ct plan">📋 予定</span>'+planPart+'</div>'
+    +'<div class="cl"><span class="ct bank">🏦 入金</span>'+bankPart+'</div>'
+    +'<div class="cl"><span class="ct diff">⚖ 差額</span>'+diffPart+'</div>'
     +'</div>';
 }
 function renderCollect(){
