@@ -210,21 +210,6 @@ td.act .btn.primary{background:var(--ac);color:#fff;}
 tbody tr{transition:background .12s,box-shadow .12s;}
 tbody tr:hover td{background:color-mix(in srgb,var(--ac-soft) 60%,transparent);}
 tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--ac);}
-/* 消込済み：行クリックで開く簡易詳細（銀行／予定表の2行） */
-tr.mrow{cursor:pointer;}
-tr.mrow .mar{display:inline-block;width:14px;color:var(--muted,#6b7280);font-size:11px;}
-tr.mdetail td{padding:0 !important;background:color-mix(in srgb,var(--ac) 4%,transparent) !important;box-shadow:none !important;}
-tr.mdetail:hover td{background:color-mix(in srgb,var(--ac) 4%,transparent) !important;}
-.mdet{padding:8px 14px 9px 40px;font-size:12.5px;}
-.mdet .mline{padding:3px 0;overflow-wrap:anywhere;}
-.mdet .mline b{font-variant-numeric:tabular-nums;font-weight:800;}
-.mtag{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:1px 8px;margin-right:8px;}
-.mtag.bank{background:color-mix(in srgb,#2563c9 13%,transparent);color:#2563c9;}
-.mtag.plan{background:color-mix(in srgb,#1f7a46 14%,transparent);color:#1f7a46;}
-@media(prefers-color-scheme:dark){ .mtag.bank{color:#7aa7ff;} .mtag.plan{color:#6fcf97;} }
-.mdet .msep{color:var(--muted,#9aa3b2);margin:0 7px;}
-.mdet .mmut{color:var(--muted,#6b7280);}
-@media(max-width:620px){ .mdet{padding-left:14px;} .mdet .msep{margin:0 5px;} }
 
 /* タグ/バッジ：一本振込・部門内訳はグラデ地に */
 .badge.share{background:var(--grad-soft);color:var(--ac2);border-color:transparent;}
@@ -787,6 +772,20 @@ button.pill.goshare:active{transform:translateY(0)}
   #tabCollect .rc .pill.extra,#tabCollect .rc .pill.multi{background:#eef0ff;color:#4f46e5}
   #tabCollect .rc .pill.over{background:#fef2f8;color:#be185d}
   #tabCollect .rc tr.g-over td.inp{box-shadow:inset -4px 0 0 #be185d}
+  /* 行クリックで開く詳細（表に無い情報：回収予定日・種別/銀行・差額） */
+  #tabCollect .rc tr.crow{cursor:pointer}
+  #tabCollect .rc tr.crow:hover td.plan{background:color-mix(in srgb,var(--ac,#4f46e5) 8%,#fff)}
+  #tabCollect .rc tr.cexpo td.plan,#tabCollect .rc tr.cexpo td.inp,#tabCollect .rc tr.cexpo td.ctr{background:color-mix(in srgb,var(--ac,#4f46e5) 7%,#fff)}
+  #tabCollect .rc .car{display:inline-block;width:14px;color:#9aa3b2;font-size:11px}
+  #tabCollect .rc tr.cdetail td{padding:0;background:color-mix(in srgb,var(--ac,#4f46e5) 4%,#fff)}
+  #tabCollect .rc .cdet{padding:9px 16px 10px 32px;font-size:12px;color:var(--ink,#16202e);overflow-wrap:anywhere}
+  #tabCollect .rc .cdet b{font-weight:800}
+  #tabCollect .rc .cdet .ct{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:1px 8px;margin-right:7px}
+  #tabCollect .rc .cdet .ct.plan{background:#eef0ff;color:#4f46e5}
+  #tabCollect .rc .cdet .ct.bank{background:#e9f7ee;color:#0f9d6b}
+  #tabCollect .rc .cdet .ct.diff{background:#fff7ed;color:#b45309}
+  #tabCollect .rc .cdet .sep{color:#9aa3b2;margin:0 7px}
+  #tabCollect .rc .cdet .sep.big{margin:0 12px;color:#d7dbe3}
   #tabCollect .ckstatus{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   #tabCollect .ckstatus button{border:1px solid var(--line,#e7e9ee);background:#fff;border-radius:99px;padding:6px 15px;font-size:12.5px;font-weight:700;cursor:pointer;color:inherit}
   #tabCollect .ckstatus button.on{background:var(--grad);border-color:transparent;color:#fff}
@@ -1289,24 +1288,8 @@ function runMatch(){
 
 /* ===== 描画 ===== */
 function fmtEntry(e){ return e.type==='土木'?(e.請求先+'／'+e.工事名+'（'+e.工事番号+'）'):(e.請求先+'（'+(e.dept||'弥生')+'）'); }
-/* 消込済み行クリックで開く簡易詳細：銀行の入金と、突合した予定表の該当を2行で軽く表示 */
+/* Excelシリアル日付(>20000)→M/D、文字列日付はそのまま。一覧の詳細表示用 */
 function _planDateDisp(v){ if(v==null||v==='')return ''; const n=Number(v); return (isFinite(n)&&n>20000)?_svDate(n):esc(normDate(v)); }
-function matchedDetailHtml(r){
-  const d=r.d||{}, e=r.entry||{};
-  const bank='<span class="mtag bank">🏦 銀行</span><b>¥'+yen(d.amount||0)+'</b>'
-    +'<span class="msep">・</span>'+esc(d.name||'')
-    +(d.date?'<span class="msep">・</span>'+esc(normDate(d.date)):'')
-    +(d.kind?'<span class="msep">・</span><span class="mmut">'+esc(d.kind)+'</span>':'');
-  const planMid = e.type==='土木'
-    ? esc(e.請求先||'')+'<span class="msep">・</span>'+esc(e.工事番号||'')+' '+esc(e.工事名||'')
-    : esc(e.請求先||'')+(e.dept?'<span class="msep">・</span>'+esc(e.dept):'');
-  const pd=_planDateDisp(e.回収予定日);
-  const plan='<span class="mtag plan">📋 予定表</span>'+planMid
-    +'<span class="msep">・</span>予定 <b>¥'+yen(planAmt(e))+'</b>'
-    +(pd?'<span class="msep">・</span><span class="mmut">'+pd+'回収</span>':'')
-    +(r.fee?'<span class="msep">・</span><span class="mmut">手数料 ¥'+yen(r.fee)+'</span>':'');
-  return '<div class="mdet"><div class="mline">'+bank+'</div><div class="mline">'+plan+'</div></div>';
-}
 function kindTag(k){ return '<span class="tag k">'+esc(k||'—')+'</span>'; }
 function payeeOptions(sel){
   return '<option value="">— 請求先を選ぶ —</option>'+uniquePayees().map(p=>'<option'+(p===sel?' selected':'')+'>'+esc(p)+'</option>').join('');
@@ -2299,14 +2282,12 @@ function render(){
     if(r.status==='matched'){
       const plan=planAmt(r.entry); const dc=diffCells(plan,r.d.amount); if(dc.flag)rowCls+=' flag';
       const diffHtml = dc.flag ? '<span class="diff">'+dc.diffCell+'</span>' : '<span class="diff"><span class="diff0">残0</span></span>';
-      const mopen=openDetails.has(r.key);
-      h+='<tr class="'+rowCls+' mrow" data-mdet="'+di+'" title="クリックで詳細（銀行／予定表）">'
+      h+='<tr class="'+rowCls+'">'
         + stateTd('ok','')
         + whoTd(r)
         + amtTd(r,diffHtml)
-        + '<td><span class="mar">'+(mopen?'▾':'▸')+'</span>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+(r.auto?' <span class="tag auto" title="金額が一意に一致したので自動で消込し、名義→請求先を学習しました。誤りなら「戻す」で取消せます">自動</span>':'')+'</td>'
+        + '<td>'+esc(fmtEntry(r.entry))+' '+crossBadge(r.entry.請求先)+(r.auto?' <span class="tag auto" title="金額が一意に一致したので自動で消込し、名義→請求先を学習しました。誤りなら「戻す」で取消せます">自動</span>':'')+'</td>'
         + '<td class="act"><button class="btn sub mini" data-un="'+di+'">戻す</button></td></tr>';
-      h+='<tr class="mdetail" data-mdetail="'+di+'" style="display:'+(mopen?'':'none')+'"><td colspan="5">'+matchedDetailHtml(r)+'</td></tr>';
     } else if(r.status==='review'){
       const b=bestCand(r); let diffHtml='';
       let cell='<div class="q1">この入金は誰の・何の入金？</div>';
@@ -2490,9 +2471,6 @@ function startMatome(r, P){   // 名義で特定できた相手だけ合算＝�
 $('resBody').addEventListener('click',e=>{
   const aiprev=e.target.closest('[data-aiprev]');
   if(aiprev){ openAiLog(aiprev.dataset.aiprev); return; }
-  // 消込済み：行クリックで簡易詳細を開閉（ボタン/入力の上は除外）
-  const mrowEl=e.target.closest('tr.mrow');
-  if(mrowEl && !e.target.closest('button,a,input,select,label')){ const r=results[+mrowEl.dataset.mdet]; if(r){ if(openDetails.has(r.key))openDetails.delete(r.key); else openDetails.add(r.key); render(); } return; }
   const tgl=e.target.closest('[data-tgl]');
   if(tgl){ const r=results[+tgl.dataset.tgl]; if(openDetails.has(r.key))openDetails.delete(r.key); else openDetails.add(r.key); render(); return; }
   // まとめ払い：控除を1行追加／削除（1工事に手数料＋相殺＋安全協力費 など複数種別）
@@ -2674,6 +2652,7 @@ setHeadH(); window.addEventListener('resize',setHeadH); window.addEventListener(
 
 /* ===== 回収チェック（予定ベース：予定に対して回収できたか・未入金を見える化） ===== */
 let collectDept='all', collectOnlyNG=false, collectMonth='all', collectStatus='all';
+let collectOpen=new Set();   // 入金確認一覧：行クリックで開いている詳細（グループキーで保持）
 /* ===== 予定表を貯める（部門×取込日）＋2軸セレクタ ===== */
 let planSnaps=[];        // 取り込んだ予定表を貯める（上書きせず履歴を残す）
 let _sidSeq=0;
@@ -3006,6 +2985,27 @@ function openSheetView(){
   if(!w){ alert('ポップアップがブロックされました。ブラウザの設定でこのページのポップアップを許可してください。'); return; }
   w.document.write(doc); w.document.close();
 }
+/* 入金確認一覧：行クリックで開く軽い詳細＝「表に出ていない情報」(回収予定日・種別/銀行・差額)だけ */
+function collectDetailHtml(g){
+  const plans=g.plans||[];
+  const planPart = plans.map(e=>{
+    const pd=_planDateDisp(e.回収予定日);
+    if(e.type==='土木') return (pd?'回収予定日 <b>'+pd+'</b>':'')+(e.工事番号?(pd?'<span class="sep">・</span>':'')+'工事番号 '+esc(e.工事番号):'');
+    return '請求先 '+esc(e.請求先)+(e.dept?'<span class="sep">・</span>'+esc(e.dept):'');
+  }).filter(Boolean).join('<span class="sep">／</span>') || '—';
+  const bankPart = g.inp
+    ? '種別 '+esc(g.inp.dkind||'—')+'<span class="sep">・</span>'+esc(g.inp.bank||'')+(g.inp.date?'<span class="sep">・</span>入金日 '+esc(normDate(g.inp.date)):'')
+    : '（入金なし）';
+  let diffPart;
+  if(g.inp){ const d=(g.inp.amt||0)-(g.planTot||0);
+    diffPart='予定 ¥'+yen(g.planTot||0)+' − 入金 ¥'+yen(g.inp.amt||0)+' ＝ <b>'+(d===0?'ぴったり ±0':(d<0?'入金が ¥'+yen(-d)+' 少ない（手数料など）':'入金が ¥'+yen(d)+' 多い'))+'</b>'; }
+  else diffPart='予定 ¥'+yen(g.planTot||0)+'（入金待ち）';
+  return '<div class="cdet">'
+    +'<span class="ct plan">📋 予定</span>'+planPart
+    +'<span class="sep big">｜</span><span class="ct bank">🏦 入金</span>'+bankPart
+    +'<span class="sep big">｜</span><span class="ct diff">⚖ 差額</span>'+diffPart
+    +'</div>';
+}
 function renderCollect(){
   const host=$('collectBody'); if(!host) return;
   whyStore=[];
@@ -3060,17 +3060,19 @@ function renderCollect(){
     +'<tr class="grp"><th class="gp" colspan="2">◀ 予定（回収予定）</th><th class="gm">突合</th><th class="gi" colspan="2">入金（実績）▶</th><th class="gm">残</th></tr>'
     +'<tr><th>部門・請求先／工事</th><th class="num">予定額</th><th class="ctr">状態</th><th>振込名義・日付</th><th class="num">入金額</th><th class="num">残</th></tr>'
     +'</thead><tbody>';
-  list.forEach(g=>{
+  list.forEach((g,gi)=>{
     const rows=Math.max(1, g.plans.length);
+    const gkey=g.denbaiKey||('gi'+gi), gopen=collectOpen.has(gkey);   // 行クリックで開く詳細のキー＝突合済みd:/予定e:（保留はindex）
     for(let i=0;i<rows;i++){
       const e=g.plans[i];
-      h+='<tr class="g-'+g.st+(g.sharePend?' g-share':'')+(g.needReview?' g-need':'')+'">';
+      h+='<tr class="g-'+g.st+(g.sharePend?' g-share':'')+(g.needReview?' g-need':'')+' crow'+(gopen?' cexpo':'')+'" data-cexp="'+esc(gkey)+'">';
+      const car = i===0?'<span class="car">'+(gopen?'▾':'▸')+'</span>':'';   // 開閉の目印（先頭行のみ）
       // 予定側
       if(e){ const work=e.type==='土木'?((e.工事名||'')+(e.工事番号?'（'+e.工事番号+'）':'')):'（'+(e.dept||'弥生')+'）';
         const brace = g.st==='multi'?(i===0?'<span class="brace">┐ まとめ'+g.plans.length+'件':(i===rows-1?'<span class="brace">┘</span>':'<span class="brace">│</span>')):'';
-        h+='<td class="plan"><span class="dept '+deptCls(g.dept)+'">'+esc(g.dept||'—')+'</span><span class="work">'+esc(e.請求先)+' ／ '+esc(work)+'</span>'+(brace&&i===0?brace+'</span>':brace)+'</td>'
+        h+='<td class="plan">'+car+'<span class="dept '+deptCls(g.dept)+'">'+esc(g.dept||'—')+'</span><span class="work">'+esc(e.請求先)+' ／ '+esc(work)+'</span>'+(brace&&i===0?brace+'</span>':brace)+'</td>'
           +'<td class="plan num">¥'+yen(planAmt(e))+'</td>';
-      } else { h+='<td class="plan muted">（予定なし）</td><td class="plan num muted">—</td>'; }
+      } else { h+='<td class="plan muted">'+car+'（予定なし）</td><td class="plan num muted">—</td>'; }
       // 中央＋入金側（先頭行だけrowspan）
       if(i===0){
         let pillLab=LAB[g.st], pillCls=g.st;
@@ -3106,6 +3108,7 @@ function renderCollect(){
       }
       h+='</tr>';
     }
+    if(gopen) h+='<tr class="cdetail"><td colspan="6">'+collectDetailHtml(g)+'</td></tr>';   // 行クリックで開く詳細（表に無い情報）
   });
   h+='</tbody></table></div>';
   host.innerHTML=h;
@@ -3161,6 +3164,14 @@ document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.t
 });
 /* 予定表一覧の「🟡 入金あり・未確認 → ここで処理」→ 要確認ドロワーの該当入金へジャンプ＆ハイライト */
 document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.target.closest('.why'); if(!b)return; e.stopPropagation(); openWhy(b); });
+/* 入金確認一覧：行クリックで詳細を開閉（ボタン・チェック・なぜ？などの操作系の上は無視） */
+document.getElementById('collectBody').addEventListener('click',e=>{
+  if(e.target.closest('button,a,input,select,label,.why,.dbchk,.lk-undo')) return;
+  const row=e.target.closest('tr.crow'); if(!row) return;
+  const k=row.dataset.cexp; if(!k) return;
+  if(collectOpen.has(k)) collectOpen.delete(k); else collectOpen.add(k);
+  renderCollect();
+});
 window.addEventListener('scroll',()=>{ const p=document.getElementById('whyPop'); if(p&&p.style.display==='block') closeWhy(); },{passive:true});
 window.addEventListener('resize',()=>{ const p=document.getElementById('whyPop'); if(p&&p.style.display==='block') closeWhy(); });
 document.getElementById('collectBody').addEventListener('click',e=>{
