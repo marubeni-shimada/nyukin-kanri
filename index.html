@@ -599,6 +599,81 @@ button.pill.goshare:active{transform:translateY(0)}
 .bdep{margin-left:6px;padding:4px 8px;border:1px solid var(--line,#e6e8ef);border-radius:8px;font:inherit;font-size:12px}
 @media (prefers-color-scheme:dark){.tsmodal{background:#161c25}.tstbl th,.tscard-h{background:#1b222d}.tspick-btn,.tscand,.bdep{background:#161c25}.tsdetail td{background:color-mix(in srgb,#a78bfa 10%,#161c25)}.tscard-f.ok{background:color-mix(in srgb,#3ecf9a 10%,#161c25)}.tscard-f.ng{background:color-mix(in srgb,#f0a36b 12%,#161c25)}}
 </style>
+<style id="tk-skin">
+/* ===== 取込ペイン 再デザイン（UI基準：無彩色＋青1色・脱グラデ・線アイコン） ===== */
+/* 画面全体の紫ラジアルグラデを外す（AIっぽさ低減・UI基準） */
+body{background:var(--paper) !important;}
+#pane-torikomi{--tkac:#2f6df0;--tkac2:#245cd0;--tkac-soft:#eef3fe;--tkok:#17825a;--tkok-soft:#eaf5ef;--tkwarn:#9a6a12;--tkwarn-soft:#fcf4e4;--tkwarn-line:#e9cf93;--tkpanel:#ffffff;--tkpanel2:#fbfcfd;--tkink:#1a2230;--tkink2:#45515f;--tkmuted:#7c8795;--tkline:#e6e9ef;--tkline2:#f0f2f6;}
+@media (prefers-color-scheme:dark){ #pane-torikomi{--tkac:#5b92ff;--tkac2:#8bb2ff;--tkac-soft:#13203a;--tkok:#54c494;--tkok-soft:#0f2418;--tkwarn:#e0b45f;--tkwarn-soft:#2a2112;--tkwarn-line:#5c4a21;--tkpanel:#161d26;--tkpanel2:#131a22;--tkink:#e7edf4;--tkink2:#bcc7d4;--tkmuted:#8a95a3;--tkline:#242d39;--tkline2:#1b222c;} }
+#pane-torikomi .tk-lead{font-size:13px;color:var(--tkink2);margin:0 0 16px;}
+#pane-torikomi .tk-lead b{color:var(--tkink);}
+#pane-torikomi .tk-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:620px){ #pane-torikomi .tk-grid{grid-template-columns:1fr;} }
+#pane-torikomi .tk-drop{background:var(--tkpanel);border:1.5px solid var(--tkline);border-radius:14px;padding:18px;cursor:pointer;transition:border-color .14s,background .14s,transform .14s;display:flex;flex-direction:column;gap:11px;box-shadow:0 1px 2px rgba(20,28,40,.05);}
+#pane-torikomi .tk-drop:hover{border-color:var(--tkac);transform:translateY(-1px);}
+#pane-torikomi .tk-drop.over,#pane-torikomi .tk-drop.drag{border-color:var(--tkac);background:var(--tkac-soft);}
+#pane-torikomi .tk-top{display:flex;align-items:center;gap:11px;}
+#pane-torikomi .tk-ico{width:38px;height:38px;border-radius:10px;background:var(--tkac-soft);color:var(--tkac2);display:grid;place-items:center;flex:none;}
+#pane-torikomi .tk-ico svg{width:20px;height:20px;display:block;}
+#pane-torikomi .tk-no{font-size:11px;font-weight:800;color:var(--tkmuted);letter-spacing:.04em;}
+#pane-torikomi .tk-ttl{font-size:15px;font-weight:800;letter-spacing:-.01em;color:var(--tkink);line-height:1.3;}
+#pane-torikomi .tk-fmt{font-size:11px;font-weight:700;color:var(--tkmuted);background:var(--tkline2);border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:1px;}
+#pane-torikomi .tk-sub{font-size:12px;color:var(--tkmuted);line-height:1.5;}
+#pane-torikomi .tk-sum{font-size:12px;color:var(--tkink2);}
+#pane-torikomi .tk-sum:empty{display:none;}
+#pane-torikomi .tk-cta{font-size:12.5px;font-weight:700;color:var(--tkac2);}
+#pane-torikomi .tk-drop.wide{margin-top:14px;}
+#pane-torikomi .tk-val{margin-left:auto;font-size:11px;font-weight:800;color:var(--tkok);background:var(--tkok-soft);border:1px solid color-mix(in srgb,var(--tkok) 28%,var(--tkline));border-radius:999px;padding:4px 11px;white-space:nowrap;}
+#pane-torikomi .tk-loglink{font-size:11px;color:var(--tkac2);margin-left:10px;white-space:nowrap;}
+@media(max-width:620px){ #pane-torikomi .tk-val{display:none;} }
+#pane-torikomi .fold{margin-top:2px;}
+#pane-torikomi .shime{display:inline-block;font-size:10.5px;font-weight:800;color:var(--tkac2);background:var(--tkac-soft);border-radius:5px;padding:1px 7px;margin-right:4px;white-space:nowrap;}
+/* 締めチェック（月×締め 一覧） */
+#pane-torikomi .tk-matrix{margin-top:14px;border:1px solid var(--tkline);border-radius:10px;background:var(--tkpanel);}
+#pane-torikomi .tk-matrix>summary{list-style:none;cursor:pointer;padding:12px 15px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:800;color:var(--tkink);}
+#pane-torikomi .tk-matrix>summary::-webkit-details-marker{display:none;}
+#pane-torikomi .tk-msum{font-weight:700;color:var(--tkmuted);font-size:11.5px;}
+#pane-torikomi .tk-mcar{margin-left:auto;color:var(--tkmuted);font-size:11px;transition:transform .15s;}
+#pane-torikomi .tk-matrix[open] .tk-mcar{transform:rotate(180deg);}
+#pane-torikomi .tk-matrix[open] .tk-msum{display:none;}
+#pane-torikomi .cmwrap{padding:2px 15px 2px;overflow-x:auto;border-top:1px solid var(--tkline2);}
+#pane-torikomi .cmtable{border-collapse:collapse;width:100%;min-width:430px;}
+#pane-torikomi .cmtable th,#pane-torikomi .cmtable td{padding:9px 10px;text-align:center;font-size:12.5px;border-bottom:1px solid var(--tkline2);}
+#pane-torikomi .cmtable th{font-size:11px;color:var(--tkmuted);font-weight:800;}
+#pane-torikomi .cmtable th.mon,#pane-torikomi .cmtable td.mon{text-align:left;font-weight:800;color:var(--tkink);white-space:nowrap;}
+#pane-torikomi .cmtable tr:last-child td{border-bottom:0;}
+#pane-torikomi .cv{display:inline-flex;width:25px;height:25px;border-radius:7px;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+#pane-torikomi .cv.ok{color:var(--tkok);background:var(--tkok-soft);}
+#pane-torikomi .cv.miss{color:var(--tkwarn);background:var(--tkwarn-soft);}
+#pane-torikomi .cmfoot{padding:8px 15px 12px;font-size:11.5px;color:var(--tkmuted);}
+#pane-torikomi .cmfoot .miss{color:var(--tkwarn);font-weight:700;}
+/* 期（会計年度）グループ */
+#pane-torikomi .fy{border-top:1px solid var(--tkline2);}
+#pane-torikomi .fy:first-of-type{border-top:0;}
+#pane-torikomi .fy>summary{list-style:none;cursor:pointer;padding:10px 15px;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--tkink);}
+#pane-torikomi .fy>summary::-webkit-details-marker{display:none;}
+#pane-torikomi .fy>summary::before{content:"▸";color:var(--tkmuted);font-size:10px;transition:transform .15s;}
+#pane-torikomi .fy[open]>summary::before{transform:rotate(90deg);}
+#pane-torikomi .fysub{font-size:11px;color:var(--tkmuted);font-weight:600;}
+#pane-torikomi .fycnt{margin-left:auto;font-size:11px;color:var(--tkmuted);font-weight:700;background:var(--tkline2);border-radius:999px;padding:1px 9px;}
+/* 操作・フッタ */
+#pane-torikomi .tk-ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;}
+#pane-torikomi .tk-foot{margin-top:10px;font-size:11.5px;color:var(--tkmuted);line-height:1.5;}
+#pane-torikomi .tk-foot b{color:var(--tkink2);}
+</style>
+<style id="tk-degrad">
+/* ===== UI基準：紫グラデ廃止＝グラデ系トークンを無彩＋青のベタ塗りに再定義（全ペイン一括・構造無改変） ===== */
+:root{ --ac:#2b57e6 !important; --ac2:#2247c4 !important; --ac-soft:#eef2fe !important;
+  --grad:#2b57e6 !important; --grad-soft:#eef2fe !important; --glow:0 1px 3px rgba(16,24,40,.12) !important; }
+@media (prefers-color-scheme:dark){ :root{ --ac:#6693ff !important; --ac2:#89adff !important; --ac-soft:#15223a !important;
+  --grad:#6693ff !important; --grad-soft:#15223a !important; --glow:0 1px 3px rgba(0,0,0,.4) !important; } }
+/* 緑・橙ボタンの派手グラデもベタ塗りに／主ボタンの過剰な持ち上げ演出を控えめに */
+.btn.g{background:#1f9d6b !important;}
+.chk.on{background:#1f9d6b !important;}
+.rvbtn{background:var(--warn-bg,#fdf3e6) !important;}
+.btn:hover{transform:none !important;}
+.step:hover{transform:none !important;}
+</style>
 </head>
 <body>
 <header>
@@ -630,36 +705,59 @@ button.pill.goshare:active{transform:translateY(0)}
 
   <!-- ===== ペイン：取込 ===== -->
   <section class="mpane on" id="pane-torikomi">
-  <!-- 取込：銀行と予定表で入れ口を分ける -->
-  <div class="istrip2">
-    <div class="ibox bank" id="dropBank">
-      <div class="ibox-h"><span class="ibox-ic">🏦</span><span class="ibox-t">① 銀行の入金明細（CSV）</span></div>
-      <div class="ibox-s">静銀・島掛など複数OK・重複は自動除外。ここにドラッグ、またはクリックで選択。</div>
-      <div class="ibox-n" id="bankSum"></div>
+  <p class="tk-lead">入れるのは<b>銀行</b>と<b>予定表</b>、そして控除のある元請なら<b>支払通知書</b>。入れると<b>自動で照合</b>します。</p>
+
+  <!-- 主役：銀行・予定表（対等な2枚） -->
+  <div class="tk-grid">
+    <div class="tk-drop bank" id="dropBank">
+      <div class="tk-top">
+        <div class="tk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"/><path d="M4 10v8M9 10v8M15 10v8M20 10v8"/><path d="M2.5 21h19"/></svg></div>
+        <div><div class="tk-no">① 銀行</div><div class="tk-ttl">入金明細<span class="tk-fmt">CSV</span></div></div>
+      </div>
+      <div class="tk-sub">静岡銀行・島田掛川など。複数OK・重複は自動で除外。</div>
+      <div class="tk-sum" id="bankSum"></div>
+      <div class="tk-cta">＋ ドラッグ、またはクリックで選択</div>
       <details class="fold" id="bankFold" style="display:none"><summary><span class="caret">▶</span><span id="bankFoldLab">取り込んだファイル</span></summary><div class="files" id="bankFiles"></div></details>
     </div>
-    <div class="ibox plan" id="dropPlan">
-      <div class="ibox-h"><span class="ibox-ic">📄</span><span class="ibox-t">② 予定表（Excel）</span></div>
-      <div class="ibox-s">土木＝どっと原価／営業・環境＝弥生。ここにドラッグ、またはクリックで選択。</div>
-      <div class="ibox-n" id="planSum"></div>
+    <div class="tk-drop plan" id="dropPlan">
+      <div class="tk-top">
+        <div class="tk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 21z"/><path d="M14 2.5V7h4"/><path d="M9 12h6M9 15.5h6M9 18.5h4"/></svg></div>
+        <div><div class="tk-no">② 予定表</div><div class="tk-ttl">今月の売掛<span class="tk-fmt">Excel</span></div></div>
+      </div>
+      <div class="tk-sub">土木＝どっと原価／営業・環境＝弥生。締めごとのファイルでOK。</div>
+      <div class="tk-sum" id="planSum"></div>
+      <div class="tk-cta">＋ ドラッグ、またはクリックで選択</div>
       <details class="fold" id="planFold" style="display:none"><summary><span class="caret">▶</span><span id="planFoldLab">取り込んだ予定表</span></summary><div class="files" id="planFiles"></div></details>
     </div>
     <input type="file" id="fileBank" accept=".csv" multiple hidden>
     <input type="file" id="filePlan" accept=".xlsx" multiple hidden>
   </div>
-  <!-- ③ 支払通知書（AI・任意）：投げると該当入金を特定→工事ごとの控除を自動入力 -->
-  <div class="ibox tsuchi" id="dropTsuchi" style="margin-top:10px;cursor:pointer;border-style:dashed">
-    <div class="ibox-h"><span class="ibox-ic">🤖</span><span class="ibox-t">③ 支払通知書を読む（AI・任意）</span><a href="#" id="aiLogBtn" style="font-size:11px;margin-left:10px;color:var(--ac,#7c3aed)">📋 読取結果一覧</a></div>
-    <div class="ibox-n" id="aiStat" style="font-size:11px;margin-top:2px"></div>
-    <div class="ibox-n" id="aiLastRun" style="font-size:11px;margin-top:2px"></div>
-    <div class="ibox-s">元請の支払通知書（画像/PDF）を入れると、AIが<b>該当入金を特定</b>し<b>工事ごとの控除を自動入力</b>。<b>複数まとめてドロップOK</b>→一覧で確認して<b>まとめて反映</b>できます。同じファイルは自動スキップ（API節約）。</div>
+
+  <!-- ③ 支払通知書（主役級：控除を自動反映＝消込まで自動のカギ） -->
+  <div class="tk-drop wide tsuchi" id="dropTsuchi">
+    <div class="tk-top">
+      <div class="tk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12A.5.5 0 0 1 5 20z"/><path d="M14 3.5V8h4"/><path d="M8.5 13l2 2 4-4.5"/></svg></div>
+      <div><div class="tk-no">③ 支払通知書</div><div class="tk-ttl">控除を自動で反映<span class="tk-fmt">PDF / 画像・AI読取</span></div></div>
+      <span class="tk-val">入れると消込まで自動</span>
+      <a href="#" id="aiLogBtn" class="tk-loglink">読取結果一覧</a>
+    </div>
+    <div class="tk-sub">控除（相殺・手数料など）のある元請から届くもの。入れると金額が通知書どおりに合って<b>消込まで自動</b>。届かない入金は無しで進めてOK。<b>まとめてドロップ可</b>（同じ月のぶん）。</div>
+    <div class="tk-sum" id="aiStat"></div>
+    <div class="tk-sum" id="aiLastRun"></div>
   </div>
-  <div class="istrip-ctl">
+
+  <!-- 予定表の〆チェック：月×締め（終了日の月＝○月分、締日で4サイクル判定） -->
+  <details class="tk-matrix" id="closeMatrixBox" style="display:none">
+    <summary><span>予定表の〆チェック（月ごと）</span><span class="tk-msum" id="closeMatrixSum"></span><span class="tk-mcar">▾</span></summary>
+    <div id="closeMatrix"></div>
+  </details>
+
+  <div class="tk-ctl">
     <button class="btn sub mini" id="runMatch" disabled>再照合</button>
     <button class="btn sub mini" id="clearPlan">予定表クリア</button>
     <span class="muted" id="matchInfo" style="font-size:11.5px"></span>
   </div>
-  <div class="muted" style="font-size:11.5px;margin-top:4px">※ データは全員でクラウド共有。誰かが取り込んでいれば、上の <b>消込</b> タブからでOK。</div>
+  <div class="tk-foot">データは全員でクラウド共有。別のPCで入れた分もここに出ます。誰かが取り込んでいれば、上の <b>消込</b> タブからでOK。</div>
   </section><!-- /pane-torikomi -->
 
   <!-- ===== ペイン：消込 ===== -->
@@ -951,7 +1049,7 @@ function savePrev(){ try{ localStorage.setItem(MPREV,JSON.stringify([...prevSet.
 let allowPersist=true;  // 銀行・予定表の取込をこのPCに保存（サンプル表示中はfalse）。順不同・別日でも残す
 // マスタ保存GAS：URLをここに固定（大石さんは触らなくても最初から共有される）
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbyQNsc3cvrgle_ruuNLd6knrJ0l6vAU-ImTpAYEsIyOLdzPoLgF0wj0SgTZMGdFD3Tz/exec';
-let GAS_URL='';   // 下ごしらえ：クラウド遮断
+let GAS_URL=DEFAULT_GAS_URL;   // 本番：中央スプレッドシートに自動接続
 
 /* ===== 文字正規化 ===== */
 function normName(s){
@@ -1076,12 +1174,25 @@ function classifyPlan(grid){
 }
 /* 予定表の中の「期間」から対象月を判定（土木＝期間:26/06/01～／弥生＝期間:令和08年07月度）。読めなければnull→取込日にフォールバック */
 function mkPeriod(y,mo){ y=parseInt(y,10); mo=parseInt(mo,10); if(!(mo>=1&&mo<=12)||!(y>=2000&&y<=2100))return null; return {key:''+y+('0'+mo).slice(-2), label:String(y).slice(2)+'年'+mo+'月分'}; }
+/* 締めサイクル：どっと原価の締日コード(15/20/25/31)→表示タグ。31=末締め（その月の末日=30/31/28…月で変わる）＝「1-末」。 */
+const CLOSE_TAGS=['16-15','21-20','26-25','1-末'];
+function closeTagOf(shime){ const n=parseInt(String(shime).replace(/[^0-9]/g,''),10); if(n===15)return'16-15'; if(n===20)return'21-20'; if(n===25)return'26-25'; if(n>=28||n===31||n===1)return'1-末'; return ''; }
+function dobokuCloseTag(entries){ const c={}; (entries||[]).forEach(e=>{ const t=closeTagOf(e.締日); if(t)c[t]=(c[t]||0)+1; }); let best='',n=0; for(const k in c){ if(c[k]>n){n=c[k];best=k;} } return best; }   // 1ファイル＝1締めのはずだが、念のため最多の締めを採用
+function snapCloseTags(s){ if(s&&s.closeTags&&s.closeTags.length) return CLOSE_TAGS.filter(t=>s.closeTags.indexOf(t)>=0);   // ファイルから記録した締め（予定額0でも残る）を優先
+  const set={}; (s&&s.entries||[]).forEach(e=>{ const t=closeTagOf(e.締日); if(t)set[t]=1; }); return CLOSE_TAGS.filter(t=>set[t]); }   // 旧データの保険：工事の締日から
+function dobokuPeriodInfo(grid){ let txt=''; for(const r in grid){ const row=grid[r]; for(const c in row){ if(row[c]!=null) txt+=String(row[c])+'\n'; } if(txt.length>4000)break; }
+  const m=txt.match(/期間[:：]\s*\d{2}\/(\d{1,2})\/(\d{1,2})\s*[～~〜]\s*\d{2}\/(\d{1,2})\/(\d{1,2})/);
+  if(!m) return {range:'', closeTag:''};
+  return { range: parseInt(m[1],10)+'/'+parseInt(m[2],10)+'〜'+parseInt(m[3],10)+'/'+parseInt(m[4],10),   // 例 8/16〜9/15
+           closeTag: closeTagOf(parseInt(m[4],10)) };   // 締め＝終了日の日（15/20/25/末）→ ファイル自体から判定（予定額0の工事でも拾える）
+}
 function detectPeriod(grid){
   let txt=''; for(const r in grid){ const row=grid[r]; for(const c in row){ if(row[c]!=null) txt+=String(row[c])+'\n'; } if(txt.length>4000)break; }
   let m;
   if(m=txt.match(/期間[:：]\s*令和\s*0*(\d{1,2})\s*年\s*0*(\d{1,2})\s*月/)) return mkPeriod(2018+parseInt(m[1],10), m[2]);     // 弥生：令和NN年MM月度
   if(m=txt.match(/期間[:：]\s*(\d{4})[\/\-年]\s*0*(\d{1,2})/)) return mkPeriod(m[1], m[2]);                                    // 期間:西暦4桁/MM
-  if(m=txt.match(/期間[:：]\s*(\d{2})\/\s*0*(\d{1,2})\//)) return mkPeriod(2000+parseInt(m[1],10), m[2]);                      // 土木：期間:YY/MM/DD～
+  if(m=txt.match(/期間[:：]\s*\d{2}\/\d{1,2}\/\d{1,2}\s*[～~〜]\s*(\d{2})\/\s*0*(\d{1,2})\//)) return mkPeriod(2000+parseInt(m[1],10), m[2]);   // 土木：期間=開始～終了。締め(回収対象)=終了日の月を「○月分」とする（8/16～9/15 → 9月分）
+  if(m=txt.match(/期間[:：]\s*(\d{2})\/\s*0*(\d{1,2})\//)) return mkPeriod(2000+parseInt(m[1],10), m[2]);                      // 保険：終了日が読めないときは開始日の月
   return null;
 }
 function parseDoboku(grid){
@@ -1093,7 +1204,7 @@ function parseDoboku(grid){
     if(isKoji(B)){ cur={no:String(B).trim(), name:(C||'').toString().trim()}; continue; }
     if(cur && (String(B).trim()==='31' || /^\d{1,2}$/.test(String(B).trim())) && C){
       const amt=toInt(row.J);
-      if(amt!=null && amt>0){ entries.push({type:'土木', dept:'土木', 請求先:String(C).trim(), 工事名:cur.name, 工事番号:cur.no, amount:amt, 回収予定日:(row.F!=null?String(row.F).trim():''), row:r}); }   // 予定額0円（今月回収予定なし）・マイナス（相殺）は取り込まない＝突合対象外。入金が来れば「予定外」で拾う。回収予定日(F)は一覧クリック詳細の表示用
+      if(amt!=null && amt>0){ entries.push({type:'土木', dept:'土木', 請求先:String(C).trim(), 工事名:cur.name, 工事番号:cur.no, amount:amt, 締日:String(B).trim(), 回収予定日:(row.F!=null?String(row.F).trim():''), row:r}); }   // 予定額0円（今月回収予定なし）・マイナス（相殺）は取り込まない＝突合対象外。入金が来れば「予定外」で拾う。回収予定日(F)は一覧クリック詳細の表示用／締日(B)=15/20/25/31＝締めサイクル判定用
     }
   }
   return entries;
@@ -2929,6 +3040,7 @@ function mergeSameMonth(ns){
     olds.forEach(o=>(o.entries||[]).forEach(e=>{ const k=keyOf(e); if(have.has(k))return; have.add(k); const c=Object.assign({},e); c.row=++maxRow; c.carried=true; ns.entries.push(c); carried++; }));
     if(carried) toast('同じ月の前回取込から '+carried+' 行を引き継ぎました（'+(ns.periodLabel||'同月')+'として累積）');
   }
+  if(ns.closeTags){ olds.forEach(o=>(o.closeTags||[]).forEach(t=>{ if(ns.closeTags.indexOf(t)<0) ns.closeTags.push(t); })); ns.closeTags=CLOSE_TAGS.filter(t=>ns.closeTags.indexOf(t)>=0); }   // 同じ月の既存スナップの締めを引き継いで合算（9月の4締めを1枚に集約）
   dropSameMonth(ns.dept,ns.periodKey); addSnap(ns);
 }
 function deptsPresent(){ return ['土木','営業','環境','弥生'].filter(d=>planSnaps.some(s=>s.dept===d)); }
@@ -3542,7 +3654,7 @@ function saveDenbai(){ try{ localStorage.setItem(MDENBAI,JSON.stringify([...denb
 /* 取込データの保存（銀行・予定表）：順不同・別日でも残す。予定表はentriesのみ保存（xlsx本体は保存しない＝記入済み出力はセッション内で有効） */
 function saveBank(){ if(!allowPersist)return; try{ localStorage.setItem(MBANK,JSON.stringify(bankFiles)); }catch(e){} }
 function savePlan(){ if(!allowPersist)return; try{
-  const snaps=planSnaps.map(s=>({sid:s.sid,dept:s.dept,name:s.name,entries:s.entries,importedAt:s.importedAt,periodKey:s.periodKey||'',periodLabel:s.periodLabel||'',grid:s.grid||null}));  // zip/sheetXmlは保存しない（容量のため。記入済み予定表の出力は取り込んだセッション内で有効）。grid＝予定表ビュー用の元Excel内容
+  const snaps=planSnaps.map(s=>({sid:s.sid,dept:s.dept,name:s.name,entries:s.entries,importedAt:s.importedAt,periodKey:s.periodKey||'',periodLabel:s.periodLabel||'',closeTags:s.closeTags||[],closeTag:s.closeTag||'',periodRange:s.periodRange||'',grid:s.grid||null}));  // zip/sheetXmlは保存しない（容量のため。記入済み予定表の出力は取り込んだセッション内で有効）。grid＝予定表ビュー用の元Excel内容／closeTags＝取り込んだ締め
   try{ localStorage.setItem(MPLAN,JSON.stringify({snaps:snaps, viewMode:viewMode, selDept:selDept, selDate:selDate, seq:_sidSeq})); }
   catch(qe){ snaps.forEach(s=>s.grid=null); localStorage.setItem(MPLAN,JSON.stringify({snaps:snaps, viewMode:viewMode, selDept:selDept, selDate:selDate, seq:_sidSeq})); }   // 容量オーバー時はグリッド抜きで保存（予定表ビューは簡易表示になる）
 }catch(e){} }
@@ -3676,7 +3788,7 @@ function mergeShared(d){
     if(_added && planSnaps.length) applyPlanSel();
   }
 }
-function planShare(){ return { snaps: planSnaps.map(s=>({dept:s.dept, name:s.name, periodKey:s.periodKey||'', periodLabel:s.periodLabel||'', importedAt:s.importedAt||'', entries:s.entries||[]})),   // v2.1修正＝全月スナップを periodKey 付きで共有（他PCでも全月が見える・「〜月分」も届く）
+function planShare(){ return { snaps: planSnaps.map(s=>({dept:s.dept, name:s.name, periodKey:s.periodKey||'', periodLabel:s.periodLabel||'', importedAt:s.importedAt||'', closeTags:s.closeTags||[], closeTag:s.closeTag||'', periodRange:s.periodRange||'', entries:s.entries||[]})),   // v2.1修正＝全月スナップを periodKey 付きで共有（他PCでも全月が見える・「〜月分」も届く）／closeTags＝締め
   doboku: planDoboku?{name:planDoboku.name,entries:planDoboku.entries}:null, yayoi: planYayoi.map(p=>({name:p.name,dept:p.dept,entries:p.entries})) }; }   // doboku/yayoi は旧GAS互換で残置
 function hasPlanData(){ return planSnaps.some(s=>s.entries&&s.entries.length) || !!((planDoboku&&planDoboku.entries&&planDoboku.entries.length)||planYayoi.some(p=>p.entries&&p.entries.length)); }
 function sharedBody(){ const o={master:master,bank:leanDeposits(),confirmed:confirmed,split:splitConfirm,multi:multiConfirm}; if(denbaiSet.size) o.denbai=[...denbaiSet]; if(prevSet.size) o.prevs=[...prevSet.entries()]; if(hasPlanData()) o.plan=planShare(); const tx=tokuiExtras(); if(tx.length) o.tokui=tx; if(AI_LOG.length) o.ailog=AI_LOG; return JSON.stringify(o); }  // 予定表があるときだけ共有／得意先マスタは内蔵との差分だけ共有／AI読取履歴も共有（全PCで同じ結果）
@@ -3738,7 +3850,10 @@ function readPlan(file){
     const per=detectPeriod(x.grid);   // 中の期間→対象月
     const pk=per?per.key:'', pl=per?per.label:'';
     let dep;
-    if(cls==='土木'){ dep='土木'; mergeSameMonth({dept:'土木', name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, grid:x.grid, entries:parseDoboku(x.grid), pickKoji:parseDobokuPick(x.grid), importedAt:stampDate(), periodKey:pk, periodLabel:pl}); }   // v2.3 pickKoji=0円工事も候補用に保持
+    if(cls==='土木'){ dep='土木'; const dEnt=parseDoboku(x.grid); const pi=dobokuPeriodInfo(x.grid); const ctag=pi.closeTag||dobokuCloseTag(dEnt); const rng=pi.range;
+      mergeSameMonth({dept:'土木', name:file.name, zip:x.zip, sheetPath:x.sheetPath, sheetXml:x.sheetXml, grid:x.grid, entries:dEnt, pickKoji:parseDobokuPick(x.grid), importedAt:stampDate(), periodKey:pk, periodLabel:pl, closeTag:ctag, closeTags:(ctag?[ctag]:[]), periodRange:rng});
+      toast('取込：'+(pl||'')+(ctag?'　'+ctag+'締め':'')+(rng?'（'+rng+'）':'')+' ／ '+dEnt.length+'件');   // 何日分を入れたか即表示
+    }   // v2.3 pickKoji=0円工事も候補用に保持／closeTags=取り込んだ締め（ファイル単位・予定額0でも記録）
     else if(cls==='弥生'){ dep=/営業/.test(file.name)?'営業':/環境/.test(file.name)?'環境':null;
       if(!dep){ dep = confirm('「'+file.name+'」はどの部門の予定表ですか？\n\nOK ＝ 営業　／　キャンセル ＝ 環境\n（ファイル名に「営業」or「環境」を入れておくと次回から自動判定されます）') ? '営業' : '環境'; }
       mergeSameMonth({dept:dep, name:file.name, grid:x.grid, entries:parseYayoi(x.grid,dep), importedAt:stampDate(), periodKey:pk, periodLabel:pl}); }
@@ -3746,19 +3861,22 @@ function readPlan(file){
     viewMode='予定表'; selDept=dep; selDate=pk?('P'+pk):'latest'; applyPlanSel();   // 取り込んだ部門・対象月を表示（過去は貯まる・予定表/累積→部門→対象月で選べる）
   });
 }
+function _mdKey(ds){ const m=String(ds||'').match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/); if(!m)return null; return {k:m[1]+('0'+m[2]).slice(-2)+('0'+m[3]).slice(-2), md:parseInt(m[2],10)+'/'+parseInt(m[3],10)}; }
+function depDateRange(deps){ let lo=null,hi=null; (deps||[]).forEach(d=>{ const x=_mdKey(d.date); if(!x)return; if(!lo||x.k<lo.k)lo=x; if(!hi||x.k>hi.k)hi=x; }); return lo?(lo.md+(hi.k!==lo.k?'〜'+hi.md:'')):''; }   // 入金日の範囲 M/D〜M/D
 function renderBankFiles(){
-  $('bankFiles').innerHTML=bankFiles.map((b,i)=>'<span class="fchip"><span class="t b">'+esc(b.bank)+'</span>'+esc(b.name)+' <span class="muted">('+b.deposits.length+'入金'+(b.dup?'・重複'+b.dup+'除外':'')+')</span>'+(b.importedAt?' <span class="muted">取込 '+esc(b.importedAt)+'</span>':'')+' <span class="x" data-bdel="'+i+'">×</span></span>').join('');
+  $('bankFiles').innerHTML=bankFiles.map((b,i)=>{ const dr=depDateRange(b.deposits); return '<span class="fchip"><span class="t b">'+esc(b.bank)+'</span>'+esc(b.name)+' <span class="muted">('+b.deposits.length+'入金'+(b.dup?'・重複'+b.dup+'除外':'')+')</span>'+(dr?' <span class="muted">入金日 '+esc(dr)+'</span>':'')+(b.importedAt?' <span class="muted">取込 '+esc(b.importedAt)+'</span>':'')+' <span class="x" data-bdel="'+i+'">×</span></span>'; }).join('');
   const total=bankFiles.reduce((s,b)=>s+b.deposits.length,0);
+  const allRange=depDateRange(bankFiles.flatMap(b=>b.deposits||[]));   // 取り込んだ入金全体の日付範囲
   const imps=bankFiles.flatMap(b=>(b.deposits||[]).map(d=>d.importedAt).concat(b.importedAt||[])).filter(Boolean);
   const lastImp=imps.length?imps.slice().sort().slice(-1)[0]:'';  // 最終取込日（YYYY/MM/DDは辞書順=時系列）
-  $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金</span> <b>'+total+'</b> 件'+(lastImp?' <span class="lastimp">📅 最終取込 '+esc(lastImp)+'</span>':'')+' <span class="muted">（保存済み・重複は自動除外。予定表を入れると照合）</span>'):'';
+  $('bankSum').innerHTML=bankFiles.length?('<span class="k">入金</span> <b>'+total+'</b> 件'+(allRange?' <span class="muted">・入金日 <b>'+esc(allRange)+'</b></span>':'')+(lastImp?' <span class="lastimp">最終取込 '+esc(lastImp)+'</span>':'')+' <span class="muted">（保存済み・重複は自動除外。予定表を入れると照合）</span>'):'';
   const bf=$('bankFold'); if(bf){ bf.style.display=bankFiles.length?'block':'none'; const bl=$('bankFoldLab'); if(bl)bl.textContent='取り込んだファイル '+bankFiles.length+'件'; }
   $('runMatch').disabled=!(bankFiles.length && (planDoboku||planYayoi.length));
   saveBank();
   renderLink();
 }
 function renderPlanFiles(){
-  const chips=planSnaps.map(s=>'<span class="fchip"><span class="t'+(s.dept==='土木'?'':' y')+'">'+esc(s.dept)+'</span>'+(s.periodLabel?'<b>'+esc(s.periodLabel)+'</b> ':'')+esc(s.name)+' <span class="muted">('+s.entries.length+'件'+(s.importedAt?'・取込'+esc(s.importedAt):'')+')</span> <span class="x" data-pdel="'+s.sid+'">×</span></span>');
+  const chips=planSnaps.map(s=>'<span class="fchip"><span class="t'+(s.dept==='土木'?'':' y')+'">'+esc(s.dept)+'</span>'+(s.periodLabel?'<b>'+esc(s.periodLabel)+'</b> ':'')+(s.dept==='土木'?_closeChipLabel(s):'')+esc(s.name)+' <span class="muted">('+s.entries.length+'件'+(s.importedAt?'・取込'+esc(s.importedAt):'')+')</span> <span class="x" data-pdel="'+s.sid+'">×</span></span>');
   if(tokuiInfo&&tokuiMaster.length){ chips.push('<span class="fchip"><span class="t">得意先</span><b>マスタ</b> <span class="muted">('+tokuiMaster.length+'件・名前で自動確定'+(tokuiInfo.importedAt?'・取込'+esc(tokuiInfo.importedAt):'')+')</span> <span class="x" data-tdel="1">×</span></span>'); }
   $('planFiles').innerHTML=chips.join('');
   const de=planSnaps.filter(s=>s.dept==='土木').reduce((a,s)=>a+s.entries.length,0), ye=planSnaps.filter(s=>s.dept!=='土木').reduce((a,s)=>a+s.entries.length,0);
@@ -3768,6 +3886,40 @@ function renderPlanFiles(){
   savePlan();
   renderLink();
   renderPlanSelector();
+  renderCloseMatrix();
+}
+/* チップ用：土木スナップに含まれる締めタグ＋期間（1締めなら期間も）を小さく表示 */
+function _closeChipLabel(s){ const tags=snapCloseTags(s); if(!tags.length) return ''; const r=(tags.length===1&&s.periodRange)?('（'+s.periodRange+'）'):''; return '<span class="shime">'+tags.join('・')+'締'+r+'</span> '; }
+/* 会計期：6月決算＝7月〜翌6月が1期。periodKey(YYYYMM)→期（終わる年の「○年6月期」） */
+function fiscalOf(periodKey){ const m=String(periodKey||'').match(/^(\d{4})(\d{2})$/); if(!m) return null;
+  const y=+m[1], mo=+m[2]; const endY = mo>=7 ? y+1 : y;   // 7〜12月は翌年6月で締める期
+  return { endY, key:'FY'+endY, label:endY+'年6月期', span:String(endY-1).slice(2)+'年7月〜'+String(endY).slice(2)+'年6月' };
+}
+/* 予定表の〆チェック：土木スナップを「終了日の月（○月分）」でまとめ、締日から4サイクルの取込有無を表示。さらに「期（6月決算）」でグループ化し、現在の期だけ開く＝何年使っても広がらない */
+function renderCloseMatrix(){
+  const box=$('closeMatrixBox'); if(!box) return;
+  const months={};
+  planSnaps.filter(s=>s.dept==='土木').forEach(s=>{
+    const key=s.periodKey||('I'+(s.importedAt||''));
+    if(!months[key]) months[key]={label:(s.periodLabel||s.name||'月不明'), sort:(s.periodKey||s.importedAt||''), periodKey:(s.periodKey||''), tags:{}};
+    snapCloseTags(s).forEach(t=>{ months[key].tags[t]=1; });
+  });
+  const rows=Object.values(months).filter(r=>Object.keys(r.tags).length).sort((a,b)=> a.sort<b.sort?1:(a.sort>b.sort?-1:0));   // 締日が読めないスナップ（旧形式）は除外・新しい月順
+  if(!rows.length){ box.style.display='none'; return; }
+  box.style.display='';
+  const latest=rows[0], latestMiss=CLOSE_TAGS.filter(t=>!latest.tags[t]);
+  const sum=$('closeMatrixSum'); if(sum) sum.textContent=latest.label+'は '+(4-latestMiss.length)+'/4'+(latestMiss.length?('・'+latestMiss.join('/')+' が未取込'):'・全部そろい');
+  // 期でグループ化
+  const fy={};
+  rows.forEach(r=>{ const f=fiscalOf(r.periodKey)||{key:'other',label:'その他',span:'',endY:0}; if(!fy[f.key]) fy[f.key]={info:f, rows:[]}; fy[f.key].rows.push(r); });
+  const fyList=Object.values(fy).sort((a,b)=> (b.info.endY||0)-(a.info.endY||0));   // 新しい期が上
+  const tbl=g=>'<div class="cmwrap"><table class="cmtable"><thead><tr><th class="mon">月</th>'+CLOSE_TAGS.map(t=>'<th>'+t+'</th>').join('')+'</tr></thead><tbody>'
+    +g.rows.map(r=>'<tr><td class="mon">'+esc(r.label)+'</td>'+CLOSE_TAGS.map(t=> r.tags[t]?'<td><span class="cv ok">✓</span></td>':'<td><span class="cv miss">未</span></td>').join('')+'</tr>').join('')
+    +'</tbody></table></div>';
+  let h='';
+  fyList.forEach((g,gi)=>{ h+='<details class="fy"'+(gi===0?' open':'')+'><summary><b>'+esc(g.info.label)+'</b>'+(g.info.span?' <span class="fysub">'+esc(g.info.span)+'</span>':'')+' <span class="fycnt">'+g.rows.length+'ヶ月</span></summary>'+tbl(g)+'</details>'; });
+  h+='<div class="cmfoot">緑✓＝取込済／<span class="miss">アンバー未＝未取込</span>。終了日の月で「○月分」、締日で4サイクルを判定。<b>6月決算</b>＝7月〜翌6月を1期にまとめ、古い期は畳んでいます。</div>';
+  const inner=$('closeMatrix'); if(inner) inner.innerHTML=h;
 }
 $('bankFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-bdel]'); if(d){ bankFiles.splice(+d.dataset.bdel,1); renderBankFiles(); results=[]; render(); scheduleSync(); } });
 $('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pdel]'); if(d){ const sid=d.dataset.pdel; planSnaps=planSnaps.filter(s=>s.sid!==sid); selDate='latest'; applyPlanSel(); renderPlanFiles(); results=[]; render(); scheduleSync(); return; }
@@ -4094,7 +4246,7 @@ function preloadReal(){
 
 const DEMO=false;  // ← 実運用版：空スタート＋GAS自動接続（サンプルは読み込まない）。UI確認用のサンプル入りは別ファイル(リッチUI)。
 if(DEMO){ loadDemo(); }
-else if(true){ try{ preloadReal(); }catch(e){ console.error('preload',e); } }
+else if(false){ try{ preloadReal(); }catch(e){ console.error('preload',e); } }  // 本番：検証用プリロードは無効
 else {
   try{ master=JSON.parse(localStorage.getItem(MKEY)||'{}')||{}; }catch(e){ master={}; }
   Object.keys(master).forEach(k=>{ if(typeof master[k]==='string') master[k]=[master[k]]; if(!Array.isArray(master[k])) master[k]=[]; });  // 旧形式(文字列)→配列に移行
