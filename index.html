@@ -674,6 +674,57 @@ body{background:var(--paper) !important;}
 .btn:hover{transform:none !important;}
 .step:hover{transform:none !important;}
 </style>
+<style id="meigi-skin">
+/* ===== 名義タブ：未登録の振込名義を1件ずつ確認して覚えさせる（スワイプ＋気持ちいいテンポ） ===== */
+#pane-meigi .mg-hd{display:flex;align-items:flex-end;gap:12px;margin:2px 0 4px;}
+#pane-meigi .mg-hd h2{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em;}
+#pane-meigi .mg-rest{margin-left:auto;font-size:13px;color:var(--muted);font-weight:700;}
+#pane-meigi .mg-rest b{font-size:24px;color:var(--ink);font-variant-numeric:tabular-nums;display:inline-block;}
+#pane-meigi .mg-rest b.bump{animation:mgbump .45s cubic-bezier(.2,1.7,.4,1);}
+@keyframes mgbump{0%{transform:scale(1)}45%{transform:scale(1.45);color:var(--ok)}100%{transform:scale(1)}}
+#pane-meigi .mg-bar{height:8px;background:var(--line2);border-radius:999px;overflow:hidden;margin:6px 0 4px;}
+#pane-meigi .mg-bar>i{display:block;height:100%;background:var(--ac);border-radius:999px;transition:width .5s cubic-bezier(.2,.8,.2,1);}
+#pane-meigi .mg-lead{font-size:12.5px;color:var(--muted);margin:0 0 6px;} #pane-meigi .mg-lead b{color:var(--ink2);}
+#pane-meigi .mg-swipe{font-size:11.5px;color:var(--muted);text-align:center;margin:0 0 10px;} #pane-meigi .mg-swipe b{color:var(--ac2);} #pane-meigi .mg-swipe .l{color:var(--muted2);}
+#pane-meigi .mg-stage{position:relative;min-height:300px;max-width:560px;margin:0 auto;touch-action:none;}
+#pane-meigi .mg-ghost{position:absolute;left:0;right:0;top:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .35s;}
+#pane-meigi .mg-ghost.g1{transform:translateY(13px) scale(.955);opacity:.55;height:270px;z-index:1;}
+#pane-meigi .mg-ghost.g2{transform:translateY(24px) scale(.915);opacity:.3;height:270px;z-index:0;}
+#pane-meigi .mg-card{position:relative;z-index:3;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--ok);border-radius:16px;padding:19px 19px 17px;box-shadow:0 12px 34px -16px rgba(20,28,40,.38);cursor:grab;user-select:none;}
+#pane-meigi .mg-card:active{cursor:grabbing;}
+#pane-meigi .mg-card.near{border-top-color:var(--warn-line);}
+#pane-meigi .mg-top{font-size:12px;color:var(--muted);}
+#pane-meigi .mg-name{font-size:23px;font-weight:800;letter-spacing:-.02em;margin:3px 0 2px;}
+#pane-meigi .mg-meta{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;} #pane-meigi .mg-meta .amt{color:var(--ink);font-weight:800;font-size:14px;}
+#pane-meigi .mg-guess{margin:14px 0 4px;padding:13px 14px;background:var(--ok-bg);border:1px solid color-mix(in srgb,var(--ok) 32%,var(--line));border-radius:12px;}
+#pane-meigi .mg-card.near .mg-guess{background:var(--warn-bg);border-color:var(--warn-line);}
+#pane-meigi .mg-gl{font-size:11.5px;color:var(--ok);font-weight:800;margin-bottom:3px;} #pane-meigi .mg-card.near .mg-gl{color:var(--warn);}
+#pane-meigi .mg-to{font-size:17px;font-weight:800;color:var(--ink);letter-spacing:-.01em;}
+#pane-meigi .mg-wk{font-size:12.5px;color:var(--ink2);margin-top:1px;} #pane-meigi .mg-wk .cd{color:var(--muted);font-size:11px;}
+#pane-meigi .mg-why{font-size:12px;color:var(--ok);font-weight:700;margin-top:6px;} #pane-meigi .mg-card.near .mg-why{color:var(--warn);}
+#pane-meigi .mg-stamp{position:absolute;top:16px;padding:5px 13px;border-radius:9px;font-size:15px;font-weight:900;border:2.5px solid;opacity:0;transition:opacity .12s;z-index:6;pointer-events:none;}
+#pane-meigi .mg-stamp.ok{right:16px;color:var(--ok);border-color:var(--ok);transform:rotate(11deg);}
+#pane-meigi .mg-stamp.skip{left:16px;color:var(--muted);border-color:var(--muted2);transform:rotate(-11deg);}
+#pane-meigi .mg-acts{display:flex;gap:9px;margin-top:15px;}
+#pane-meigi .mg-btn{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--ink2);border-radius:11px;padding:12px 10px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:.12s;}
+#pane-meigi .mg-btn:hover{border-color:var(--ac);} #pane-meigi .mg-btn:active{transform:scale(.96);}
+#pane-meigi .mg-btn.go{background:var(--ok);border-color:var(--ok);color:#fff;flex:1.6;} #pane-meigi .mg-btn.go:hover{filter:brightness(1.07);}
+#pane-meigi .mg-btn.sub{flex:.8;color:var(--muted);}
+#pane-meigi .mg-card.enter{animation:mgenter .32s cubic-bezier(.2,.9,.3,1);}
+@keyframes mgenter{from{transform:translateY(20px) scale(.95);opacity:0;}to{transform:none;opacity:1;}}
+#pane-meigi .mg-flash{position:absolute;inset:0;border-radius:16px;background:var(--ok);opacity:0;z-index:5;pointer-events:none;display:grid;place-items:center;}
+#pane-meigi .mg-flash.on{animation:mgflash .55s ease;}
+#pane-meigi .mg-flash .ck{width:58px;height:58px;border-radius:999px;background:#fff;color:var(--ok);display:grid;place-items:center;font-size:30px;font-weight:900;}
+@keyframes mgflash{0%{opacity:0}18%{opacity:.95}100%{opacity:0}}
+.mg-confetti{position:fixed;width:9px;height:9px;z-index:200;pointer-events:none;border-radius:2px;}
+#pane-meigi .mg-done{text-align:center;padding:40px 20px;animation:mgenter .45s cubic-bezier(.2,.9,.3,1);max-width:560px;margin:0 auto;}
+#pane-meigi .mg-ring{width:86px;height:86px;border-radius:999px;background:var(--ok-bg);border:2px solid var(--ok);color:var(--ok);display:grid;place-items:center;font-size:42px;font-weight:900;margin:0 auto 14px;animation:mgpop .55s cubic-bezier(.2,1.7,.4,1);}
+@keyframes mgpop{0%{transform:scale(.2) rotate(-18deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+#pane-meigi .mg-done h2{margin:0 0 6px;font-size:20px;font-weight:800;} #pane-meigi .mg-done p{margin:0;font-size:13px;color:var(--muted);}
+#pane-meigi .mg-done .gocollect{margin-top:16px;border:1px solid var(--line);background:var(--panel);color:var(--ac2);border-radius:10px;padding:9px 16px;font:inherit;font-weight:800;cursor:pointer;}
+.maintabs .mtab-meigi{border-color:var(--warn-line);}
+.maintabs .mtab-meigi.on{border-color:var(--ac);}
+</style>
 </head>
 <body>
 <header>
@@ -700,6 +751,7 @@ body{background:var(--paper) !important;}
     <span class="msep">›</span>
     <button class="mtab" data-pane="shutsuryoku">出力</button>
     <span class="mspacer"></span>
+    <button class="mtab mtab-meigi" data-pane="meigi">名義 <span class="mcnt warn" id="mcMeigi"></span></button>
     <button class="mtab setbtn" id="openMaster">⚙ 設定</button>
   </nav>
 
@@ -809,6 +861,18 @@ body{background:var(--paper) !important;}
     </div>
   </div>
   </section><!-- /pane-shutsuryoku -->
+
+  <!-- ===== ペイン：名義（未登録の振込名義を1件ずつ確認して覚えさせる） ===== -->
+  <section class="mpane" id="pane-meigi">
+    <div class="mg-hd"><h2>名義を覚えさせる</h2><span class="mg-rest">残り <b id="mgRest">0</b></span></div>
+    <div class="mg-bar"><i id="mgBar" style="width:0%"></i></div>
+    <p class="mg-lead"><b>銀行の入金</b>のうち、まだ請求先が分からない名義です。<b>予定表</b>（＝どっと原価の名前）から、金額の合う相手を候補で出します。1件ずつ確認＝覚えると、来月から自動になります。</p>
+    <p class="mg-swipe"><span class="l">← 後で</span>　　カードをスワイプ or ボタン　　<b>覚える →</b></p>
+    <div class="mg-stage" id="mgStage">
+      <div class="mg-ghost g2"></div><div class="mg-ghost g1"></div>
+      <div id="mgHost"></div>
+    </div>
+  </section><!-- /pane-meigi -->
 
   <!-- ===== 引き出し：要確認（消込） ===== -->
   <div class="scrim" id="scrim"></div>
@@ -2497,6 +2561,7 @@ function render(){
   if(_rvb&&_rvl){ if(totalReview){ _rvb.classList.remove('clear'); _rvl.innerHTML='⚠️ 要確認 <b>'+totalReview+'</b> 件 → 処理する'; } else { _rvb.classList.add('clear'); _rvl.textContent='✓ 要確認はありません'; } }
   // v1.0 外枠タブのバッジ（消込＝要確認件数／取込＝銀行ファイル数）。表示だけ・精度には無関係
   const _mcs=document.getElementById('mcShokomi'); if(_mcs){ _mcs.textContent=totalReview?('要確認 '+totalReview):''; }
+  try{ updateMeigi(); }catch(e){}   // 名義タブのバッジ＆カードを更新
   const _mct=document.getElementById('mcTorikomi'); if(_mct){ const _bf=(typeof bankFiles!=='undefined'&&bankFiles)?bankFiles.length:0; _mct.textContent=_bf?String(_bf):''; }
   const depLabel = deptTab==='all'?'全部':deptTab==='share'?'一本の振込':deptTab==='nodept'?'未分類':deptTab;
   $('matchInfo').textContent=depLabel+'：未処理 '+pending.length+'／消込済み '+done.length+(ign.length?('／対象外 '+ign.length):'')+'　（全体 '+results.length+'件）';
@@ -3006,6 +3071,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
   function showPane(p){
     panes.forEach(x=>x.classList.toggle('on', x.id==='pane-'+p));
     tabs.forEach(x=>x.classList.toggle('on', x.dataset.pane===p));
+    if(p==='meigi'){ try{ renderMeigi(); }catch(_){} }
     try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(_){}
   }
   tabs.forEach(t=>t.addEventListener('click',()=>showPane(t.dataset.pane)));
@@ -3921,6 +3987,58 @@ function renderCloseMatrix(){
   h+='<div class="cmfoot">緑✓＝取込済／<span class="miss">アンバー未＝未取込</span>。終了日の月で「○月分」、締日で4サイクルを判定。<b>6月決算</b>＝7月〜翌6月を1期にまとめ、古い期は畳んでいます。</div>';
   const inner=$('closeMatrix'); if(inner) inner.innerHTML=h;
 }
+
+/* ===== 名義タブ：未登録の振込名義を1件ずつ確認して覚えさせる（候補＝予定表＝どっと原価名。確定＝confirmMatchで消込＋名義学習＋共有） ===== */
+let meigiSkip=new Set();   // このセッションで「後で/違う」したキー（次回また出す）
+let _mgBusy=false, _mgDone=0;
+function mgYen(n){ return '¥'+(Number(n)||0).toLocaleString('ja-JP'); }
+function meigiQueue(){ return (results||[]).filter(function(r){ return r.status==='review' && !isMulti(r) && !isShared(r) && !looksExcluded(r) && !meigiSkip.has(r.key) && reviewDiff(r)<=1 && bestCand(r); }); }   // 「ほぼ確定（候補1件）」で名義を教えれば消込できるものだけ
+function updateMeigi(){ try{ const q=meigiQueue(); const el=document.getElementById('mcMeigi'); if(el) el.textContent=q.length?String(q.length):''; const p=document.getElementById('pane-meigi'); if(p&&p.classList.contains('on')) renderMeigi(); }catch(e){} }
+function meigiConfetti(x,y){ const cols=['#2f6df0','#17825a','#e0a92f','#6f8cf6','#34c48a']; for(let i=0;i<22;i++){ const el=document.createElement('div'); el.className='mg-confetti'; el.style.left=x+'px'; el.style.top=y+'px'; el.style.background=cols[i%cols.length]; if(i%2)el.style.borderRadius='999px'; document.body.appendChild(el); const ang=Math.random()*Math.PI*2, dist=70+Math.random()*120, ddx=Math.cos(ang)*dist, ddy=Math.sin(ang)*dist-40, rot=(Math.random()*720-360); try{ el.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:'translate('+ddx+'px,'+(ddy+140)+'px) rotate('+rot+'deg)',opacity:0}],{duration:750+Math.random()*350,easing:'cubic-bezier(.2,.7,.3,1)'}).onfinish=function(){el.remove();}; }catch(_){ setTimeout(function(){el.remove();},900);} } }
+function bindMeigiDrag(){ const card=document.getElementById('mgCard'); if(!card) return; let sx=0,sy=0,dragging=false,dx=0; const stOk=document.getElementById('mgStOk'), stSkip=document.getElementById('mgStSkip');
+  card.addEventListener('pointerdown',function(e){ if(e.target.closest('.mg-btn'))return; dragging=true; sx=e.clientX; sy=e.clientY; card.style.transition='none'; try{card.setPointerCapture(e.pointerId);}catch(_){} });
+  card.addEventListener('pointermove',function(e){ if(!dragging)return; dx=e.clientX-sx; const dy=e.clientY-sy; card.style.transform='translate('+dx+'px,'+dy*.25+'px) rotate('+dx*.05+'deg)'; if(stOk)stOk.style.opacity=Math.max(0,Math.min(1,dx/90)); if(stSkip)stSkip.style.opacity=Math.max(0,Math.min(1,-dx/90)); });
+  card.addEventListener('pointerup',function(){ if(!dragging)return; dragging=false; if(dx>95){ meigiCommit(1); } else if(dx<-95){ meigiCommit(0); } else { card.style.transition='transform .25s cubic-bezier(.2,.9,.3,1)'; card.style.transform=''; if(stOk)stOk.style.opacity=0; if(stSkip)stSkip.style.opacity=0; } dx=0; });
+}
+function renderMeigi(){ const host=document.getElementById('mgHost'); if(!host) return;
+  const q=meigiQueue(); const rest=q.length; const total=_mgDone+rest;
+  const rb=document.getElementById('mgRest'); if(rb) rb.textContent=rest;
+  const bar=document.getElementById('mgBar'); if(bar) bar.style.width=(total?Math.round(_mgDone/total*100):0)+'%';
+  if(rest===0){
+    host.innerHTML='<div class="mg-done"><div class="mg-ring">✓</div><h2>'+(_mgDone?'全部おぼえた！':'今は確認する名義はありません')+'</h2><p>'+(_mgDone?('この <b>'+_mgDone+'</b> 件は来月から自動で請求先に紐づきます。要確認もそのぶん減ります。'):'銀行と予定表を取り込むと、未登録の名義がここに出ます。')+'</p>'+(_mgDone?'<button class="gocollect" onclick="window._showPane&&window._showPane(\'shokomi\')">消込を見る</button>':'')+'</div>';
+    document.querySelectorAll('#pane-meigi .mg-ghost').forEach(function(g){g.style.opacity='0';});
+    if(_mgDone){ try{ const st=document.getElementById('mgStage').getBoundingClientRect(); for(let k=0;k<3;k++) setTimeout(function(){meigiConfetti(st.left+st.width*(.25+k*.25), st.top+40);},k*160); }catch(_){} }
+    return;
+  }
+  document.querySelectorAll('#pane-meigi .mg-ghost').forEach(function(g){g.style.opacity='';});
+  const r=q[0], b=bestCand(r), e=b.e, near=b.near, d=r.d;
+  host.innerHTML='<div class="mg-card '+(near?'near':'')+' enter" id="mgCard">'+
+    '<div class="mg-flash" id="mgFlash"><div class="ck">✓</div></div>'+
+    '<div class="mg-stamp ok" id="mgStOk">覚える</div><div class="mg-stamp skip" id="mgStSkip">後で</div>'+
+    '<div class="mg-top">銀行に来た名義</div>'+
+    '<div class="mg-name">'+esc(d.name||'')+'</div>'+
+    '<div class="mg-meta"><span class="amt">'+mgYen(d.amount)+'</span> ・ '+esc(d.date||'')+' ・ '+esc(d.bank||'')+'</div>'+
+    '<div class="mg-guess"><div class="mg-gl">'+(near?'予定表から（手数料ぶん少ない）':'予定表から・たぶんこの相手')+'</div>'+
+      '<div class="mg-to">'+esc(e.請求先||'')+'</div>'+
+      '<div class="mg-wk">'+esc(e.工事名||'')+(e.工事番号?' <span class="cd">'+esc(e.工事番号)+'</span>':'')+'</div>'+
+      '<div class="mg-why">'+(near?('✓ 振込 '+mgYen(d.amount)+' ＋ 手数料 '+mgYen(Math.max(0,planAmt(e)-d.amount))+' ＝ 予定 '+mgYen(planAmt(e))):'✓ 金額がぴったり合う請求が1件')+'</div>'+
+    '</div>'+
+    '<div class="mg-acts"><button class="mg-btn go" onclick="meigiCommit(1)">これ！覚える</button><button class="mg-btn" onclick="meigiCommit(0)">違う</button><button class="mg-btn sub" onclick="meigiCommit(0)">後で</button></div>'+
+  '</div>';
+  bindMeigiDrag();
+}
+function meigiCommit(ok){ if(_mgBusy) return; _mgBusy=true; const q=meigiQueue(); const r=q[0], card=document.getElementById('mgCard');
+  if(!r||!card){ _mgBusy=false; return; }
+  card.style.transition='transform .42s cubic-bezier(.4,0,.2,1), opacity .42s';
+  if(ok){ const b=bestCand(r); const f=document.getElementById('mgFlash'); if(f) f.classList.add('on');
+    try{ const rc=card.getBoundingClientRect(); meigiConfetti(rc.left+rc.width/2, rc.top+rc.height/2); }catch(_){}
+    card.style.transform='translateX(130%) rotate(10deg)'; card.style.opacity='0';
+    setTimeout(function(){ _mgDone++; try{ confirmMatch(r,b.e,b.near); }catch(e){} _mgBusy=false; renderMeigi(); }, 430);
+  } else { meigiSkip.add(r.key); card.style.transform='translateX(-130%) rotate(-10deg)'; card.style.opacity='0';
+    setTimeout(function(){ _mgBusy=false; renderMeigi(); }, 420);
+  }
+}
+window.meigiCommit=meigiCommit; window.renderMeigi=renderMeigi;
 $('bankFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-bdel]'); if(d){ bankFiles.splice(+d.dataset.bdel,1); renderBankFiles(); results=[]; render(); scheduleSync(); } });
 $('planFiles').addEventListener('click',e=>{ const d=e.target.closest('[data-pdel]'); if(d){ const sid=d.dataset.pdel; planSnaps=planSnaps.filter(s=>s.sid!==sid); selDate='latest'; applyPlanSel(); renderPlanFiles(); results=[]; render(); scheduleSync(); return; }
   const t=e.target.closest('[data-tdel]'); if(t){ if(!confirm('取り込んだ得意先マスタを消しますか？（名前での自動確定が無効になります）'))return; tokuiMaster=[]; tokuiInfo=null; _inPlanSet=null; saveTokui(); renderPlanFiles(); results=[]; autoMatch(); render(); } });
