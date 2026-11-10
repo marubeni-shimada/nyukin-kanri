@@ -2995,7 +2995,8 @@ function _atLine(r){ const c=confirmed[r.key]; if(!c||!c.at) return '';
 
 function confirmMatch(r,entry,near){
   const d=r.d; const fee=Math.max(0, planAmt(entry)-d.amount);
-  confirmed[depKey(d)]={at:Date.now(),payee:entry.請求先,type:entry.type,row:entry.row||null,code:entry.code||null,dept:entry.dept||null,工事番号:entry.工事番号||null,工事名:entry.工事名||null,fee:near?fee:0};
+  let _cross=false; try{ _cross = !allEntries().some(function(e){ return _eid(e)===_eid(entry); }); }catch(_e){}   // 選択中の月に無い予定（別月の候補）を確定した場合＝findEntryが選択月しか見ないので全月で解決できるようcross記録に（名義タブ/要確認で別月候補を確定しても消込が外れない）
+  confirmed[depKey(d)]={at:Date.now(),payee:entry.請求先,type:entry.type,row:entry.row||null,code:entry.code||null,dept:entry.dept||null,工事番号:entry.工事番号||null,工事名:entry.工事名||null,fee:near?fee:0,cross:_cross||undefined};
   addMaster(d.name,entry.請求先); saveConfirmed(); renderMaster(); pushMaster(); runMatch();
   try{ const _k=depKey(d), _w=(entry.請求先||'')+(entry.工事名?('／'+entry.工事名):'');
     toastUndo('✓ <b>'+esc(_w)+'</b> に消し込みました　<span style="opacity:.8">→ 「消込済み」タブにあります</span>', _k);
