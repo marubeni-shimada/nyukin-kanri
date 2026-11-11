@@ -134,6 +134,8 @@
 .rc .cbhead.act td{background:#fdf3e3}
 .rc .cbhead.none td{background:#f3f5f9}
 .rc .cbhead.ok td{background:#eef7f2}
+.rc .cbhead.pdhead td{background:var(--ac-soft,#eef2fe)}
+@media (prefers-color-scheme:dark){ .rc .cbhead.pdhead td{background:var(--ac-soft,#13203a)} }
 .rc .cbhead .cbl{font-size:13.5px;font-weight:800;color:var(--ink)}
 .rc .cbhead .cbc{font-size:12px;font-weight:800;color:var(--ink);background:#fff;border:1px solid var(--line2);border-radius:999px;padding:1px 9px;margin-left:9px}
 .rc .cbhead .cbh{font-size:11.5px;color:var(--muted);margin-left:12px;font-weight:600}
@@ -826,6 +828,7 @@ body{background:var(--paper) !important;}
       <select id="viewMode" class="planselect"><option value="予定表">予定表（1枚）</option><option value="累積">累積（その部門の全部）</option></select>
       <span class="scope-sub">部門</span> <select id="selDept" class="planselect"></select>
       <span id="dateWrap"><span class="scope-sub">対象月</span> <select id="selDate" class="planselect"></select></span>
+      <span class="scope-sub">並び</span> <select id="collectSort" class="planselect" title="並び順"><option value="period" selected>期間ごと</option><option value="priority">優先</option></select>
       <button type="button" id="sheetViewBtn" class="svbtn" title="元のExcel予定表そのままの並びに回収状況を重ねて、別タブで開きます">📄 予定表ビュー <span style="font-weight:400;opacity:.7">↗ 別タブ</span></button>
     </div>
     <div class="cksummary" id="collectSum"></div>
@@ -3083,7 +3086,7 @@ function setHeadH(){ const hd=document.querySelector('header'); if(hd) document.
 setHeadH(); window.addEventListener('resize',setHeadH); window.addEventListener('load',setHeadH);
 
 /* ===== 回収チェック（予定ベース：予定に対して回収できたか・未入金を見える化） ===== */
-let collectDept='all', collectOnlyNG=false, collectMonth='all', collectStatus='all';
+let collectDept='all', collectOnlyNG=false, collectMonth='all', collectStatus='all', collectSort='period';   // collectSort: period=回収期間ごと（土木の締日・既定） / priority=優先バケット
 let collectOpen=new Set();   // 入金確認一覧：行クリックで開いている詳細（グループキーで保持）
 /* ===== 予定表を貯める（部門×取込日）＋2軸セレクタ ===== */
 let planSnaps=[];        // 取り込んだ予定表を貯める（上書きせず履歴を残す）
@@ -3498,6 +3501,17 @@ function tendencyLabel(t){ if(!t)return ''; const a=[]; if(t.souSai)a.push('相�
 /* 予定表スナップの対象月（「〜月分」表示用） */
 function _snapById(sid){ for(let i=0;i<planSnaps.length;i++) if(planSnaps[i].sid===sid) return planSnaps[i]; return null; }
 function periodLabelOf(e){ try{ if(e&&e.snapId){ const s=_snapById(e.snapId); if(s&&s.periodLabel) return s.periodLabel; } }catch(_){} return ''; }
+/* 入金状況「並び：期間ごと」用＝グループの土木締日から回収期間(例 8/16〜9/15)と並び順を出す */
+function collectPeriodOf(g){
+  const e=(g&&g.plans||[]).find(x=>x&&x.type==='土木'&&x.締日); if(!e) return null;
+  const tag=closeTagOf(e.締日); if(!tag) return null;
+  let y=0,m=0; const md=String(selDate||'').match(/(\d{4})(\d{2})/); if(md){y=+md[1];m=+md[2];}
+  if(!m){ const pl=periodLabelOf(e); const pm=String(pl).match(/(\d+)年(\d+)月/); if(pm){ y=2000+(+pm[1]); m=+pm[2]; } }
+  const n=parseInt(String(e.締日).replace(/[^0-9]/g,''),10);
+  let range='';
+  if(m){ if(n>=28||n===31){ const last=new Date(y||2000,m,0).getDate(); range=m+'/1〜'+m+'/'+last; } else { let sm=m-1; if(sm<1){sm=12;} range=sm+'/'+(n+1)+'〜'+m+'/'+n; } }   // 15/20/25=前月(締日+1)〜当月締日、末=当月1〜末
+  return { tag:tag, range:range, order:CLOSE_TAGS.indexOf(tag) };
+}
 function renderCollect(){
   const host=$('collectBody'); if(!host) return;
   whyStore=[];
@@ -3553,7 +3567,12 @@ function renderCollect(){
   const _bhint={act:'入金があるのに、まだどの請求か確定していません',none:'請求したが、まだお金が入っていません',ok:'入金と請求が合っています。見なくて大丈夫です'};
   const _bcnt={}; list.forEach(g=>{ const k=_cbk(g); _bcnt[k]=(_bcnt[k]||0)+1; });
   let _curB=null, _curCo=null;   // v2.1 見やすさ：優先グループ内で会社が変わる所に区切り線（会社ごとにまとまって見える）
-  list.sort((a,b)=>(_bord[_cbk(a)]-_bord[_cbk(b)]) || _coOf(a).localeCompare(_coOf(b),'ja') || (_pri(b)-_pri(a)) || (ord[a.st]-ord[b.st]) || (b.zan-a.zan));   // v2.1 優先バケット→【会社ごと】→一本振込/未確認→状態→残
+  const usePeriod=(collectSort==='period') && list.some(g=>collectPeriodOf(g));   // 回収期間ごとに区切る（土木の締日）。期間が1つも出せない（弥生のみ等）ときは自動で優先バケットに戻す
+  const _pdInfo={};
+  if(usePeriod){ list.forEach(g=>{ const p=collectPeriodOf(g); const key=p?p.tag:'__none'; if(!_pdInfo[key]) _pdInfo[key]={range:p?p.range:'',order:p?p.order:99,n:0,ok:0,check:0,none:0}; const inf=_pdInfo[key]; inf.n++; const cb=csBucket(g); if(cb==='ok')inf.ok++; else if(cb==='check')inf.check++; else inf.none++; }); }
+  const _pord=g=>{ const p=collectPeriodOf(g); return p?p.order:99; };
+  if(usePeriod) list.sort((a,b)=> (_pord(a)-_pord(b)) || _coOf(a).localeCompare(_coOf(b),'ja') || (ord[a.st]-ord[b.st]) || (b.zan-a.zan));
+  else list.sort((a,b)=>(_bord[_cbk(a)]-_bord[_cbk(b)]) || _coOf(a).localeCompare(_coOf(b),'ja') || (_pri(b)-_pri(a)) || (ord[a.st]-ord[b.st]) || (b.zan-a.zan));   // v2.1 優先バケット→【会社ごと】→一本振込/未確認→状態→残
   const LAB={ok:'✓ 一致',fee:'手数料差',part:'一部入金',none:'未入金',extra:'予定外',multi:'✓ 合算で一致',over:'過入金'};
   if(!list.length){ host.innerHTML='<div class="empty">該当なし（部門タブ／絞り込みを変えてください）</div>'; return; }
   let h='<div class="twrap"><table class="rc"><thead>'
@@ -3561,7 +3580,8 @@ function renderCollect(){
     +'<tr><th>部門・請求先／工事</th><th class="num">予定額</th><th class="ctr">状態</th><th>振込名義・日付</th><th class="num">入金額</th><th class="num">残</th></tr>'
     +'</thead><tbody>';
   list.forEach((g,gi)=>{
-    { const _b=_cbk(g); if(_b!==_curB){ _curB=_b; _curCo=null; h+='<tr class="cbhead '+_b+'"><td colspan="6"><span class="cbl">'+_blab[_b]+'</span>'+(_b==='act'?'':'<span class="cbc">'+(_bcnt[_b]||0)+'件</span>')+'<span class="cbh">'+_bhint[_b]+'</span></td></tr>'; } }   // v2.1 数字一本化：処理する件数はアクションバー「要確認 N件→処理する」を主に、一覧の「まず確認する」は件数バッジを外す（2つの違う数字の食い違い解消）
+    if(usePeriod){ const _p=collectPeriodOf(g); const _pt=_p?_p.tag:'__none'; if(_pt!==_curB){ _curB=_pt; _curCo=null; const inf=_pdInfo[_pt]||{}; const hint=(inf.ok?('済 '+inf.ok):'')+(inf.check?('　<b style="color:var(--warn)">要確認 '+inf.check+'</b>'):'')+(inf.none?('　未入金 '+inf.none):''); h+='<tr class="cbhead pdhead"><td colspan="6"><span class="cbl">'+(_p?esc(_p.range):'期間なし')+'</span><span class="cbc">'+(inf.n||0)+'件</span><span class="cbh">'+hint+'</span></td></tr>'; } }   // 回収期間ごとの見出し（締日から算出）
+    else { const _b=_cbk(g); if(_b!==_curB){ _curB=_b; _curCo=null; h+='<tr class="cbhead '+_b+'"><td colspan="6"><span class="cbl">'+_blab[_b]+'</span>'+(_b==='act'?'':'<span class="cbc">'+(_bcnt[_b]||0)+'件</span>')+'<span class="cbh">'+_bhint[_b]+'</span></td></tr>'; } }   // v2.1 数字一本化：処理する件数はアクションバー「要確認 N件→処理する」を主に、一覧の「まず確認する」は件数バッジを外す（2つの違う数字の食い違い解消）
     const _co=_coOf(g); const _coSep=(_curCo!==null && _co!==_curCo); _curCo=_co;   // v2.1 会社が変わったら区切り線（各グループ先頭は線なし）
     const rows=Math.max(1, g.plans.length);
     const gkey=g.denbaiKey||('gi'+gi), gopen=collectOpen.has(gkey);   // 行クリックで開く詳細のキー＝突合済みd:/予定e:（保留はindex）
@@ -3622,6 +3642,7 @@ function renderCollect(){
 document.getElementById('collectTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; collectDept=b.dataset.ck; document.querySelectorAll('#collectTabs button').forEach(x=>x.classList.toggle('on',x===b)); renderCollect(); });
 document.getElementById('sheetViewBtn').addEventListener('click',openSheetView);
 document.getElementById('collectStatus').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; collectStatus=b.dataset.cs; document.querySelectorAll('#collectStatus button').forEach(x=>x.classList.toggle('on',x===b)); renderCollect(); });
+(function(){ var el=document.getElementById('collectSort'); if(el) el.addEventListener('change',function(e){ collectSort=e.target.value; renderCollect(); }); })();   // 並び：優先／期間ごと
 /* 🅑 一覧の「🔗一本振込あり」→クリックで一本の振込タブの内訳へジャンプ */
 document.getElementById('collectBody').addEventListener('click',e=>{
   const b=e.target.closest('[data-goshare]'); if(!b)return;
