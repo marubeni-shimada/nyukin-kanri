@@ -1402,7 +1402,7 @@ function resolveByTokui(name){   // 銀行名義→得意先マスタ→請求�
 function depKey(d){ return d.src+'|'+d.date+'|'+d.amount+'|'+d.name; }
 function amtMatch(entry,amount){ return entry.amount===amount || (entry.altAmount&&entry.altAmount===amount); }
 function planAmt(e){ return e.amount || e.altAmount || 0; }
-function tolOK(dep,plan){ return plan>dep && (plan-dep)<=Math.max(1000, Math.round(plan*0.01)); } // 手数料/協力費で少額差
+function tolOK(dep,plan){ return plan>dep && (plan-dep)<=1100; } // 一本の手数料差は¥1,100以下のみ（それ超は手数料でなく控除/別要因＝候補にしない）。まとめ払いの控除はsubsetCombosの6%枠で別判定
 function trunc(s,n){ s=String(s||''); return s.length>n?s.slice(0,n)+'…':s; }
 let _dmap={};
 function buildDeptMap(){ _dmap={}; allEntries().forEach(e=>{ const k=normPayee(e.請求先); (_dmap[k]=_dmap[k]||new Set()).add(e.dept||(e.type==='土木'?'土木':'弥生')); }); }
