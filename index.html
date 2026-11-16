@@ -413,7 +413,13 @@ input.mdedin::-webkit-outer-spin-button,input.mdedin::-webkit-inner-spin-button{
 .acts .selp{max-width:220px}
 .single{margin-top:9px;border-top:1px dashed var(--line);padding-top:9px}
 /* v0.6 まとめ払い 自動候補チップ */
-.cchips{display:flex;flex-direction:column;gap:4px;margin:2px 0 4px;max-width:560px}
+.cchips{display:flex;flex-direction:column;gap:6px;margin:2px 0 4px;max-width:560px}
+/* 「ちがう」後：候補を大きく押せるカード形に（承認済サンプル準拠・ロジックは不変） */
+.single .cand{position:relative;display:block;border:1px solid var(--line);border-left:4px solid var(--ac);border-radius:11px;padding:11px 54px 11px 14px;margin:0 0 7px;background:var(--panel);font-size:14px;font-weight:800;color:var(--ink);text-decoration:none;line-height:1.5;box-shadow:0 1px 2px rgba(20,28,40,.05);}
+.single .cand.near{border-left-color:var(--warn);}
+.single .cand:hover,.single .cand:focus{background:var(--ac-soft);border-color:var(--ac);outline:none;}
+.single .cand::after{content:"選ぶ →";position:absolute;right:12px;top:12px;font-size:12px;font-weight:800;color:var(--ac2);white-space:nowrap;}
+.single .cand .whysrc{font-weight:600;margin-top:4px;}
 .cchip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ok);border-radius:9px;padding:6px 10px;margin:3px 6px 2px 0;background:color-mix(in srgb,var(--ok) 6%,transparent);cursor:pointer;font:inherit;color:var(--ink);text-align:left}
 .cchip:hover{background:color-mix(in srgb,var(--ok) 13%,transparent)}
 .cchip.warn{border-color:var(--warn-line);background:var(--warn-bg)}
@@ -3369,7 +3375,9 @@ function _svSnap(s,paid,lastd){
   };
   // 1行ぶんのHTML（工事行＝青帯／請求先行＝右に回収状況）。描画は共通化し、土木は締日ごとに区切る
   const _rowTr=r=>{ const row=grid[r]; const koji=(s.dept==='土木')&&isKojiRow(row.B); const e=byRow[r];
-    let t='<tr'+(koji?' class="sv-koji"':(e?'':' class="sv-skip"'))+'>'
+    let cls=koji?'sv-koji':(e?'':'sv-skip');
+    if(!koji && e){ const x=stOf(e); cls=((x.settled&&x.pd<=0)||(x.plan>0&&x.pd>=x.plan))?'sv-row-ok':(x.pd<=0?'sv-row-none':'sv-row-part'); }   // 回収状況で行に色：済=緑／未入金=赤／一部=黄
+    let t='<tr'+(cls?' class="'+cls+'"':'')+'>'
       +cols.map(c=>{ const v=row[c]; return '<td'+(typeof v==='number'?' class="num"':'')+'>'+esc(_svFmt(v,isDateCol[c]))+'</td>'; }).join('');
     if(koji) t+='<td class="sv-ov" colspan="4"></td>';
     else if(e){ const x=stOf(e); t+='<td class="sv-ov num">'+(x.plan>0?'¥'+yen(x.plan):'')+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd,x.settled)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td>'; }
@@ -3379,13 +3387,25 @@ function _svSnap(s,paid,lastd){
   if(s.dept==='土木'){
     // 締日（請求先行のB＝15/20/25/末）で区切る。工事行は直後の請求先行とペアにして同じ締めへ。
     const _bandOf=b=>{ b=String(b==null?'':b).trim(); if(b==='15')return{tag:'16-15締',o:0}; if(b==='20')return{tag:'21-20締',o:1}; if(b==='25')return{tag:'26-25締',o:2}; if(b==='31'||b==='30'||b==='末')return{tag:'1-末締',o:3}; return{tag:(b?('締日'+b):'締日不明'),o:9}; };
+    const _pkm=/^(\d{4})(\d{2})$/.exec(String(s.periodKey||''));   // 対象月(YYYYMM)から締めの期間（日付範囲）を算出
+    const _rng=o=>{ if(!_pkm)return''; const y=+_pkm[1],m=+_pkm[2],pm=(m===1?12:m-1); if(o===0)return pm+'/16〜'+m+'/15'; if(o===1)return pm+'/21〜'+m+'/20'; if(o===2)return pm+'/26〜'+m+'/25'; if(o===3)return m+'/1〜'+m+'/'+(new Date(y,m,0).getDate()); return''; };
     const grp={}, gord={}; let pend=null;
     _dataRows.forEach(r=>{ const B=String(grid[r].B==null?'':grid[r].B).trim();
       if(isKojiRow(B)){ pend=r; }
       else { const bd=_bandOf(B); (grp[bd.tag]=grp[bd.tag]||[]).push({k:pend,s:r}); gord[bd.tag]=bd.o; pend=null; } });
     if(pend!=null){ (grp['締日不明']=grp['締日不明']||[]).push({k:pend,s:null}); gord['締日不明']=9; }
-    Object.keys(grp).sort((a,b)=>(gord[a]-gord[b])).forEach(tag=>{ const us=grp[tag]; const nk=us.filter(u=>u.k!=null).length;
-      h+='<tr><td colspan="'+(cols.length+4)+'" style="background:#eaf0fb;color:#1f2733;font-weight:800;font-size:13px;padding:7px 10px;border-top:2px solid #d3e0f6">'+esc(tag)+'　<span style="color:#5b6b85;font-weight:600;font-size:12px">工事 '+nk+'件</span></td></tr>';
+    Object.keys(grp).sort((a,b)=>(gord[a]-gord[b])).forEach(tag=>{ const us=grp[tag]; const nk=us.filter(u=>u.k!=null).length; const rng=_rng(gord[tag]);
+      // この締めの回収バー：請求先行から予定額・入金額・件数を集計（回収残高0＝済は満額扱い）
+      let bplan=0,bpaid=0,bn=0,bok=0;
+      us.forEach(u=>{ if(u.s!=null){ const e=byRow[u.s]; if(e){ const x=stOf(e); const done=((x.settled&&x.pd<=0)||(x.plan>0&&x.pd>=x.plan)); if(x.plan>0||x.settled){ bn++; bplan+=x.plan; bpaid+=done?x.plan:Math.min(x.pd,x.plan); if(done)bok++; } } } });
+      const bpct=bplan>0?Math.min(100,Math.round(bpaid/bplan*100)):(bn&&bok===bn?100:0); const bfull=(bn>0&&bok===bn);
+      h+='<tr><td colspan="'+(cols.length+4)+'" style="background:#eaf0fb;color:#1f2733;font-size:13px;padding:7px 10px;border-top:2px solid #d3e0f6">'
+        +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-weight:800">'+esc(tag)+(rng?'　<span style="color:#2b6b3f;font-weight:700;font-size:12.5px">'+esc(rng)+'</span>':'')+'　<span style="color:#5b6b85;font-weight:600;font-size:12px">工事 '+nk+'件</span></span>'
+        +(bn>0?'<span style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px"><span style="flex:1;height:12px;border-radius:999px;background:#dde6f3;overflow:hidden;border:1px solid #cdd8ea"><span style="display:block;height:100%;width:'+bpct+'%;border-radius:999px;background:linear-gradient(90deg,#34b56b,#1f8a4c)"></span></span>'
+          +'<b style="color:'+(bfull?'#15703c':'#2b6b3f')+';font-size:14px;font-variant-numeric:tabular-nums">'+bpct+'%</b>'
+          +'<span style="color:#5b6b85;font-weight:700;font-size:12px;white-space:nowrap">回収 '+bok+'/'+bn+'件</span>'
+          +(bfull?'<span style="font-size:14px" title="この〆はぜんぶ回収">🎉</span>':'')+'</span>':'')
+        +'</div></td></tr>';
       us.forEach(u=>{ if(u.k!=null) h+=_rowTr(u.k); if(u.s!=null) h+=_rowTr(u.s); }); });
   } else {
     _dataRows.forEach(r=> h+=_rowTr(r) );
@@ -3430,6 +3450,9 @@ function openSheetView(){
     +'table.sv td.num,table.sv th.num{text-align:right;font-variant-numeric:tabular-nums}'
     +'table.sv tr.sv-koji td{background:#eef2f8;font-weight:700;color:#33415c}'
     +'table.sv tr.sv-skip td{color:#b6bcc6}'
+    +'table.sv tr.sv-row-none td{background:#fff5f5}'
+    +'table.sv tr.sv-row-ok td{background:#f1faf4}'
+    +'table.sv tr.sv-row-part td{background:#fff8ec}'
     +'table.sv td.sv-ov{background:#f4faf5;border-left:2px solid #d5e8d8}'
     +'table.sv th.sv-ov{background:#e9f5ec;color:#2b6b3f;border-left:2px solid #cfe5d4}'
     +'table.sv tr.sv-skip td.sv-ov{background:#f7f8f9;border-left:2px solid #e7eaee;color:#c2c8d0}'
@@ -3614,7 +3637,10 @@ function renderCollect(){
     +'<tr><th>部門・請求先／工事</th><th class="num">予定額</th><th class="ctr">状態</th><th>振込名義・日付</th><th class="num">入金額</th><th class="num">残</th></tr>'
     +'</thead><tbody>';
   list.forEach((g,gi)=>{
-    if(usePeriod){ const _p=collectPeriodOf(g); const _pt=_p?_p.tag:'__none'; if(_pt!==_curB){ _curB=_pt; _curCo=null; const inf=_pdInfo[_pt]||{}; const hint=(inf.ok?('済 '+inf.ok):'')+(inf.check?('　<b style="color:var(--warn)">要確認 '+inf.check+'</b>'):'')+(inf.none?('　未入金 '+inf.none):''); h+='<tr class="cbhead pdhead"><td colspan="6"><span class="cbl">'+(_p?esc(_p.range):'期間なし')+'</span><span class="cbc">'+(inf.n||0)+'件</span><span class="cbh">'+hint+'</span></td></tr>'; } }   // 回収期間ごとの見出し（締日から算出）
+    if(usePeriod){ const _p=collectPeriodOf(g); const _pt=_p?_p.tag:'__none'; if(_pt!==_curB){ _curB=_pt; _curCo=null; const inf=_pdInfo[_pt]||{}; const hint=(inf.ok?('済 '+inf.ok):'')+(inf.check?('　<b style="color:var(--warn)">要確認 '+inf.check+'</b>'):'')+(inf.none?('　未入金 '+inf.none):'');
+      const _pn=inf.n||0,_pok=inf.ok||0,_ppct=_pn?Math.round(_pok/_pn*100):0,_pfull=(_pn>0&&_pok===_pn);   // この締めの回収バー（件数ベース：済/全件）
+      const _pbar='<span class="pdbar" style="display:inline-flex;align-items:center;gap:7px;margin:0 10px;vertical-align:middle"><span style="width:110px;height:10px;border-radius:999px;background:#e3e9f1;overflow:hidden;border:1px solid #d2dae6;display:inline-block"><span style="display:block;height:100%;width:'+_ppct+'%;background:linear-gradient(90deg,#34b56b,#1f8a4c)"></span></span><b style="color:'+(_pfull?'#15703c':'#2b6b3f')+';font-size:12.5px;font-variant-numeric:tabular-nums">'+_ppct+'%</b>'+(_pfull?'<span title="この〆はぜんぶ回収">🎉</span>':'')+'</span>';
+      h+='<tr class="cbhead pdhead"><td colspan="6"><span class="cbl">'+(_p?esc(_p.range):'期間なし')+'</span><span class="cbc">'+_pn+'件</span>'+_pbar+'<span class="cbh">'+hint+'</span></td></tr>'; } }   // 回収期間ごとの見出し（締日から算出）
     else { const _b=_cbk(g); if(_b!==_curB){ _curB=_b; _curCo=null; h+='<tr class="cbhead '+_b+'"><td colspan="6"><span class="cbl">'+_blab[_b]+'</span>'+(_b==='act'?'':'<span class="cbc">'+(_bcnt[_b]||0)+'件</span>')+'<span class="cbh">'+_bhint[_b]+'</span></td></tr>'; } }   // v2.1 数字一本化：処理する件数はアクションバー「要確認 N件→処理する」を主に、一覧の「まず確認する」は件数バッジを外す（2つの違う数字の食い違い解消）
     const _co=_coOf(g); const _coSep=(_curCo!==null && _co!==_curCo); _curCo=_co;   // v2.1 会社が変わったら区切り線（各グループ先頭は線なし）
     const rows=Math.max(1, g.plans.length);
