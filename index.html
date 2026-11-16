@@ -3313,7 +3313,8 @@ function openWhy(el){
   p.style.left=left+'px'; p.style.top=top+'px';
 }
 /* ===== 予定表そのままビュー（元のExcelと同じ並びに回収状況を重ねる・別タブで開く） ===== */
-function _svPill(plan,pd){
+function _svPill(plan,pd,settled){
+  if(settled && pd<=0) return '<span class="sv-pill sv-ok">✅ 回収済（どっと原価）</span>';   // 回収残高0＝〆前に伝票済み。予定表ビューにも載せるが「未入金」でなく「回収済」で表示
   if(pd<=0) return '<span class="sv-pill sv-none">🔴 未入金</span>';
   if(pd>=plan) return '<span class="sv-pill sv-ok">✅ 回収済</span>';
   return '<span class="sv-pill sv-part">🟡 一部 残¥'+yen(plan-pd)+'</span>';
@@ -3327,7 +3328,7 @@ function _svFmt(v,isDate){
 }
 function _svSnap(s,paid,lastd){
   const byRow={}; (s.entries||[]).forEach(e=>{ if(e.row!=null) byRow[e.row]=e; });
-  const stOf=e=>{ const id=_eid(e); return {plan:planAmt(e), pd:paid[id]||0, dt:lastd[id]||''}; };
+  const stOf=e=>{ const id=_eid(e); return {plan:planAmt(e), pd:paid[id]||0, dt:lastd[id]||'', settled:!!e.settled}; };
   const head='<div class="sv-head"><b>'+esc(s.name)+'</b>'+(s.periodLabel?'<span>'+esc(s.periodLabel)+'</span>':'')+'<span>突合対象として取込 <b>'+(s.entries||[]).length+'行</b>（グレー行＝0円などで対象外）</span></div>';
   const ovh='<th class="sv-ov">回収状況</th><th class="sv-ov num">入金額（ツール）</th><th class="sv-ov">入金日</th>';
   if(!s.grid){   // 旧取込（元Excel未保存）→ 取込済みの行だけの簡易表示
@@ -3335,7 +3336,7 @@ function _svSnap(s,paid,lastd){
       +(s.dept==='土木'?'<th>工事番号</th><th>工事名</th><th>請求先</th><th class="num">回収予定額</th>':'<th>請求先コード</th><th>請求先名</th><th class="num">当月予定</th>')+ovh+'</tr>';
     (s.entries||[]).slice().sort((a,b)=>(a.row||0)-(b.row||0)).forEach(e=>{ const x=stOf(e);
       h+='<tr>'+(e.type==='土木'?'<td>'+esc(e.工事番号||'')+'</td><td>'+esc(e.工事名||'')+'</td><td>'+esc(e.請求先)+'</td>':'<td>'+esc(e.code||'')+'</td><td>'+esc(e.請求先)+'</td>')
-        +'<td class="num">'+yen(x.plan)+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td></tr>'; });
+        +'<td class="num">'+yen(x.plan)+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd,x.settled)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td></tr>'; });
     return h+'</table></div><div class="sv-note">ℹ️ この予定表は元Excelの内容を保存する前に取り込まれたため、取込済みの行だけの表示です。もう一度取り込み直すと、Excelそのままの並び（全列・0円行つき）で表示されます。</div>';
   }
   const grid=s.grid; const rows=Object.keys(grid).map(Number).sort((a,b)=>a-b);
@@ -3343,10 +3344,11 @@ function _svSnap(s,paid,lastd){
   for(const r of rows){ const row=grid[r]; for(const c in row){ const v=String(row[c]||''); if(v.indexOf('請求先コード')>=0 || v==='請求先'){ hr=r; break; } } if(hr!=null)break; }
   if(hr==null) hr=rows[0];
   const hrow=grid[hr]||{}; const hprev=(s.dept==='土木'?grid[hr-1]:null)||{};
-  let cols=[...new Set([...Object.keys(hprev),...Object.keys(hrow)])].sort((a,b)=>a.length-b.length||(a<b?-1:1));
-  // 土木は見やすさ優先で主要列だけ表示（工事番号/締日・工事名/請求先・回収予定日）。回収予定額以降は右の固定欄へ。生Excelの全列はファイルで確認
-  if(s.dept==='土木') cols=['B','C','F'];
-  const htext={}; cols.forEach(c=>{ htext[c]=((hprev[c]!=null?hprev[c]+' ':'')+(hrow[c]!=null?hrow[c]:'')).trim(); });
+  // 予定表ビューは予定表の“完全な写し”＝データのある列は全部出す（ヘッダー行に無くても、どこかの行に値がある列を拾う）。行は印刷ゴミ（再掲ヘッダー/小計/総合計/空行）だけ後段_svNoiseで除外。
+  const _colSet=new Set([...Object.keys(hprev),...Object.keys(hrow)]);
+  for(const _r of rows){ const _row=grid[_r]; if(_row) Object.keys(_row).forEach(c=>{ if(String(_row[c]==null?'':_row[c]).trim()!=='') _colSet.add(c); }); }
+  let cols=[..._colSet].sort((a,b)=>a.length-b.length||(a<b?-1:1));
+  const htext={}; cols.forEach(c=>{ htext[c]=((hprev[c]!=null?hprev[c]+' ':'')+(hrow[c]!=null?hrow[c]:'')).trim() || c; });
   if(s.dept==='土木'){ htext['B']='工事番号／締日'; htext['C']='工事名／請求先'; htext['F']='回収予定日'; }   // 見出しを読みやすく上書き
   const isDateCol={}; cols.forEach(c=>{ isDateCol[c]=/日/.test(htext[c])&&!/日付以外/.test(htext[c]); });
   let h=head+'<div class="svwrap"><table class="sv"><tr>'
@@ -3365,18 +3367,28 @@ function _svSnap(s,paid,lastd){
     }
     return vals.some(v=>_svMeta.test(v));                                   // 弥生等：メタ語を含む再掲ヘッダー/合計行だけ落とす
   };
-  for(const r of rows){
-    if(r<=hr) continue;
-    const row=grid[r]; if(!row || !Object.keys(row).length) continue;
-    if(_svNoise(row,s.dept)) continue;                                      // ← ゴミ行をスキップ
-    const koji=(s.dept==='土木')&&isKojiRow(row.B);
-    const e=byRow[r];
-    h+='<tr'+(koji?' class="sv-koji"':(e?'':' class="sv-skip"'))+'>'
+  // 1行ぶんのHTML（工事行＝青帯／請求先行＝右に回収状況）。描画は共通化し、土木は締日ごとに区切る
+  const _rowTr=r=>{ const row=grid[r]; const koji=(s.dept==='土木')&&isKojiRow(row.B); const e=byRow[r];
+    let t='<tr'+(koji?' class="sv-koji"':(e?'':' class="sv-skip"'))+'>'
       +cols.map(c=>{ const v=row[c]; return '<td'+(typeof v==='number'?' class="num"':'')+'>'+esc(_svFmt(v,isDateCol[c]))+'</td>'; }).join('');
-    if(koji) h+='<td class="sv-ov" colspan="4"></td>';
-    else if(e){ const x=stOf(e); h+='<td class="sv-ov num">'+(x.plan>0?'¥'+yen(x.plan):'')+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td>'; }
-    else h+='<td class="sv-ov num"></td><td class="sv-ov"><span class="sv-pill sv-na">— 対象外</span></td><td class="sv-ov"></td><td class="sv-ov"></td>';
-    h+='</tr>';
+    if(koji) t+='<td class="sv-ov" colspan="4"></td>';
+    else if(e){ const x=stOf(e); t+='<td class="sv-ov num">'+(x.plan>0?'¥'+yen(x.plan):'')+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd,x.settled)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td>'; }
+    else t+='<td class="sv-ov num"></td><td class="sv-ov"><span class="sv-pill sv-na">— 対象外</span></td><td class="sv-ov"></td><td class="sv-ov"></td>';
+    return t+'</tr>'; };
+  const _dataRows=rows.filter(r=> r>hr && grid[r] && Object.keys(grid[r]).length && !_svNoise(grid[r],s.dept));   // 印刷ゴミ除外後の実データ行（工事情報は全部残る）
+  if(s.dept==='土木'){
+    // 締日（請求先行のB＝15/20/25/末）で区切る。工事行は直後の請求先行とペアにして同じ締めへ。
+    const _bandOf=b=>{ b=String(b==null?'':b).trim(); if(b==='15')return{tag:'16-15締',o:0}; if(b==='20')return{tag:'21-20締',o:1}; if(b==='25')return{tag:'26-25締',o:2}; if(b==='31'||b==='30'||b==='末')return{tag:'1-末締',o:3}; return{tag:(b?('締日'+b):'締日不明'),o:9}; };
+    const grp={}, gord={}; let pend=null;
+    _dataRows.forEach(r=>{ const B=String(grid[r].B==null?'':grid[r].B).trim();
+      if(isKojiRow(B)){ pend=r; }
+      else { const bd=_bandOf(B); (grp[bd.tag]=grp[bd.tag]||[]).push({k:pend,s:r}); gord[bd.tag]=bd.o; pend=null; } });
+    if(pend!=null){ (grp['締日不明']=grp['締日不明']||[]).push({k:pend,s:null}); gord['締日不明']=9; }
+    Object.keys(grp).sort((a,b)=>(gord[a]-gord[b])).forEach(tag=>{ const us=grp[tag]; const nk=us.filter(u=>u.k!=null).length;
+      h+='<tr><td colspan="'+(cols.length+4)+'" style="background:#eaf0fb;color:#1f2733;font-weight:800;font-size:13px;padding:7px 10px;border-top:2px solid #d3e0f6">'+esc(tag)+'　<span style="color:#5b6b85;font-weight:600;font-size:12px">工事 '+nk+'件</span></td></tr>';
+      us.forEach(u=>{ if(u.k!=null) h+=_rowTr(u.k); if(u.s!=null) h+=_rowTr(u.s); }); });
+  } else {
+    _dataRows.forEach(r=> h+=_rowTr(r) );
   }
   // 同月累積で引き継いだ行（最新ファイルのExcelに無い行）を最後に表示
   const gset=new Set(rows);
@@ -3386,7 +3398,7 @@ function _svSnap(s,paid,lastd){
     extra.forEach(e=>{ const x=stOf(e);
       const lab=(e.type==='土木')?((e.工事番号?e.工事番号+'　':'')+(e.工事名?e.工事名+'　':'')+e.請求先):((e.code?e.code+'　':'')+e.請求先);
       h+='<tr><td colspan="'+(cols.length-1)+'">'+esc(lab)+'</td><td class="num">'+yen(x.plan)+'</td>'
-        +'<td class="sv-ov num">'+(x.plan>0?'¥'+yen(x.plan):'')+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td></tr>'; });
+        +'<td class="sv-ov num">'+(x.plan>0?'¥'+yen(x.plan):'')+'</td><td class="sv-ov">'+_svPill(x.plan,x.pd,x.settled)+'</td><td class="sv-ov num">'+(x.pd>0?'¥'+yen(x.pd):'')+'</td><td class="sv-ov">'+esc(x.dt)+'</td></tr>'; });
   }
   return h+'</table></div>';
 }
