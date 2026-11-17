@@ -3214,7 +3214,7 @@ function collectPaid(){
   const paid={}, lastd={};
   const add=(id,amt,dt)=>{ paid[id]=(paid[id]||0)+amt; if(dt && (!lastd[id]||String(dt)>String(lastd[id]))) lastd[id]=dt; };
   (results||[]).forEach(r=>{
-    if(r.status==='matched' && r.entry){ add(_eid(r.entry), (r.d.amount||0)+(r.fee||0)+_koujoSum(r.koujo), r.d.date); }   // 控除（安全協力費・相殺等）を入れた分は回収として算入＝残0（回収済）
+    if(r.status==='matched' && r.entry){ add(_eid(r.entry), (r.d.amount||0)+Math.min(r.fee||0,1100)+_koujoSum(r.koujo), r.d.date); }   // 手数料として自動で埋めるのは¥1,100まで（それ超の差は"一致"で隠さず内訳を確認へ）。控除（安全協力費等）は別途全額算入＝残0（回収済）
     else if(isMulti(r) && multiOk(r)){ const mc=multiConfirm[r.key]; entriesByEids(mc.combo).forEach(e=>add(_eid(e), planAmt(e), r.d.date)); }  // 複数工事：各工事は予定額どおり回収済み（控除込み）
     else if(isShared(r)){
       const sc=splitConfirm[r.key]||{ok:{}}; const payees=payeesOf(r);
@@ -3227,7 +3227,7 @@ function collectPaid(){
   // ★弥生は繰越型（未回収の債権は翌月ファイルにも同額で載る）→ 同一債権（同部門・同コード・同金額）は全月に消込を波及
   //   例：7月の行に消し込んだ入金は、6月の同じ債権の行も「回収済み」にする（どの月で見ても回収率が正しくなる）
   const yMatched=[];
-  (results||[]).forEach(r=>{ if(r.status==='matched' && r.entry && r.entry.type==='弥生'){ yMatched.push({dept:r.entry.dept, code:String(r.entry.code||''), amt:planAmt(r.entry), pay:(r.d.amount||0)+(r.fee||0)+_koujoSum(r.koujo), dt:r.d.date}); } });
+  (results||[]).forEach(r=>{ if(r.status==='matched' && r.entry && r.entry.type==='弥生'){ yMatched.push({dept:r.entry.dept, code:String(r.entry.code||''), amt:planAmt(r.entry), pay:(r.d.amount||0)+Math.min(r.fee||0,1100)+_koujoSum(r.koujo), dt:r.d.date}); } });
   if(yMatched.length && typeof planSnaps!=='undefined'){
     planSnaps.forEach(s=>(s.entries||[]).forEach(x=>{
       if(x.type!=='弥生') return; const id=_eid(x); if(paid[id]) return;
@@ -3748,7 +3748,7 @@ function renderCollect(){
       }
       h+='</tr>';
     }
-    if(_uchi){ const _uri=g.ri;
+    if(_uchi && gopen){ const _uri=g.ri;   // 既定は閉じる。行をクリックして開いた時だけ内訳欄（控除/保留）を出す（勝手に開かない）
       const _opts=KOUJO_KINDS.map(k=>'<option value="'+esc(k)+'">'+esc(k)+'</option>').join('')+'<option value="__free__">＋ 自分で書く（一覧にない控除）</option>';
       // 控除フォーム（「控除を入れる」で開く）
       const _kf='<div data-koujoform="'+_uri+'" style="display:none;margin-top:10px;background:#fff;border:1px solid #cfe0ef;border-radius:11px;padding:12px 13px">'
