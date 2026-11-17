@@ -998,6 +998,8 @@ body{background:var(--paper) !important;}
   #tabCollect .rc .pill.none{background:#fdecee;color:#c02626}
   #tabCollect .rc .pill.extra,#tabCollect .rc .pill.multi{background:#eef0ff;color:#4f46e5}
   #tabCollect .rc .pill.over{background:#fef2f8;color:#be185d}
+  #tabCollect .rc .pill.uchi{background:#eef2fe;color:#2247c4;border:1px solid #c9d6fb}
+  #tabCollect .rc tr.uchirow:hover td{background:#eef2fe}
   #tabCollect .rc tr.g-over td.inp{box-shadow:inset -4px 0 0 #be185d}
   /* 行クリックで開く詳細（表に無い情報：回収予定日・種別/銀行・差額）。短い3行＋枠内marginで列幅に影響させず＝開いても列がずれない */
   #tabCollect .rc tr.crow{cursor:pointer}
@@ -1398,11 +1400,30 @@ let _seedKeys=null;
 function tokuiExtras(){ if(!_seedKeys) _seedKeys=new Set(TOKUI_SEED.map(a=>a[0]+'|'+a[1])); return tokuiMaster.filter(m=>!_seedKeys.has(m.kanji+'|'+m.kana)); }   // 内蔵マスタとの差分（＝取り込んだ新規分）だけをGAS共有
 let _inPlanSet=null;
 function inPlanSet(){ if(!_inPlanSet) _inPlanSet=new Set(uniquePayees().map(normPayee)); return _inPlanSet; }
+/* 名寄せ救済（決定ルール・AIなし／515社で誤爆0を検算済）：完全一致・前方一致が外れた時だけ、濁点無視→支店/地名外し の順で救済。1社に確定し、かつ“最大崩しキー”で他社とぶつからない時だけ採用（株/有の同名等は要確認へ回す） */
+const _NDAK={'ガ':'カ','ギ':'キ','グ':'ク','ゲ':'ケ','ゴ':'コ','ザ':'サ','ジ':'シ','ズ':'ス','ゼ':'セ','ゾ':'ソ','ダ':'タ','ヂ':'チ','ヅ':'ツ','デ':'テ','ド':'ト','バ':'ハ','ビ':'ヒ','ブ':'フ','ベ':'ヘ','ボ':'ホ','パ':'ハ','ピ':'ヒ','プ':'フ','ペ':'ヘ','ポ':'ホ','ヴ':'ウ'};
+function _deacK(s){ return String(s||'').replace(/[ガ-ポヴ]/g,c=>_NDAK[c]||c); }   // 濁点・半濁点を外す
+function _lgK(s){ return String(s||'').replace(/^(カブ|ユウ|ゴウ)/,'').replace(/(カブ|ユウ|ゴウ)$/,''); }   // 法人格カナ(株=カブ/有=ユウ/合=ゴウ)を前後から除去
+function _bodyK(s){ return String(s||'').replace(/(ホンテン|シテン|シシヤ|エイギヨウシヨ|ジギヨウシヨ|ジムシヨ|シユツチヨウシヨ|ホンブ|チユウブ|トウキヨウ|ナゴヤ|シズオカ|ハママツ|ヌマヅ|カントウ|カンサイ|トウホク|ナゴ)$/,''); }   // 末尾の支店/営業所/地名カナを外す
+function _maxK(k){ return _deacK(_lgK(_bodyK(_lgK(k)))); }   // 最大まで崩したキー（同名の別法人格/別支店が同じ値に集まる）
+let _mkb=null,_mkbN=-1;
+function _mkBucket(){ if(_mkb && _mkbN===tokuiMaster.length) return _mkb; _mkb={}; tokuiMaster.forEach(m=>{ const k=_maxK(m.kana); if(k.length<3)return; (_mkb[k]=_mkb[k]||new Set()).add(m.kanji); }); _mkbN=tokuiMaster.length; return _mkb; }
+function _ambiguousTokui(kanaOfHit){ const set=_mkBucket()[_maxK(kanaOfHit)]; return !!(set && set.size>1); }   // その名前が他社とぶつかる＝あいまい
+function _tokuiFallback(b){
+  const bd=_deacK(_lgK(b));   // A: 濁点無視（前後一致含む）
+  const hA=tokuiMaster.filter(m=>{ const md=_deacK(_lgK(m.kana)); return md===bd || (m.kana.length>=3 && (md.startsWith(bd)||bd.startsWith(md))); });
+  const kA=[...new Set(hA.map(h=>h.kanji))];
+  if(kA.length===1 && !_ambiguousTokui(hA[0].kana)) return hA;
+  const bb=_bodyK(_lgK(b));   // B: 支店・地名外し（本体一致のみ）
+  if(bb.length>=3){ const hB=tokuiMaster.filter(m=>_bodyK(_lgK(m.kana))===bb); const kB=[...new Set(hB.map(h=>h.kanji))]; if(kB.length===1 && !_ambiguousTokui(hB[0].kana)) return hB; }
+  return null;
+}
 function resolveByTokui(name){   // 銀行名義→得意先マスタ→請求先(漢字)。予定表に在るものを優先。無ければ[]
   if(!tokuiMaster.length) return [];
   const b=normKana(name); if(b.length<3) return [];
   let hits=tokuiMaster.filter(m=>m.kana===b);
   if(!hits.length) hits=tokuiMaster.filter(m=>m.kana.length>=3 && (m.kana.startsWith(b)||b.startsWith(m.kana)));
+  if(!hits.length){ const fb=_tokuiFallback(b); if(fb) hits=fb; }   // 救済：濁点無視→支店外し（一意&非あいまい時のみ・誤爆0検算済）
   if(!hits.length) return [];
   const kanjis=[...new Set(hits.map(h=>h.kanji))];
   const inp=inPlanSet(); const inPlan=kanjis.filter(k=>inp.has(normPayee(k)));
@@ -1467,7 +1488,7 @@ function runMatch(){
     if(prevSet.has(key)){ results.push({d,key,status:'ignored',prev:true}); return; }   // 前月請求分として処理済み（当月予定表に無い請求・全額）
     if(holdSet.has(key)){ results.push({d,key,status:'held',hold:holdSet.get(key)}); return; }   // 保留＝この工事の一部として置いてある（後で確定/戻す）
     const cf=confirmed[key];
-    if(cf){ const e=findEntry(cf); if(e){ results.push({d,key,status:'matched',entry:e,fee:cf.fee||0,auto:!!cf.auto}); return; } }
+    if(cf){ const e=findEntry(cf); if(e){ results.push({d,key,status:'matched',entry:e,fee:cf.fee||0,koujo:cf.koujo||null,auto:!!cf.auto}); return; } }
     let payeeList=master[normName(d.name)]||[];
     let byTokui=false;
     if(!payeeList.length){ const bt=resolveByTokui(d.name); if(bt.length){ payeeList=bt; byTokui=true; } }   // 得意先マスタで名前解決（金額も合えば自動確定・複数該当は候補提示）
@@ -3193,7 +3214,7 @@ function collectPaid(){
   const paid={}, lastd={};
   const add=(id,amt,dt)=>{ paid[id]=(paid[id]||0)+amt; if(dt && (!lastd[id]||String(dt)>String(lastd[id]))) lastd[id]=dt; };
   (results||[]).forEach(r=>{
-    if(r.status==='matched' && r.entry){ add(_eid(r.entry), (r.d.amount||0)+(r.fee||0), r.d.date); }
+    if(r.status==='matched' && r.entry){ add(_eid(r.entry), (r.d.amount||0)+(r.fee||0)+_koujoSum(r.koujo), r.d.date); }   // 控除（安全協力費・相殺等）を入れた分は回収として算入＝残0（回収済）
     else if(isMulti(r) && multiOk(r)){ const mc=multiConfirm[r.key]; entriesByEids(mc.combo).forEach(e=>add(_eid(e), planAmt(e), r.d.date)); }  // 複数工事：各工事は予定額どおり回収済み（控除込み）
     else if(isShared(r)){
       const sc=splitConfirm[r.key]||{ok:{}}; const payees=payeesOf(r);
@@ -3206,7 +3227,7 @@ function collectPaid(){
   // ★弥生は繰越型（未回収の債権は翌月ファイルにも同額で載る）→ 同一債権（同部門・同コード・同金額）は全月に消込を波及
   //   例：7月の行に消し込んだ入金は、6月の同じ債権の行も「回収済み」にする（どの月で見ても回収率が正しくなる）
   const yMatched=[];
-  (results||[]).forEach(r=>{ if(r.status==='matched' && r.entry && r.entry.type==='弥生'){ yMatched.push({dept:r.entry.dept, code:String(r.entry.code||''), amt:planAmt(r.entry), pay:(r.d.amount||0)+(r.fee||0), dt:r.d.date}); } });
+  (results||[]).forEach(r=>{ if(r.status==='matched' && r.entry && r.entry.type==='弥生'){ yMatched.push({dept:r.entry.dept, code:String(r.entry.code||''), amt:planAmt(r.entry), pay:(r.d.amount||0)+(r.fee||0)+_koujoSum(r.koujo), dt:r.d.date}); } });
   if(yMatched.length && typeof planSnaps!=='undefined'){
     planSnaps.forEach(s=>(s.entries||[]).forEach(x=>{
       if(x.type!=='弥生') return; const id=_eid(x); if(paid[id]) return;
@@ -3214,6 +3235,31 @@ function collectPaid(){
     }));
   }
   return {paid,lastd};
+}
+/* ===== 控除（安全協力費・相殺・手数料など）を一覧からその場で入れて回収済にする ===== */
+let KOUJO_KINDS=['安全協力費','事務手数料','相殺','値引き','法定福利費'];   // プルダウン初期候補（増やせる）
+function _koujoSum(arr){ if(!arr)return 0; if(typeof arr==='number')return arr; return arr.reduce((a,x)=>a+(Number(x&&x.amt)||0),0); }
+function _koujoLabel(arr){ if(!arr)return''; if(typeof arr==='number')return '控除 ¥'+yen(arr); return arr.filter(x=>x&&(x.amt||0)>0).map(x=>esc(x.kind||'控除')+' ¥'+yen(x.amt)).join('／'); }
+function setKoujo(ri,kind,amt){
+  const r=results[ri]; if(!r||r.status!=='matched'||!r.entry){ return; }
+  amt=Math.round(Number(String(amt==null?'':amt).replace(/[^0-9]/g,''))||0);
+  kind=(String(kind||'').trim())||'控除';
+  if(amt<=0){ alert('控除額を入れてください'); return; }
+  const cf=confirmed[r.key]; if(!cf){ return; }
+  cf.koujo=[{kind:kind,amt:amt}]; cf.fee=0;   // 控除を記録（手数料枠とは別建て。残＝予定−入金−控除）
+  if(KOUJO_KINDS.indexOf(kind)<0) KOUJO_KINDS.push(kind);   // 自由入力した控除名は候補に足す（次から選べる）
+  saveConfirmed(); runMatch(); renderCollect();
+  try{ toast('控除「'+kind+'」¥'+yen(amt)+' を記録しました（回収済）'); }catch(_){}
+}
+function clearKoujo(ri){ const r=results[ri]; if(!r)return; const cf=confirmed[r.key]; if(cf&&cf.koujo){ delete cf.koujo; saveConfirmed(); runMatch(); renderCollect(); try{ toast('控除を取り消しました'); }catch(_){} } }
+/* 大きい差の行を「保留」に退避（回収済にしない・一覧に残る）。既存の保留タブ/確定/戻すに乗る */
+function holdFromCollect(ri){
+  const r=results[ri]; if(!r){ return; }
+  const e = r.entry || (r.hold && findEntryAll(r.hold.eid)) || (r.key && confirmed[r.key] && findEntry(confirmed[r.key])) || null;
+  if(!e){ alert('保留する工事が特定できません（予定表を取り込み直してください）。'); return; }
+  if(confirmed[r.key]){ delete confirmed[r.key]; saveConfirmed(); }   // いったん消込確定を外して保留へ（控除があっても解除）
+  holdEntry(r, e);   // holdSetにセット＋保存＋中央同期＋runMatch＋トースト（保留タブ/一覧の🕒保留中へ）
+  renderCollect();
 }
 function _ckpi(l,v,sub,cls){ return '<div class="ckpi '+(cls||'')+'"><div class="l">'+l+'</div><div class="v">'+v+(sub?' <small>'+sub+'</small>':'')+'</div></div>'; }
 /* 突合グループ：1入金↔1〜複数予定（settled）／予定のみ（plan＝未入金・一部）／入金のみ（inp＝予定外・未処理） */
@@ -3252,8 +3298,10 @@ function reconGroups(){
       const dep=r.d.amount, planTot=plans.reduce((a,e)=>a+planAmt(e),0), paidTot=plans.reduce((a,e)=>a+(paid[_eid(e)]||0),0);
       let st;
       if(plans.length>1) st='multi';
-      else { const zan=planTot-(paid[_eid(plans[0])]||0); st = zan>0?'part':(dep>planTot?'over':(dep<planTot?'fee':'ok')); }  // dep>planTot＝過入金（予定0円で入金あり等）を一致にしない
-      groups.push({kind:'settled', ri:ri, dept:deptOf(plans[0]), plans, inp:{who:r.d.name,date:r.d.date,amt:dep,bank:r.d.bank,dkind:r.d.kind}, st, planTot, paidTot, zan:planTot-paidTot, denbaiKey:'d:'+r.key, prev:((isMulti(r)&&multiConfirm[r.key]&&multiConfirm[r.key].prev)||0)});
+      else { const pd=paid[_eid(plans[0])]||0; const zan=planTot-pd; const hasK=!!(r.koujo && _koujoSum(r.koujo)>0);   // pd＝入金＋手数料＋控除。控除で埋めた分も回収として算入
+        st = zan>0 ? 'part' : (zan<0 ? 'over' : ((!hasK && dep<planTot && (planTot-dep)<=1100) ? 'fee' : 'ok'));
+      }  // 残0なら回収済（控除で埋めた=okで控除メモ表示／手数料の小差¥1,100以内のみ"手数料差"）。残ありは"一部入金"（月またぎ・途中取込の差を嘘の手数料差にしない）。過入金はzan<0
+      groups.push({kind:'settled', ri:ri, dept:deptOf(plans[0]), plans, inp:{who:r.d.name,date:r.d.date,amt:dep,bank:r.d.bank,dkind:r.d.kind}, st, planTot, paidTot, zan:planTot-paidTot, denbaiKey:'d:'+r.key, koujo:(r.koujo||null), prev:((isMulti(r)&&multiConfirm[r.key]&&multiConfirm[r.key].prev)||0)});
       plans.forEach(e=>covered[_eid(e)]=1);
     }
   });
@@ -3645,6 +3693,8 @@ function renderCollect(){
     const _co=_coOf(g); const _coSep=(_curCo!==null && _co!==_curCo); _curCo=_co;   // v2.1 会社が変わったら区切り線（各グループ先頭は線なし）
     const rows=Math.max(1, g.plans.length);
     const gkey=g.denbaiKey||('gi'+gi), gopen=collectOpen.has(gkey);   // 行クリックで開く詳細のキー＝突合済みd:/予定e:（保留はindex）
+    const _uchiDiff=(g.kind==='settled' && g.st==='part' && g.inp && g.plans.length===1)?Math.max(0,g.planTot-(g.inp.amt||0)):0;   // 1入金↔1工事で入金が予定より少ない差
+    const _uchi=_uchiDiff>1100; const _uchiPct=g.planTot?Math.round(_uchiDiff/g.planTot*100):0;   // 差のある行＝内訳を確認（控除を入れる／保留にする の2択。大小の自動判定はしない）
     for(let i=0;i<rows;i++){
       const e=g.plans[i];
       h+='<tr class="g-'+g.st+(g.sharePend?' g-share':'')+(g.needReview?' g-need':'')+' crow'+(gopen?' cexpo':'')+(i===0&&_coSep?' cosep':'')+'" data-cexp="'+esc(gkey)+'">';
@@ -3660,6 +3710,7 @@ function renderCollect(){
       // 中央＋入金側（先頭行だけrowspan）
       if(i===0){
         let pillLab=LAB[g.st], pillCls=g.st;
+        if(_uchi){ pillLab='🔍 内訳を確認'; pillCls='uchi'; }   // 差のある行＝控除 or 保留を選ぶ
         if(g.sharePend){ pillLab='🔗 一本振込あり ¥'+yen(g.sharePend.amt); pillCls='share'; }  // 部門またぎの1本が来ている→内訳を確認して確定
         else if(g.st==='fee'){ const fe=Math.max(0,(g.planTot||0)-(g.inp?g.inp.amt:0)); pillLab='手数料差 ¥'+yen(fe); }  // 差額（＝手数料/協力費で埋めた分）を見せる
         else if(g.st==='over'){ const ov=Math.max(0,(g.inp?g.inp.amt:0)-(g.planTot||0)); pillLab='過入金 ＋¥'+yen(ov); }  // 予定より多い分
@@ -3674,7 +3725,8 @@ function renderCollect(){
             if(g.st==='none') whySub = w.act ? '<div class="whysub maybe">🟠 入金あり・要処理</div>' : '<div class="whysub notyet">まだ来てない</div>';   // 未入金の行に内訳を直接表示（入金は来てる＝要処理／本当に来てない）
           }
           const dbChk = dbQual(g) ? '<label class="dbchk"><input type="checkbox" data-denbai="'+esc(g.denbaiKey)+'">電債ですか？</label>' : '';   // 残が大きい一部入金＝電債の可能性→チェックで消込済み
-          ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'+whyBtn+whySub+dbChk+(g.kind==='settled'&&g.ri!=null?'<div class="undohint"><button type="button" class="lk-undo" data-goundo="'+g.ri+'" title="この消込を取り消して要確認に戻す">↩ 取り消し</button></div>':''); }
+          const _koujoNote = g.koujo ? '<div class="meta" style="color:#15703c;font-weight:700;margin-top:3px">控除：'+_koujoLabel(g.koujo)+' <button type="button" class="lk-undo" data-koujoundo="'+g.ri+'" title="控除を取り消す">↩</button></div>' : '';   // 控除で埋めて回収済にした分の内訳メモ
+          ctrHtml='<span class="pill '+pillCls+'">'+pillLab+'</span>'+whyBtn+whySub+_koujoNote+dbChk+(g.kind==='settled'&&g.ri!=null?'<div class="undohint"><button type="button" class="lk-undo" data-goundo="'+g.ri+'" title="この消込を取り消して要確認に戻す">↩ 取り消し</button></div>':''); }
         h+='<td class="ctr" rowspan="'+rows+'">'+ctrHtml+'</td>';
         const _gri = (g.ri!=null)?g.ri : (g.needReview?g.needReview.ri : (g.sharePend?g.sharePend.ri : null));
         const _gk = (_gri!=null && results[_gri]) ? results[_gri].key : null;
@@ -3691,10 +3743,39 @@ function renderCollect(){
         else { h+='<td class="inp muted" rowspan="'+rows+'">（入金なし）</td><td class="inp num muted" rowspan="'+rows+'">—</td>'; }
         const zc = isDb(g) ? '<span class="muted">電債で処理</span>'
           : isHeld(g) ? (g.zan>0?'<span class="zan">不足 ¥'+yen(g.zan)+'</span><div class="sub2" style="color:#4338ca">🕒保留中</div>':(g.zan<0?'<span class="pill over">超過 ＋¥'+yen(-g.zan)+'</span><div class="sub2" style="color:#4338ca">🕒保留中</div>':'<span class="muted">残0</span><div class="sub2" style="color:#4338ca">🕒保留中</div>'))
-          : g.needReview ? '<span class="muted">確認待ち</span>' : (g.st==='extra' ? '<span class="muted">—</span>' : (g.zan>0?'<span class="zan">¥'+yen(g.zan)+'</span>':(g.zan<0?'<span class="pill fee">+¥'+yen(-g.zan)+'</span>':'<span class="muted">0</span>')));
+          : g.needReview ? '<span class="muted">確認待ち</span>' : _uchi ? '<span class="muted" title="差の内訳を確認（催促前）">内訳確認</span>' : (g.st==='extra' ? '<span class="muted">—</span>' : (g.zan>0?'<span class="zan">¥'+yen(g.zan)+'</span>':(g.zan<0?'<span class="pill fee">+¥'+yen(-g.zan)+'</span>':'<span class="muted">0</span>')));
         h+='<td class="num" rowspan="'+rows+'">'+zc+'</td>';
       }
       h+='</tr>';
+    }
+    if(_uchi){ const _uri=g.ri;
+      const _opts=KOUJO_KINDS.map(k=>'<option value="'+esc(k)+'">'+esc(k)+'</option>').join('')+'<option value="__free__">＋ 自分で書く（一覧にない控除）</option>';
+      // 控除フォーム（「控除を入れる」で開く）
+      const _kf='<div data-koujoform="'+_uri+'" style="display:none;margin-top:10px;background:#fff;border:1px solid #cfe0ef;border-radius:11px;padding:12px 13px">'
+          +'<div style="font-size:12px;font-weight:800;color:#3b82c4;margin-bottom:9px"><span style="font-size:10.5px;font-weight:800;color:#fff;background:#3b82c4;border-radius:5px;padding:1px 7px">控除</span> 差し引かれた分を記録する（自分で訂正）</div>'
+          +'<div style="display:flex;gap:11px;flex-wrap:wrap;align-items:flex-end">'
+            +'<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;font-weight:700;color:#6b7686">控除の名前（選ぶ）</label>'
+              +'<select data-koujokind="'+_uri+'" style="border:1px solid #e7eaef;border-radius:8px;padding:8px 10px;font-size:13.5px;min-width:200px;background:#fff;font-family:inherit;color:#16202e">'+_opts+'</select></div>'
+            +'<div data-koujofreewrap="'+_uri+'" style="display:none;flex-direction:column;gap:4px"><label style="font-size:11px;font-weight:700;color:#6b7686">控除の名前（自由入力）</label>'
+              +'<input data-koujofree="'+_uri+'" placeholder="控除の名前を入力" style="border:1px solid #e7eaef;border-radius:8px;padding:8px 10px;font-size:13.5px;width:200px;font-family:inherit"></div>'
+            +'<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;font-weight:700;color:#6b7686">控除額</label>'
+              +'<input data-koujoamt="'+_uri+'" value="'+yen(_uchiDiff)+'" inputmode="numeric" style="border:1px solid #e7eaef;border-radius:8px;padding:8px 10px;font-size:13.5px;width:130px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;font-family:inherit"></div>'
+          +'</div>'
+          +'<div style="display:flex;gap:8px;margin-top:12px">'
+            +'<button type="button" data-koujogo="'+_uri+'" style="border:0;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;background:#2b57e6;color:#fff;font-family:inherit">記録して回収済にする</button>'
+            +'<button type="button" data-koujocancel="'+_uri+'" style="border:0;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;background:#eef1f5;color:#3d4a5c;font-family:inherit">やめる</button>'
+          +'</div>'
+          +'<div style="font-size:11px;color:#6b7686;margin-top:9px">予定¥'+yen(g.planTot)+' − 入金¥'+yen(g.inp.amt)+' ＝ 差¥'+yen(_uchiDiff)+'。控除額を入れると残が合って「回収済」になります（金額は直せます）。</div>'
+        +'</div>';
+      // シンプル：差のある行は「控除を入れる／保留にする」の2択だけ（大小の自動判定・チップなし。人が選ぶ）
+      h+='<tr class="crow uchirow" data-cexp="'+esc(gkey)+'"><td colspan="6" style="background:#f7f9ff;padding:11px 12px">'
+        +'<div style="font-size:12.5px;font-weight:800;color:#3d4a5c;margin-bottom:9px">この差 <b style="color:#bb3b2c">¥'+yen(_uchiDiff)+'</b>（予定の'+_uchiPct+'%） <span style="font-weight:600;color:#6b7686">― 控除なら入れる、分からなければ保留</span></div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">'
+          +'<button type="button" data-koujoopen="'+_uri+'" style="display:inline-flex;align-items:center;gap:7px;border:0;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:800;color:#fff;background:#2b57e6;cursor:pointer"><span style="font-size:10.5px;font-weight:800;color:#2b57e6;background:#fff;border-radius:5px;padding:1px 7px">控除</span>控除を入れる</button>'
+          +'<button type="button" data-holdset="'+_uri+'" style="display:inline-flex;align-items:center;gap:7px;border:0;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:800;color:#fff;background:#4338ca;cursor:pointer">🕒 保留にする</button>'
+        +'</div>'
+        +_kf
+        +'<div style="font-size:11px;color:#6b7686;margin-top:9px">※ <b>控除</b>＝安全協力費などを入れて回収済に。<b>保留</b>＝一覧に「🕒保留中」で残す（回収済にしない・あとで確定/戻す）。</div></td></tr>';
     }
     if(gopen) h+='<tr class="cdetail"><td colspan="6">'+collectDetailHtml(g)+'</td></tr>';   // 行クリックで開く詳細（表に無い情報）
   });
@@ -3738,6 +3819,19 @@ function undoFromCollect(ri){
   runMatch(); toast('消込を取り消しました（要確認に戻しました）');
 }
 document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.target.closest('[data-goundo]'); if(b){ undoFromCollect(+b.dataset.goundo); } });
+/* 控除：一覧の内訳欄から「控除」を開く／やめる／記録する／取り消す（その場で回収済に） */
+document.getElementById('collectBody').addEventListener('click',e=>{
+  const op=e.target.closest('[data-koujoopen]'); if(op){ e.stopPropagation(); const f=document.querySelector('[data-koujoform="'+op.dataset.koujoopen+'"]'); if(f){ const sh=(f.style.display==='none'||!f.style.display); f.style.display=sh?'block':'none'; if(sh){ const a=f.querySelector('[data-koujoamt]'); if(a){ try{ a.focus(); a.select(); }catch(_){} } } } return; }
+  const cc=e.target.closest('[data-koujocancel]'); if(cc){ e.stopPropagation(); const f=document.querySelector('[data-koujoform="'+cc.dataset.koujocancel+'"]'); if(f)f.style.display='none'; return; }
+  const hs=e.target.closest('[data-holdset]'); if(hs){ e.stopPropagation(); holdFromCollect(+hs.dataset.holdset); return; }
+  const un=e.target.closest('[data-koujoundo]'); if(un){ e.stopPropagation(); clearKoujo(+un.dataset.koujoundo); return; }
+  const go=e.target.closest('[data-koujogo]'); if(go){ e.stopPropagation(); const ri=+go.dataset.koujogo;
+    const sel=document.querySelector('[data-koujokind="'+ri+'"]'); let kind=sel?sel.value:'';
+    if(kind==='__free__'){ const fin=document.querySelector('[data-koujofree="'+ri+'"]'); kind=(fin&&fin.value.trim())||''; if(!kind){ alert('控除の名前を入れてください（プルダウンから選ぶか、自分で書く）'); return; } }
+    const ain=document.querySelector('[data-koujoamt="'+ri+'"]'); setKoujo(ri,kind,ain?ain.value:'0'); return; }
+});
+document.getElementById('collectBody').addEventListener('change',e=>{ const s=e.target.closest('[data-koujokind]'); if(!s)return; const w=document.querySelector('[data-koujofreewrap="'+s.dataset.koujokind+'"]'); if(w) w.style.display=(s.value==='__free__')?'flex':'none'; });
+document.getElementById('collectBody').addEventListener('blur',e=>{ const a=e.target.closest('[data-koujoamt]'); if(!a)return; const v=(a.value||'').replace(/[^0-9]/g,''); if(v)a.value=Number(v).toLocaleString('ja-JP'); },true);
 document.getElementById('collectBody').addEventListener('click',e=>{ const b=e.target.closest('[data-aiprev]'); if(b){ e.stopPropagation(); openAiLog(b.dataset.aiprev); } });
 /* 突合ビューの保留行：確定／戻す */
 document.getElementById('collectBody').addEventListener('click',e=>{
